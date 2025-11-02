@@ -77,7 +77,6 @@ const char *getCompassPointNotation(int windDeg);
 const char *getHttpResponsePhrase(int code);
 const char *getWifiStatusPhrase(wl_status_t status);
 void printHeapUsage();
-void disableBuiltinLED();
 
 #endif
 

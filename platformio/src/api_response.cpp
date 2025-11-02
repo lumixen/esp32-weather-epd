@@ -17,8 +17,12 @@
 
 #include <vector>
 #include <ArduinoJson.h>
+#include <MoonRise.h>
+#include <moonPhase.h>
 #include "api_response.h"
 #include "config.h"
+
+moonPhase moonPhase;
 
 DeserializationError deserializeOneCall(WiFiClient &json,
                                         owm_resp_onecall_t &r)
@@ -258,7 +262,7 @@ DeserializationError deserializeOpenMeteoCall(WiFiClient &json,
                                               owm_resp_onecall_t &r)
 {
   JsonDocument doc;
-  
+
   DeserializationError error = deserializeJson(doc, json);
 
 #if DEBUG_LEVEL >= 1
@@ -284,13 +288,14 @@ DeserializationError deserializeOpenMeteoCall(WiFiClient &json,
   r.current.pressure = current["surface_pressure"].as<int>(); //
   r.current.humidity = current["relative_humidity_2m"].as<int>();
   r.current.clouds = current["cloud_cover"].as<int>();
-  r.current.uvi = daily["uv_index_max"][0].as<float>();     //
+  r.current.uvi = daily["uv_index_max"][0].as<float>();   //
   r.current.visibility = current["visibility"].as<int>(); //
   r.current.wind_speed = current["wind_speed_10m"].as<float>();
   r.current.wind_gust = current["wind_gusts_10m"].as<float>();
   r.current.wind_deg = current["wind_direction_10m"].as<int>(); // w
   r.current.weather.id = current["weather_code"].as<int>();
   r.current.is_day = current["is_day"].as<bool>();
+  r.current.soil_temperature_18cm = hourly["soil_temperature_18cm"][0].as<float>();
 
   // minutely forecast is currently unused
   // i = 0;
@@ -330,10 +335,21 @@ DeserializationError deserializeOpenMeteoCall(WiFiClient &json,
   for (size_t i = 0; i < days; i++)
   {
     r.daily[i].dt = daily["time"][i].as<int64_t>();
-    // TODO: Open-Meteo does not provide lunar data. Calculate them or use another API.
-    // r.daily[i].moonrise   = daily["moonrise"]  .as<int64_t>();
-    // r.daily[i].moonset    = daily["moonset"]   .as<int64_t>();
-    // r.daily[i].moon_phase = daily["moon_phase"].as<float>();
+    // TODO: Rework moonrise/moonset/moon_phase to be stored separately from forecast data.
+    MoonRise mr;
+    time_t reference_time = time(nullptr) + i * 86400;
+    mr.calculate(LAT.toDouble(), LON.toDouble(), reference_time);
+#if DEBUG_LEVEL >= 1
+    Serial.println("[debug] Moon rise azimuth: " + String(mr.riseAz) + " Moon set azimuth: " + String(mr.setAz));
+    Serial.println("[debug] Moonrise: " + String(mr.riseTime) + " Moonset: " + String(mr.setTime));
+#endif
+    r.daily[i].moonrise = mr.riseTime;
+    r.daily[i].moonset = mr.setTime;
+    moonData_t moon = moonPhase.getPhase(reference_time);
+#if DEBUG_LEVEL >= 1
+    Serial.println("[debug] Moon phase percent lit: " + String(moon.percentLit));
+#endif
+    r.daily[i].moon_phase = moon.percentLit;
     r.daily[i].temp.min = daily["temperature_2m_min"][i].as<float>();
     r.daily[i].temp.max = daily["temperature_2m_max"][i].as<float>();
     // Cloud cover percentage is not provided by Open-Meteo as daily
@@ -344,6 +360,7 @@ DeserializationError deserializeOpenMeteoCall(WiFiClient &json,
     r.daily[i].rain = daily["rain_sum"][i].as<float>();
     r.daily[i].snow = daily["snowfall_sum"][i].as<float>();
     r.daily[i].weather.id = daily["weather_code"][i].as<int>();
+    r.daily[i].shortwave_radiation_sum = daily["shortwave_radiation_sum"][i].as<float>(); //
 
     if (i == OWM_NUM_DAILY - 1)
     {

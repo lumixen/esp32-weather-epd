@@ -84,6 +84,7 @@ typedef struct owm_current
   float rain_1h;    // (where available) Rain volume for last hour, mm
   float snow_1h;    // (where available) Snow volume for last hour, mm
   bool is_day;      // Is set to true if the sun is currently up
+  float soil_temperature_18cm; // (where available) Soil temperature at 18cm depth, °C
   owm_weather_t weather;
 } owm_current_t;
 
@@ -145,6 +146,7 @@ typedef struct owm_daily
   int pop;          // Probability of precipitation, %
   float rain;       // (where available) Precipitation volume, mm
   float snow;       // (where available) Snow volume, mm
+  float shortwave_radiation_sum; // (where available) Sum of shortwave radiation received, MJ/m²
   owm_weather_t weather;
 } owm_daily_t;
 

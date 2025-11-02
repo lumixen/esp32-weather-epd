@@ -88,8 +88,8 @@ const char *TXT_PRESSURE           = "Pressione";
 const char *TXT_AIR_QUALITY        = "Qualit\340 dell'aria";
 const char *TXT_AIR_POLLUTION      = "Inquinamento aria";
 const char *TXT_VISIBILITY         = "Visibilit\340";
-const char *TXT_INDOOR_TEMPERATURE = "Temperatura int.";
-const char *TXT_INDOOR_HUMIDITY    = "Umidit\340 int.";
+const char *TXT_MOONRISE           = "Alba della Luna";
+const char *TXT_MOONSET            = "Tramonto della Luna";
 
 // UV INDEX
 const char *TXT_UV_LOW       = "Basso";

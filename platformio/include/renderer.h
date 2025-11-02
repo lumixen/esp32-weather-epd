@@ -21,6 +21,7 @@
 #include <vector>
 #include <Arduino.h>
 #include <time.h>
+#include <GxEPD2_750c_86BF.h>
 #include "api_response.h"
 #include "config.h"
 
@@ -36,6 +37,12 @@
   #include <GxEPD2_3C.h>
   extern GxEPD2_3C<GxEPD2_750c_Z08,
                    GxEPD2_750c_Z08::HEIGHT / 2> display;
+#elif EPD_PANEL == DISP_3C_86BF
+  #define DISP_WIDTH  800
+  #define DISP_HEIGHT 480
+  #include <GxEPD2_3C.h>
+  extern GxEPD2_3C<GxEPD2_750c_86BF,
+                   GxEPD2_750c_86BF::HEIGHT / 2> display;
 #elif EPD_PANEL == DISP_7C_F
   #define DISP_WIDTH  800
   #define DISP_HEIGHT 480
@@ -69,8 +76,7 @@ void initDisplay();
 void powerOffDisplay();
 void drawCurrentConditions(const owm_current_t &current,
                            const owm_daily_t &today,
-                           const owm_resp_air_pollution_t &owm_air_pollution,
-                           float inTemp, float inHumidity);
+                           const owm_resp_air_pollution_t &owm_air_pollution);
 void drawForecast(const owm_daily_t *daily, tm timeInfo);
 void drawAlerts(std::vector<owm_alerts_t> &alerts,
                 const String &city, const String &date);

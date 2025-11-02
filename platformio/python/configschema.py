@@ -16,6 +16,7 @@ class EpdPanel(DocEnum):
     """E-Paper panel type"""
     DISP_BW_V2 = "DISP_BW_V2", "7.5in e-Paper (v2) 800x480px Black/White"
     DISP_3C_B = "DISP_3C_B", "7.5in e-Paper (B) 800x480px Red/Black/White"
+    DISP_3C_86BF = "DISP_3C_86BF", "7.5in e-Paper (B) 800x480px Red/Black/White DEPG0750RWF86BF"
     DISP_7C_F = "DISP_7C_F", "7.3in ACeP e-Paper (F) 800x480px 7-Colors"
     DISP_BW_V1 = "DISP_BW_V1", "7.5in e-Paper (v1) 640x384px Black/White"
 
@@ -23,11 +24,6 @@ class EpdDriver(str, Enum):
     """E-Paper driver board"""
     DESPI_C02 = "Good Display DESPI-C02"
     WAVESHARE = "Waveshare"
-
-class Sensor(str, Enum):
-    """Indoor environment sensor"""
-    BME280 = "BME280"
-    BME680 = "BME680"
 
 class UnitsTemp(str, Enum):
     """Temperature units"""
@@ -103,6 +99,9 @@ class WeatherAPI(str, Enum):
     OPEN_WEATHER_MAP = "OpenWeatherMap"
     OPEN_METEO = "Open-Meteo"
 
+class AirQualityAPI(str, Enum):
+    OPEN_WEATHER_MAP = "OpenWeatherMap"
+
 class Font(str, Enum):
     FREEMONO = "FreeMono"
     FREESANS = "FreeSans"
@@ -124,8 +123,8 @@ class Font(str, Enum):
 defined_enums: list[Enum] = [
     EpdPanel,
     EpdDriver,
-    Sensor,
     WeatherAPI,
+    AirQualityAPI,
     UnitsTemp,
     UnitsSpeed,
     UnitsPres,
@@ -150,9 +149,9 @@ def enum_schema(enum: Enum):
 class ConfigSchema(BaseModel):
     epdPanel: Annotated[EpdPanel, enum_schema(EpdPanel)] = EpdPanel.DISP_BW_V2
     epdDriver: EpdDriver = EpdDriver.DESPI_C02
-    sensor: Sensor = Sensor.BME280
     locale: Locale
     weatherAPI: WeatherAPI = WeatherAPI.OPEN_WEATHER_MAP
+    airQualityAPI: AirQualityAPI = AirQualityAPI.OPEN_WEATHER_MAP
     useImperialUnitsAsDefault: bool = False # TODO: Use locale to set units
     unitsTemp: UnitsTemp = Field(default_factory=lambda data: UnitsTemp.FAHRENHEIT if data['useImperialUnitsAsDefault'] else UnitsTemp.CELSIUS)
     unitsSpeed: UnitsSpeed = Field(default_factory=lambda data: UnitsSpeed.MILESPERHOUR if data['useImperialUnitsAsDefault'] else UnitsSpeed.KILOMETERSPERHOUR)
@@ -179,10 +178,6 @@ class ConfigSchema(BaseModel):
     pinEpdMISO: int = 19
     pinEpdMOSI: int = 23
     pinEpdPwr: int = 26
-    pinBmeSDA: int = 17
-    pinBmeSCL: int = 16
-    pinBmePwr: int = 4
-    bmeAddress: int | str = 0x76
     wifiSSID: str
     wifiPassword: str
     owmApikey: str | None = None
@@ -200,11 +195,6 @@ class ConfigSchema(BaseModel):
     bedTime: int = 0
     wakeTime: int = 6
     hourlyGraphMax: int = 24
-
-    @field_validator('bmeAddress')
-    @classmethod
-    def validate_int(cls, v: int | str):
-        return int(v, 0) if isinstance(v, str) else v
     
     @model_validator(mode="after")
     def validate_apikey(self):

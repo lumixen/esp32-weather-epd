@@ -52,8 +52,8 @@ extern const char *TXT_PRESSURE;
 extern const char *TXT_AIR_QUALITY;
 extern const char *TXT_AIR_POLLUTION;
 extern const char *TXT_VISIBILITY;
-extern const char *TXT_INDOOR_TEMPERATURE;
-extern const char *TXT_INDOOR_HUMIDITY;
+extern const char *TXT_MOONRISE;
+extern const char *TXT_MOONSET;
 
 // UV INDEX
 extern const char *TXT_UV_LOW;
@@ -117,7 +117,7 @@ extern const char *TXT_UNKNOWN;
 // All Lowercase
 extern const char *TXT_NOT_FOUND;
 extern const char *TXT_READ_FAILED;
-// Complete 
+// Complete
 extern const char *TXT_FAILED_TO_GET_TIME;
 extern const char *TXT_HIBERNATING_INDEFINITELY_NOTICE;
 extern const char *TXT_REFERENCING_OLDER_TIME_NOTICE;
@@ -155,18 +155,19 @@ extern const std::vector<String> TERM_DUST;
 extern const std::vector<String> TERM_STRONG_WIND;
 
 // AIR QUALITY INDEX
-extern "C" {
-extern const aqi_scale_t AQI_SCALE;
-extern const char *AUSTRALIA_AQI_TXT[6];
-extern const char *CANADA_AQHI_TXT[4];
-extern const char *EUROPEAN_UNION_CAQI_TXT[5];
-extern const char *HONG_KONG_AQHI_TXT[5];
-extern const char *INDIA_AQI_TXT[6];
-extern const char *CHINA_AQI_TXT[6];
-extern const char *SINGAPORE_PSI_TXT[5];
-extern const char *SOUTH_KOREA_CAI_TXT[4];
-extern const char *UNITED_KINGDOM_DAQI_TXT[4];
-extern const char *UNITED_STATES_AQI_TXT[6];
+extern "C"
+{
+    extern const aqi_scale_t AQI_SCALE;
+    extern const char *AUSTRALIA_AQI_TXT[6];
+    extern const char *CANADA_AQHI_TXT[4];
+    extern const char *EUROPEAN_UNION_CAQI_TXT[5];
+    extern const char *HONG_KONG_AQHI_TXT[5];
+    extern const char *INDIA_AQI_TXT[6];
+    extern const char *CHINA_AQI_TXT[6];
+    extern const char *SINGAPORE_PSI_TXT[5];
+    extern const char *SOUTH_KOREA_CAI_TXT[4];
+    extern const char *UNITED_KINGDOM_DAQI_TXT[4];
+    extern const char *UNITED_STATES_AQI_TXT[6];
 }
 
 // COMPASS POINT
