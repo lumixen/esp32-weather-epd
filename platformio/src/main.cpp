@@ -44,6 +44,14 @@ static owm_resp_air_pollution_t owm_air_pollution;
 
 Preferences prefs;
 
+/* Toggle the built-in LED on or off. */
+void toggleBuiltinLED(bool state)
+{
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, state ? LOW : HIGH); // Lolin D32 LED is active low
+  return;
+}
+
 /* Put esp32 into ultra low-power deep sleep (<11μA).
  * Aligns wake time to the minute. Sleep times defined in config.cpp.
  */
@@ -105,6 +113,8 @@ void beginDeepSleep(unsigned long startTime, tm *timeInfo)
   printHeapUsage();
 #endif
 
+  toggleBuiltinLED(false);
+
   esp_sleep_enable_timer_wakeup(sleepDuration * 1000000ULL);
   Serial.print(TXT_AWAKE_FOR);
   Serial.println(" " + String((millis() - startTime) / 1000.0, 3) + "s");
@@ -119,6 +129,7 @@ void setup()
 {
   unsigned long startTime = millis();
   Serial.begin(115200);
+  toggleBuiltinLED(true);
 
 #if DEBUG_LEVEL >= 1
   printHeapUsage();

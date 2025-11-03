@@ -1,6 +1,6 @@
 from enum import Enum
 from typing import Annotated
-from pydantic import BaseModel, Field, WithJsonSchema, field_validator, model_validator
+from pydantic import BaseModel, Field, WithJsonSchema, model_validator
 
 class DocEnum(Enum):
     def __new__(cls, value, doc=None):
