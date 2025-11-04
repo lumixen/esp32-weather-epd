@@ -19,8 +19,8 @@
   | Panel                                   | Resolution | Colors          | Notes                                                                                                                 |
   |-----------------------------------------|------------|-----------------|-----------------------------------------------------------------------------------------------------------------------|
   | DKE DEPG0750RWF86BF 7.5in e-paper (86BF)  | 800x480px  | Red/Black/White     | Available [here](https://www.aliexpress.com/item/1005006254055758.html)                 |
-  | Waveshare 7.5in e-paper (v2)            | 800x480px  | Black/White     | Available [here](https://www.waveshare.com/product/7.5inch-e-paper.htm). (recommended)                                |
-  | Good Display 7.5in e-paper (GDEY075T7)  | 800x480px  | Black/White     | [Temporarily Unavailable](https://www.aliexpress.com/item/3256802683908868.html)? (wrong product listed?)             |
+  | Waveshare 7.5in e-paper (v2)            | 800x480px  | Black/White     | Available [here](https://www.waveshare.com/product/7.5inch-e-paper.htm)                                |
+  | Good Display 7.5in e-paper (GDEY075T7)  | 800x480px  | Black/White     | Available [here](https://www.aliexpress.com/item/3256802683908868.html)             |
   | Waveshare 7.5in e-Paper (B)             | 800x480px  | Red/Black/White | Available [here](https://www.waveshare.com/product/7.5inch-e-paper-b.htm).                                            |
   | Good Display 7.5in e-paper (GDEY075Z08) | 800x480px  | Red/Black/White | Available [here](https://www.aliexpress.com/item/3256803540460035.html).                                              |
   | Waveshare 7.3in ACeP e-Paper (F)        | 800x480px  | 7-Color         | Available [here](https://www.waveshare.com/product/displays/e-paper/epaper-1/7.3inch-e-paper-f.htm).                  |
@@ -28,17 +28,94 @@
   | Waveshare 7.5in e-paper (v1)            | 640x384px  | Black/White     | Limited support. Some information not displayed, see [image](showcase/demo-waveshare75-version1.jpg).                 |
   | Good Display 7.5in e-paper (GDEW075T8)  | 640x384px  | Black/White     | Limited support. Some information not displayed, see [image](showcase/demo-waveshare75-version1.jpg).                 |
 
-  This software has limited support for accent colors. E-paper panels with additional colors tend to have longer refresh times, which will reduce battery life.
 
 ## Setup Guide
 
-### Wiring
+1. **Connect the Hardware**
+   - Wire your Lolin D32 board to the e-paper panel according to the wiring schematic provided below.
+
+2. **Install Dependencies**
+   - Make sure you have [PlatformIO](https://platformio.org/) installed in VS Code.
+
+3. **Configure the Software**
+   - Create a `config.json` file in the `platformio` folder.
+   - Copy and edit the example configuration to match your hardware and preferences (WiFi credentials, location, panel type, etc.).
+
+4. **Compile and Upload**
+   - Open the project in VS Code.
+   - Click the PlatformIO "Build" button to compile the firmware.
+   - Connect your ESP32 board via USB and click "Upload" to flash the firmware.
+
+### Wiring Schematic (Lolin D32 Board)
 
 Wiring is specific for Lolin D32 board:
 
+| Signal         | Lolin D32 Pin | E-Paper Pin      | Description                |
+|----------------|--------------|------------------|----------------------------|
+| EPD Busy       | 4            | BUSY             | E-paper busy signal        |
+| EPD Chip Select| 5            | CS               | SPI chip select            |
+| EPD Reset      | 16           | RST              | E-paper reset              |
+| EPD Data/Command| 17          | DC               | Data/command select        |
+| EPD Clock      | 18           | SCK              | SPI clock                  |
+| EPD MISO       | 19           | MISO             | SPI MISO                   |
+| EPD MOSI       | 23           | MOSI             | SPI MOSI                   |
+| EPD PWR        | 2            | VCC/PWR          | E-paper power              |
+
+
 ### Configuration, Compilation, and Upload
 
-Here's how to subscribe and avoid any credit card changes:
-   - Go to <https://home.openweathermap.org/subscriptions/billing_info/onecall_30/base?key=base&service=onecall_30>
-   - Follow the instructions to complete the subscription.
-   - Go to <https://home.openweathermap.org/subscriptions> and set the "Calls per day (no more than)" to 1,000. This ensures you will never overrun the free calls.
+To configure the build, create a new `config.json` file in the `platformio` folder that provides the configuration variables. For example:
+
+```json
+{
+  "epdPanel": "DISP_3C_86BF",
+  "epdDriver": "Waveshare",
+  "locale": "en_US",
+  "weatherAPI": "Open-Meteo",
+  "airQualityAPI": "OpenWeatherMap",
+  "useImperialUnitsAsDefault": false,
+  "unitsTemp": "Celsius",
+  "unitsSpeed": "km/h",
+  "unitsPres": "mbar",
+  "unitsDistance": "km",
+  "unitsHourlyPrecip": "probability of precipitation",
+  "unitsDailyPrecip": "mm",
+  "windDirectionLabel": "hidden",
+  "windArrowPrecision": "secondary intercardinal",
+  "font": "FreeSans",
+  "displayDailyPrecip": "smart",
+  "displayHourlyIcons": true,
+  "displayAlerts": false,
+  "batteryMonitoring": true,
+  "statusBarExtrasBatVoltage": true,
+  "statusBarExtrasWifiRSSI": false,
+  "debugLevel": 0,
+  "pinBatAdc": 35,
+  "pinEpdBusy": 4,
+  "pinEpdCS": 5,
+  "pinEpdRst": 16,
+  "pinEpdDC": 17,
+  "pinEpdSCK": 18,
+  "pinEpdMISO": 19,
+  "pinEpdMOSI": 23,
+  "pinEpdPwr": 2,
+  "wifiSSID": "SSID",
+  "wifiPassword": "PASSWORD",
+  "owmApikey": "OWM_API_KEY",
+  "owmOnecallVersion": "3.0",
+  "latitude": "64",
+  "longitude": "-22",
+  "city": "ESPLand",
+  "timezone": "UTC0",
+  "timeFormat": "%H:%M",
+  "hourFormat": "%H",
+  "dateFormat": "%d/%m/%Y",
+  "refreshTimeFormat": "%x %H:%M",
+  "sleepDuration": 30,
+  "bedTime": 0,
+  "wakeTime": 6,
+  "hourlyGraphMax": 24
+}
+```
+
+Air Quality API is still provided by OWM. However, it does not require a credit card — just generate a simple token.
