@@ -30,6 +30,7 @@
 #include "display_utils.h"
 #include "icons/icons_196x196.h"
 #include "renderer.h"
+#include "moon_tools.h"
 
 #if HTTP_MODE != HTTP
 #include <WiFiClientSecure.h>
@@ -39,7 +40,7 @@
 #endif
 
 // too large to allocate locally on stack
-static owm_resp_onecall_t owm_onecall;
+static environment_data_t environment_data;
 static owm_resp_air_pollution_t owm_air_pollution;
 
 Preferences prefs;
@@ -122,6 +123,14 @@ void beginDeepSleep(unsigned long startTime, tm *timeInfo)
   Serial.println(" " + String(sleepDuration) + "s");
   esp_deep_sleep_start();
 } // end beginDeepSleep
+
+void enrichWithMoonData(environment_data_t &data, tm *timeInfo)
+{
+  moon_state_t moonState = getMoonState(LAT.toDouble(), LON.toDouble());
+  data.daily[0].moonrise = moonState.moonrise;
+  data.daily[0].moonset = moonState.moonset;
+  data.daily[0].moon_phase = moonState.phase;
+} // end enrichWithMoonData
 
 /* Program entry point.
  */
@@ -261,7 +270,7 @@ void setup()
 #endif
 #endif
 #if WEATHER_API == OPEN_WEATHER_MAP
-  int rxStatus = getOWMonecall(client, owm_onecall);
+  int rxStatus = getOWMonecall(client, environment_data);
   if (rxStatus != HTTP_CODE_OK)
   {
     killWiFi();
@@ -277,7 +286,7 @@ void setup()
   }
 
 #elif WEATHER_API == OPEN_METEO
-  int rxStatus = getOMCall(client, owm_onecall);
+  int rxStatus = getOMCall(client, environment_data);
   if (rxStatus != HTTP_CODE_OK)
   {
     killWiFi();
@@ -315,6 +324,8 @@ void setup()
 
   killWiFi(); // WiFi no longer needed
 
+  enrichWithMoonData(environment_data, &timeInfo);
+
   String refreshTimeStr;
   getRefreshTimeStr(refreshTimeStr, timeConfigured, &timeInfo);
   String dateStr;
@@ -324,17 +335,19 @@ void setup()
   initDisplay();
   do
   {
-    drawCurrentConditions(owm_onecall.current, owm_onecall.daily[0],
-                          owm_air_pollution);
+    drawCurrentConditions(
+      environment_data.current, 
+      environment_data.daily[0],
+      owm_air_pollution);
     Serial.println("Drawing current conditions");
-    drawOutlookGraph(owm_onecall.hourly, owm_onecall.daily, timeInfo);
+    drawOutlookGraph(environment_data.hourly, environment_data.daily, timeInfo);
     Serial.println("Drawing outlook graph");
-    drawForecast(owm_onecall.daily, timeInfo);
+    drawForecast(environment_data.daily, timeInfo);
     Serial.println("Drawing forecast");
     drawLocationDate(CITY_STRING, dateStr);
     Serial.println("Drawing location and date");
 #if DISPLAY_ALERTS
-    drawAlerts(owm_onecall.alerts, CITY_STRING, dateStr);
+    drawAlerts(environment_data.alerts, CITY_STRING, dateStr);
 #endif
     drawStatusBar(statusStr, refreshTimeStr, wifiRSSI, batteryVoltage);
   } while (display.nextPage());

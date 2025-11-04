@@ -17,15 +17,10 @@
 
 #include <vector>
 #include <ArduinoJson.h>
-#include <MoonRise.h>
-#include <moonPhase.h>
 #include "api_response.h"
 #include "config.h"
 
-moonPhase moonPhase;
-
-DeserializationError deserializeOneCall(WiFiClient &json,
-                                        owm_resp_onecall_t &r)
+DeserializationError deserializeOneCall(WiFiClient &json, environment_data_t &r)
 {
   int i;
 
@@ -94,20 +89,6 @@ DeserializationError deserializeOneCall(WiFiClient &json,
   // OpenWeatherMap indicates sun is up with d otherwise n for night
   r.current.is_day = current_weather["icon"].as<String>().endsWith("d");
 
-  // minutely forecast is currently unused
-  // i = 0;
-  // for (JsonObject minutely : doc["minutely"].as<JsonArray>())
-  // {
-  //   r.minutely[i].dt            = minutely["dt"]           .as<int64_t>();
-  //   r.minutely[i].precipitation = minutely["precipitation"].as<float>();
-
-  //   if (i == OWM_NUM_MINUTELY - 1)
-  //   {
-  //     break;
-  //   }
-  //   ++i;
-  // }
-
   i = 0;
   for (JsonObject hourly : doc["hourly"].as<JsonArray>())
   {
@@ -133,7 +114,7 @@ DeserializationError deserializeOneCall(WiFiClient &json,
     // OpenWeatherMap indicates sun is up with d otherwise n for night
     r.hourly[i].is_day = hourly_weather["icon"].as<String>().endsWith("d");
 
-    if (i == OWM_NUM_HOURLY - 1)
+    if (i == NUM_HOURLY - 1)
     {
       break;
     }
@@ -146,9 +127,6 @@ DeserializationError deserializeOneCall(WiFiClient &json,
     r.daily[i].dt = daily["dt"].as<int64_t>();
     r.daily[i].sunrise = daily["sunrise"].as<int64_t>();
     r.daily[i].sunset = daily["sunset"].as<int64_t>();
-    r.daily[i].moonrise = daily["moonrise"].as<int64_t>();
-    r.daily[i].moonset = daily["moonset"].as<int64_t>();
-    r.daily[i].moon_phase = daily["moon_phase"].as<float>();
     JsonObject daily_temp = daily["temp"];
     r.daily[i].temp.morn = daily_temp["morn"].as<float>();
     r.daily[i].temp.day = daily_temp["day"].as<float>();
@@ -156,11 +134,6 @@ DeserializationError deserializeOneCall(WiFiClient &json,
     r.daily[i].temp.night = daily_temp["night"].as<float>();
     r.daily[i].temp.min = daily_temp["min"].as<float>();
     r.daily[i].temp.max = daily_temp["max"].as<float>();
-    JsonObject daily_feels_like = daily["feels_like"];
-    r.daily[i].feels_like.morn = daily_feels_like["morn"].as<float>();
-    r.daily[i].feels_like.day = daily_feels_like["day"].as<float>();
-    r.daily[i].feels_like.eve = daily_feels_like["eve"].as<float>();
-    r.daily[i].feels_like.night = daily_feels_like["night"].as<float>();
     r.daily[i].pressure = daily["pressure"].as<int>();
     r.daily[i].humidity = daily["humidity"].as<int>();
     r.daily[i].dew_point = daily["dew_point"].as<float>();
@@ -178,7 +151,7 @@ DeserializationError deserializeOneCall(WiFiClient &json,
     r.daily[i].weather.main = daily_weather["main"].as<const char *>();
     r.daily[i].weather.description = daily_weather["description"].as<const char *>();
 
-    if (i == OWM_NUM_DAILY - 1)
+    if (i == NUM_DAILY - 1)
     {
       break;
     }
@@ -259,7 +232,7 @@ DeserializationError deserializeAirQuality(WiFiClient &json,
 } // end deserializeAirQuality
 
 DeserializationError deserializeOpenMeteoCall(WiFiClient &json,
-                                              owm_resp_onecall_t &r)
+                                              environment_data_t &r)
 {
   JsonDocument doc;
 
@@ -297,20 +270,6 @@ DeserializationError deserializeOpenMeteoCall(WiFiClient &json,
   r.current.is_day = current["is_day"].as<bool>();
   r.current.soil_temperature_18cm = hourly["soil_temperature_18cm"][0].as<float>();
 
-  // minutely forecast is currently unused
-  // i = 0;
-  // for (JsonObject minutely : doc["minutely"].as<JsonArray>())
-  // {
-  //   r.minutely[i].dt            = minutely["dt"]           .as<int64_t>();
-  //   r.minutely[i].precipitation = minutely["precipitation"].as<float>();
-
-  //   if (i == OWM_NUM_MINUTELY - 1)
-  //   {
-  //     break;
-  //   }
-  //   ++i;
-  // }
-
   int hours = doc["hourly"]["time"].size();
   for (size_t i = 0; i < hours; i++)
   {
@@ -325,7 +284,7 @@ DeserializationError deserializeOpenMeteoCall(WiFiClient &json,
     r.hourly[i].weather.id = hourly["weather_code"][i].as<int>();
     r.hourly[i].is_day = hourly["is_day"][i].as<bool>();
 
-    if (i == OWM_NUM_HOURLY - 1)
+    if (i == NUM_HOURLY - 1)
     {
       break;
     }
@@ -335,21 +294,6 @@ DeserializationError deserializeOpenMeteoCall(WiFiClient &json,
   for (size_t i = 0; i < days; i++)
   {
     r.daily[i].dt = daily["time"][i].as<int64_t>();
-    // TODO: Rework moonrise/moonset/moon_phase to be stored separately from forecast data.
-    MoonRise mr;
-    time_t reference_time = time(nullptr) + i * 86400;
-    mr.calculate(LAT.toDouble(), LON.toDouble(), reference_time);
-#if DEBUG_LEVEL >= 1
-    Serial.println("[debug] Moon rise azimuth: " + String(mr.riseAz) + " Moon set azimuth: " + String(mr.setAz));
-    Serial.println("[debug] Moonrise: " + String(mr.riseTime) + " Moonset: " + String(mr.setTime));
-#endif
-    r.daily[i].moonrise = mr.riseTime;
-    r.daily[i].moonset = mr.setTime;
-    moonData_t moon = moonPhase.getPhase(reference_time);
-#if DEBUG_LEVEL >= 1
-    Serial.println("[debug] Moon phase percent lit: " + String(moon.percentLit));
-#endif
-    r.daily[i].moon_phase = moon.percentLit;
     r.daily[i].temp.min = daily["temperature_2m_min"][i].as<float>();
     r.daily[i].temp.max = daily["temperature_2m_max"][i].as<float>();
     // Cloud cover percentage is not provided by Open-Meteo as daily
@@ -362,7 +306,7 @@ DeserializationError deserializeOpenMeteoCall(WiFiClient &json,
     r.daily[i].weather.id = daily["weather_code"][i].as<int>();
     r.daily[i].shortwave_radiation_sum = daily["shortwave_radiation_sum"][i].as<float>(); //
 
-    if (i == OWM_NUM_DAILY - 1)
+    if (i == NUM_DAILY - 1)
     {
       break;
     }

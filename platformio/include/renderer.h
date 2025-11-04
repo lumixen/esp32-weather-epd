@@ -24,6 +24,7 @@
 #include <GxEPD2_750c_86BF.h>
 #include "api_response.h"
 #include "config.h"
+#include "moon_tools.h"
 
 #if EPD_PANEL == DISP_BW_V2
   #define DISP_WIDTH  800
@@ -74,14 +75,14 @@ void drawMultiLnString(int16_t x, int16_t y, const String &text,
                        uint16_t color=GxEPD_BLACK);
 void initDisplay();
 void powerOffDisplay();
-void drawCurrentConditions(const owm_current_t &current,
-                           const owm_daily_t &today,
+void drawCurrentConditions(const current_t &current,
+                           const daily_t &today,
                            const owm_resp_air_pollution_t &owm_air_pollution);
-void drawForecast(const owm_daily_t *daily, tm timeInfo);
+void drawForecast(const daily_t *daily, tm timeInfo);
 void drawAlerts(std::vector<owm_alerts_t> &alerts,
                 const String &city, const String &date);
 void drawLocationDate(const String &city, const String &date);
-void drawOutlookGraph(const owm_hourly_t *hourly, const owm_daily_t *daily,
+void drawOutlookGraph(const hourly_t *hourly, const daily_t *daily,
                       tm timeInfo);
 void drawStatusBar(const String &statusStr, const String &refreshTimeStr,
                    int rssi, uint32_t batVoltage);

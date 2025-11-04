@@ -1,9 +1,9 @@
 ## Changes made to this fork
+- Adjusted specifically for Lolin D32 board.
 - Open-Meteo is the main weather source. No need to provide the credit card details to get the OWM token.
 - Configuration moved to a non-versioned JSON file which is processed by a Python script to generate C++ defines.
 - Added support for DKE DEPG0750RWF86BF display.
 - Removed BME integration.
-- Adjusted specifically for Lolin D32 board.
 
 ---
 

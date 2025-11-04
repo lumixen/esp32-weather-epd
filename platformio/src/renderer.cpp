@@ -22,6 +22,7 @@
 #include "config.h"
 #include "conversions.h"
 #include "display_utils.h"
+#include "moon_tools.h"
 
 // fonts
 #include FONT_HEADER
@@ -271,8 +272,8 @@ void powerOffDisplay()
 /* This function is responsible for drawing the current conditions and
  * associated icons.
  */
-void drawCurrentConditions(const owm_current_t &current,
-                           const owm_daily_t &today,
+void drawCurrentConditions(const current_t &current,
+                           const daily_t &today,
                            const owm_resp_air_pollution_t &owm_air_pollution)
 {
   String dataStr, unitStr;
@@ -624,7 +625,7 @@ void drawCurrentConditions(const owm_current_t &current,
 
 /* This function is responsible for drawing the five day forecast.
  */
-void drawForecast(const owm_daily_t *daily, tm timeInfo)
+void drawForecast(const daily_t *daily, tm timeInfo)
 {
   // 5 day, forecast
   String hiStr, loStr;
@@ -869,7 +870,7 @@ int celsius_to_plot_y(float temp, int tempBoundMin, float yPxPerUnit,
 /* This function is responsible for drawing the outlook graph for the specified
  * number of hours(up to 48).
  */
-void drawOutlookGraph(const owm_hourly_t *hourly, const owm_daily_t *daily,
+void drawOutlookGraph(const hourly_t *hourly, const daily_t *daily,
                       tm timeInfo)
 {
   const int xPos0 = 350;

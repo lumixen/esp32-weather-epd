@@ -142,9 +142,9 @@ bool waitForSNTPSync(tm *timeInfo)
  * Returns the HTTP Status Code.
  */
 #if HTTP_MODE == HTTP
-  int getOWMonecall(WiFiClient &client, owm_resp_onecall_t &r)
+  int getOWMonecall(WiFiClient &client, environment_data_t &r)
 #else
-  int getOWMonecall(WiFiClientSecure &client, owm_resp_onecall_t &r)
+  int getOWMonecall(WiFiClientSecure &client, environment_data_t &r)
 #endif
 {
   int attempts = 0;
@@ -273,9 +273,9 @@ bool waitForSNTPSync(tm *timeInfo)
  * Returns the HTTP Status Code.
  */
 #if HTTP_MODE == HTTP
-int getOMCall(WiFiClient &client, owm_resp_onecall_t &r)
+int getOMCall(WiFiClient &client, environment_data_t &r)
 #else
-int getOMCall(WiFiClientSecure &client, owm_resp_onecall_t &r)
+int getOMCall(WiFiClientSecure &client, environment_data_t &r)
 #endif
 {
   int attempts = 0;
