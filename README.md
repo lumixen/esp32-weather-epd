@@ -13,6 +13,8 @@
   <img src="https://github.com/user-attachments/assets/d7e9c4d2-8885-43cd-aa22-df5e04820dd2" width="49%" />
 </p>
 
+Enclosure files and assembly instructions are available at [printables](https://www.printables.com/model/1469770-75-e-paper-frame-for-lolin-d32-waveshare-driver).
+
 ### Panel Support
 
   | Panel                                   | Resolution | Colors          | Notes                                                                                                                 |
