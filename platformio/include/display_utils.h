@@ -60,7 +60,7 @@ void truncateExtraAlertInfo(String &text);
 void filterAlerts(std::vector<owm_alerts_t> &resp, int *ignore_list);
 const char *getUVIdesc(unsigned int uvi);
 float getAvgConc(const float pollutant[], int hours);
-int getAQI(const owm_resp_air_pollution_t &p);
+int getAQI(const air_pollution_t &p);
 const char *getAQIdesc(int aqi);
 const char *getWiFidesc(int rssi);
 const uint8_t *getWiFiBitmap16(int rssi);

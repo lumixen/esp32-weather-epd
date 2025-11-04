@@ -1,7 +1,7 @@
 ## Highlights
 
 - Optimized for the Lolin D32 board.
-- Uses Open-Meteo as the primary weather API - no credit card required for tokens.
+- Uses [Open-Meteo](https://open-meteo.com/) as the primary weather API.
 - Configuration is managed via a non-versioned JSON file, processed by a Python script to generate C++ defines.
 - Supports the DKE DEPG0750RWF86BF e-paper display.
 - BME sensor integration removed.
@@ -75,7 +75,7 @@ To configure the build, create a new `config.json` file in the `platformio` fold
   "epdDriver": "Waveshare",
   "locale": "en_US",
   "weatherAPI": "Open-Meteo",
-  "airQualityAPI": "OpenWeatherMap",
+  "airQualityAPI": "Open-Meteo",
   "useImperialUnitsAsDefault": false,
   "unitsTemp": "Celsius",
   "unitsSpeed": "km/h",
@@ -104,8 +104,8 @@ To configure the build, create a new `config.json` file in the `platformio` fold
   "pinEpdPwr": 2,
   "wifiSSID": "SSID",
   "wifiPassword": "PASSWORD",
-  "owmApikey": "OWM_API_KEY",
-  "owmOnecallVersion": "3.0",
+  "owmApikey": "",
+  "owmOnecallVersion": "",
   "latitude": "64",
   "longitude": "-22",
   "city": "ESPLand",
@@ -120,5 +120,3 @@ To configure the build, create a new `config.json` file in the `platformio` fold
   "hourlyGraphMax": 24
 }
 ```
-
-Air Quality API is still provided by OWM. However, it does not require a credit card — just generate a simple token.

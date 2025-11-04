@@ -182,62 +182,11 @@ DeserializationError deserializeOneCall(WiFiClient &json, environment_data_t &r)
   return error;
 } // end deserializeOneCall
 
-DeserializationError deserializeAirQuality(WiFiClient &json,
-                                           owm_resp_air_pollution_t &r)
-{
-  int i = 0;
-
-  JsonDocument doc;
-
-  DeserializationError error = deserializeJson(doc, json);
-#if DEBUG_LEVEL >= 1
-  Serial.println("[debug] doc.overflowed() : " + String(doc.overflowed()));
-#endif
-#if DEBUG_LEVEL >= 2
-  serializeJsonPretty(doc, Serial);
-#endif
-  if (error)
-  {
-    return error;
-  }
-
-  r.coord.lat = doc["coord"]["lat"].as<float>();
-  r.coord.lon = doc["coord"]["lon"].as<float>();
-
-  for (JsonObject list : doc["list"].as<JsonArray>())
-  {
-
-    r.main_aqi[i] = list["main"]["aqi"].as<int>();
-
-    JsonObject list_components = list["components"];
-    r.components.co[i] = list_components["co"].as<float>();
-    r.components.no[i] = list_components["no"].as<float>();
-    r.components.no2[i] = list_components["no2"].as<float>();
-    r.components.o3[i] = list_components["o3"].as<float>();
-    r.components.so2[i] = list_components["so2"].as<float>();
-    r.components.pm2_5[i] = list_components["pm2_5"].as<float>();
-    r.components.pm10[i] = list_components["pm10"].as<float>();
-    r.components.nh3[i] = list_components["nh3"].as<float>();
-
-    r.dt[i] = list["dt"].as<int64_t>();
-
-    if (i == OWM_NUM_AIR_POLLUTION - 1)
-    {
-      break;
-    }
-    ++i;
-  }
-
-  return error;
-} // end deserializeAirQuality
-
 DeserializationError deserializeOpenMeteoCall(WiFiClient &json,
                                               environment_data_t &r)
 {
   JsonDocument doc;
-
   DeserializationError error = deserializeJson(doc, json);
-
 #if DEBUG_LEVEL >= 1
   Serial.println("[debug] doc.overflowed() : " + String(doc.overflowed()));
 #endif
@@ -311,30 +260,112 @@ DeserializationError deserializeOpenMeteoCall(WiFiClient &json,
       break;
     }
   }
+  return error;
+} // end deserializeOpenMeteoCall
 
-  // TODO: Open-Meteo does not issue alerts, use another API.
-  /*
-#if DISPLAY_ALERTS
-  i = 0;
-  for (JsonObject alerts : doc["alerts"].as<JsonArray>())
+DeserializationError deserializeOWMAirQuality(WiFiClient &json,
+                                              air_pollution_t &r)
+{
+  int i = 0;
+
+  JsonDocument doc;
+
+  DeserializationError error = deserializeJson(doc, json);
+#if DEBUG_LEVEL >= 1
+  Serial.println("[debug] doc.overflowed() : " + String(doc.overflowed()));
+#endif
+#if DEBUG_LEVEL >= 2
+  serializeJsonPretty(doc, Serial);
+#endif
+  if (error)
   {
-    owm_alerts_t new_alert = {};
-    // new_alert.sender_name = alerts["sender_name"].as<const char *>();
-    new_alert.event = alerts["event"].as<const char *>();
-    new_alert.start = alerts["start"].as<int64_t>();
-    new_alert.end = alerts["end"].as<int64_t>();
-    // new_alert.description = alerts["description"].as<const char *>();
-    new_alert.tags = alerts["tags"][0].as<const char *>();
-    r.alerts.push_back(new_alert);
+    return error;
+  }
 
-    if (i == OWM_NUM_ALERTS - 1)
+  r.coord.lat = doc["coord"]["lat"].as<float>();
+  r.coord.lon = doc["coord"]["lon"].as<float>();
+
+  for (JsonObject list : doc["list"].as<JsonArray>())
+  {
+    JsonObject list_components = list["components"];
+    r.components.co[i] = list_components["co"].as<float>();
+    r.components.no[i] = list_components["no"].as<float>();
+    r.components.no2[i] = list_components["no2"].as<float>();
+    r.components.o3[i] = list_components["o3"].as<float>();
+    r.components.so2[i] = list_components["so2"].as<float>();
+    r.components.pm2_5[i] = list_components["pm2_5"].as<float>();
+    r.components.pm10[i] = list_components["pm10"].as<float>();
+    r.components.nh3[i] = list_components["nh3"].as<float>();
+
+    r.dt[i] = list["dt"].as<int64_t>();
+
+    if (i == NUM_AIR_POLLUTION - 1)
     {
       break;
     }
     ++i;
   }
-#endif
-  */
 
   return error;
-} // end deserializeOpenMeteoCall
+} // end deserializeOWMAirQuality
+
+DeserializationError deserializeOpenMeteoAirQuality(WiFiClient &json,
+                                                    air_pollution_t &r)
+{
+  JsonDocument doc;
+  DeserializationError error = deserializeJson(doc, json);
+#if DEBUG_LEVEL >= 1
+  Serial.println("[debug] doc.overflowed() : " + String(doc.overflowed()));
+#endif
+#if DEBUG_LEVEL >= 2
+  serializeJsonPretty(doc, Serial);
+#endif
+  if (error)
+  {
+    return error;
+  }
+
+  r.coord.lat = doc["latitude"].as<float>();
+  r.coord.lon = doc["longitude"].as<float>();
+
+  JsonObject hourly = doc["hourly"];
+  int count = hourly["time"].size();
+
+  // Find index of closest timestamp below 'now'
+  int closest_idx = -1;
+  int64_t now = time(nullptr);
+  for (int i = 0; i < count; i++)
+  {
+    int64_t ts = hourly["time"][i].as<int64_t>();
+    if (ts <= now)
+    {
+      closest_idx = i;
+    }
+    else
+    {
+      break;
+    }
+  }
+
+  // Pick 24 entries: closest below and 23 previous
+  int start_idx = closest_idx - NUM_AIR_POLLUTION + 1;
+  if (start_idx < 0)
+    start_idx = 0;
+  int actual_count = closest_idx - start_idx + 1;
+  if (actual_count > NUM_AIR_POLLUTION)
+    actual_count = NUM_AIR_POLLUTION;
+  for (int i = 0; i < actual_count; i++)
+  {
+    int idx = start_idx + i;
+    r.dt[i] = hourly["time"][idx].as<int64_t>();
+    r.components.pm2_5[i] = hourly["pm2_5"][idx].as<float>();
+    r.components.pm10[i] = hourly["pm10"][idx].as<float>();
+    r.components.co[i] = hourly["carbon_monoxide"][idx].as<float>();
+    r.components.no[i] = hourly["nitrogen_monoxide"][idx].as<float>();
+    r.components.no2[i] = hourly["nitrogen_dioxide"][idx].as<float>();
+    r.components.o3[i] = hourly["ozone"][idx].as<float>();
+    r.components.so2[i] = hourly["sulphur_dioxide"][idx].as<float>();
+    r.components.nh3[i] = hourly["ammonia"][idx].as<float>();
+  }
+  return error;
+} // end deserializeOpenMeteoAirQuality

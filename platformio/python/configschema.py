@@ -101,6 +101,7 @@ class WeatherAPI(str, Enum):
 
 class AirQualityAPI(str, Enum):
     OPEN_WEATHER_MAP = "OpenWeatherMap"
+    OPEN_METEO = "Open-Meteo"
 
 class Font(str, Enum):
     FREEMONO = "FreeMono"
@@ -150,8 +151,8 @@ class ConfigSchema(BaseModel):
     epdPanel: Annotated[EpdPanel, enum_schema(EpdPanel)] = EpdPanel.DISP_BW_V2
     epdDriver: EpdDriver = EpdDriver.DESPI_C02
     locale: Locale
-    weatherAPI: WeatherAPI = WeatherAPI.OPEN_WEATHER_MAP
-    airQualityAPI: AirQualityAPI = AirQualityAPI.OPEN_WEATHER_MAP
+    weatherAPI: WeatherAPI = WeatherAPI.OPEN_METEO
+    airQualityAPI: AirQualityAPI = AirQualityAPI.OPEN_METEO
     useImperialUnitsAsDefault: bool = False # TODO: Use locale to set units
     unitsTemp: UnitsTemp = Field(default_factory=lambda data: UnitsTemp.FAHRENHEIT if data['useImperialUnitsAsDefault'] else UnitsTemp.CELSIUS)
     unitsSpeed: UnitsSpeed = Field(default_factory=lambda data: UnitsSpeed.MILESPERHOUR if data['useImperialUnitsAsDefault'] else UnitsSpeed.KILOMETERSPERHOUR)
