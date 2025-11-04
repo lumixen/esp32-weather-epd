@@ -274,7 +274,7 @@ void powerOffDisplay()
  */
 void drawCurrentConditions(const current_t &current,
                            const daily_t &today,
-                           const owm_resp_air_pollution_t &owm_air_pollution)
+                           const air_pollution_t &air_pollution)
 {
   String dataStr, unitStr;
   // current weather icon
@@ -475,7 +475,7 @@ void drawCurrentConditions(const current_t &current,
 #if EPD_PANEL != DISP_BW_V1
   // air quality index
   display.setFont(&FONT_12pt8b);
-  const owm_components_t &c = owm_air_pollution.components;
+  const air_components_t &c = air_pollution.components;
   // OpenWeatherMap does not provide pb (lead) conentrations, so we pass NULL.
   int aqi = calc_aqi(AQI_SCALE, c.co, c.nh3, c.no, c.no2, c.o3, NULL, c.so2,
                                 c.pm10, c.pm2_5);

@@ -40,13 +40,13 @@
 #include "display_utils.h"
 #include "renderer.h"
 #if HTTP_MODE == HTTP
-  #include <WiFiClientSecure.h>
+#include <WiFiClientSecure.h>
 #endif
 
 #if HTTP_MODE == HTTP
-  static const uint16_t OWM_PORT = 80;
+static const uint16_t PORT = 80;
 #else
-  static const uint16_t PORT = 443;
+static const uint16_t PORT = 443;
 #endif
 
 /* Power-on and connect WiFi.
@@ -142,9 +142,9 @@ bool waitForSNTPSync(tm *timeInfo)
  * Returns the HTTP Status Code.
  */
 #if HTTP_MODE == HTTP
-  int getOWMonecall(WiFiClient &client, environment_data_t &r)
+int getOWMonecall(WiFiClient &client, environment_data_t &r)
 #else
-  int getOWMonecall(WiFiClientSecure &client, environment_data_t &r)
+int getOWMonecall(WiFiClientSecure &client, environment_data_t &r)
 #endif
 {
   int attempts = 0;
@@ -200,35 +200,37 @@ bool waitForSNTPSync(tm *timeInfo)
 
 /* Perform an HTTP GET request to OpenWeatherMap's "Air Pollution" API
  * If data is received, it will be parsed and stored in the global variable
- * owm_air_pollution.
+ * air_pollution.
  *
  * Returns the HTTP Status Code.
  */
 #if HTTP_MODE == HTTP
-  int getOWMairpollution(WiFiClient &client, owm_resp_air_pollution_t &r)
+int getAirPollution(WiFiClient &client, air_pollution_t &r)
 #else
-  int getOWMairpollution(WiFiClientSecure &client, owm_resp_air_pollution_t &r)
+int getAirPollution(WiFiClientSecure &client, air_pollution_t &r)
 #endif
 {
   int attempts = 0;
   bool rxSuccess = false;
   DeserializationError jsonErr = {};
 
-  // set start and end to appropriate values so that the last 24 hours of air
-  // pollution history is returned. Unix, UTC.
-  time_t now;
-  int64_t end = time(&now);
+#if AIR_QUALITY_API == OPEN_WEATHER_MAP
+  int64_t end = time(nullptr);
   // minus 1 is important here, otherwise we could get an extra hour of history
-  int64_t start = end - ((3600 * OWM_NUM_AIR_POLLUTION) - 1);
+  int64_t start = end - ((3600 * NUM_AIR_POLLUTION) - 1);
   char endStr[22];
   char startStr[22];
   sprintf(endStr, "%lld", end);
   sprintf(startStr, "%lld", start);
   String uri = "/data/2.5/air_pollution/history?lat=" + LAT + "&lon=" + LON + "&start=" + startStr + "&end=" + endStr + "&appid=" + OWM_APIKEY;
-  // This string is printed to terminal to help with debugging. The API key is
-  // censored to reduce the risk of users exposing their key.
   String sanitizedUri = OWM_ENDPOINT +
                         "/data/2.5/air_pollution/history?lat=" + LAT + "&lon=" + LON + "&start=" + startStr + "&end=" + endStr + "&appid={API key}";
+  String host = OWM_ENDPOINT;
+#elif AIR_QUALITY_API == OPEN_METEO
+  String uri = "/v1/air-quality?latitude=" + LAT + "&longitude=" + LON + "&hourly=pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ammonia,nitrogen_monoxide,ozone,pm10&forecast_days=1&timeformat=unixtime";
+  String sanitizedUri = OM_AIR_QUALITY_ENDPOINT + uri;
+  String host = OM_AIR_QUALITY_ENDPOINT;
+#endif
 
   Serial.print(TXT_ATTEMPTING_HTTP_REQ);
   Serial.println(": " + sanitizedUri);
@@ -245,11 +247,18 @@ bool waitForSNTPSync(tm *timeInfo)
     HTTPClient http;
     http.setConnectTimeout(HTTP_CLIENT_TCP_TIMEOUT); // default 5000ms
     http.setTimeout(HTTP_CLIENT_TCP_TIMEOUT);        // default 5000ms
-    http.begin(client, OWM_ENDPOINT, PORT, uri);
+#if AIR_QUALITY_API == OPEN_METEO
+    http.useHTTP10(true);
+#endif
+    http.begin(client, host, PORT, uri);
     httpResponse = http.GET();
     if (httpResponse == HTTP_CODE_OK)
     {
-      jsonErr = deserializeAirQuality(http.getStream(), r);
+#if AIR_QUALITY_API == OPEN_WEATHER_MAP
+      jsonErr = deserializeOWMAirQuality(http.getStream(), r);
+#elif AIR_QUALITY_API == OPEN_METEO
+      jsonErr = deserializeOpenMeteoAirQuality(http.getStream(), r);
+#endif
       if (jsonErr)
       {
         // -256 offset to distinguishes these errors from httpClient errors
@@ -264,7 +273,7 @@ bool waitForSNTPSync(tm *timeInfo)
   }
 
   return httpResponse;
-} // getOWMairpollution
+} // getAirPollution
 
 /* Perform an HTTP GET request to OpenMeteo's API
  * If data is received, it will be parsed and stored in the global variable

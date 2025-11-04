@@ -77,7 +77,7 @@ void initDisplay();
 void powerOffDisplay();
 void drawCurrentConditions(const current_t &current,
                            const daily_t &today,
-                           const owm_resp_air_pollution_t &owm_air_pollution);
+                           const air_pollution_t &air_pollution);
 void drawForecast(const daily_t *daily, tm timeInfo);
 void drawAlerts(std::vector<owm_alerts_t> &alerts,
                 const String &city, const String &date);

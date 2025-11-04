@@ -34,12 +34,12 @@ bool printLocalTime(tm *timeInfo);
 
 #if HTTP_MODE == HTTP
   int getOWMonecall(WiFiClient &client, environment_data_t &r);
-  int getOWMairpollution(WiFiClient &client, owm_resp_air_pollution_t &r);
   int getOMCall(WiFiClient &client, environment_data_t &r);
+  int getAirPollution(WiFiClient &client, air_pollution_t &r);
 #else
   int getOWMonecall(WiFiClientSecure &client, environment_data_t &r);
-  int getOWMairpollution(WiFiClientSecure &client, owm_resp_air_pollution_t &r);
   int getOMCall(WiFiClientSecure &client, environment_data_t &r);
+  int getAirPollution(WiFiClientSecure &client, air_pollution_t &r);
 #endif
 
 #endif

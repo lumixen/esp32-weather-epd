@@ -41,7 +41,7 @@
 
 // too large to allocate locally on stack
 static environment_data_t environment_data;
-static owm_resp_air_pollution_t owm_air_pollution;
+static air_pollution_t air_pollution;
 
 Preferences prefs;
 
@@ -302,11 +302,14 @@ void setup()
   }
 #endif
 
-#if AIR_QUALITY_API == OPEN_WEATHER_MAP
 #if HTTP_MODE == HTTPS_WITH_CERT_VERIF
+#if AIR_QUALITY_API == OPEN_WEATHER_MAP
   client.setCACert(cert_USERTrust_RSA_Certification_Authority);
+#elif AIR_QUALITY_API == OPEN_METEO
+  client.setCACert(cert_ISRG_Root_X1);
 #endif
-  rxStatus = getOWMairpollution(client, owm_air_pollution);
+#endif
+  rxStatus = getAirPollution(client, air_pollution);
   if (rxStatus != HTTP_CODE_OK)
   {
     killWiFi();
@@ -320,7 +323,6 @@ void setup()
     powerOffDisplay();
     beginDeepSleep(startTime, &timeInfo);
   }
-#endif
 
   killWiFi(); // WiFi no longer needed
 
@@ -336,9 +338,9 @@ void setup()
   do
   {
     drawCurrentConditions(
-      environment_data.current, 
-      environment_data.daily[0],
-      owm_air_pollution);
+        environment_data.current,
+        environment_data.daily[0],
+        air_pollution);
     Serial.println("Drawing current conditions");
     drawOutlookGraph(environment_data.hourly, environment_data.daily, timeInfo);
     Serial.println("Drawing outlook graph");
