@@ -30,24 +30,28 @@
 #include "display_utils.h"
 #include "icons/icons_196x196.h"
 #include "renderer.h"
+#include "moon_tools.h"
 
-#if SENSOR == BME280
-  #include <Adafruit_BME280.h>
-#elif SENSOR == BME680
-  #include <Adafruit_BME680.h>
-#endif
 #if HTTP_MODE != HTTP
-  #include <WiFiClientSecure.h>
+#include <WiFiClientSecure.h>
 #endif
 #if HTTP_MODE == HTTPS_WITH_CERT_VERIF
-  #include "cert.h"
+#include "cert.h"
 #endif
 
 // too large to allocate locally on stack
-static owm_resp_onecall_t owm_onecall;
+static environment_data_t environment_data;
 static owm_resp_air_pollution_t owm_air_pollution;
 
 Preferences prefs;
+
+/* Toggle the built-in LED on or off. */
+void toggleBuiltinLED(bool state)
+{
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, state ? LOW : HIGH); // Lolin D32 LED is active low
+  return;
+}
 
 /* Put esp32 into ultra low-power deep sleep (<11μA).
  * Aligns wake time to the minute. Sleep times defined in config.cpp.
@@ -110,6 +114,8 @@ void beginDeepSleep(unsigned long startTime, tm *timeInfo)
   printHeapUsage();
 #endif
 
+  toggleBuiltinLED(false);
+
   esp_sleep_enable_timer_wakeup(sleepDuration * 1000000ULL);
   Serial.print(TXT_AWAKE_FOR);
   Serial.println(" " + String((millis() - startTime) / 1000.0, 3) + "s");
@@ -118,18 +124,25 @@ void beginDeepSleep(unsigned long startTime, tm *timeInfo)
   esp_deep_sleep_start();
 } // end beginDeepSleep
 
+void enrichWithMoonData(environment_data_t &data, tm *timeInfo)
+{
+  moon_state_t moonState = getMoonState(LAT.toDouble(), LON.toDouble());
+  data.daily[0].moonrise = moonState.moonrise;
+  data.daily[0].moonset = moonState.moonset;
+  data.daily[0].moon_phase = moonState.phase;
+} // end enrichWithMoonData
+
 /* Program entry point.
  */
 void setup()
 {
   unsigned long startTime = millis();
   Serial.begin(115200);
+  toggleBuiltinLED(true);
 
 #if DEBUG_LEVEL >= 1
   printHeapUsage();
 #endif
-
-  disableBuiltinLED();
 
   // Open namespace for read/write to non-volatile storage
   prefs.begin(NVS_NAMESPACE, false);
@@ -257,7 +270,7 @@ void setup()
 #endif
 #endif
 #if WEATHER_API == OPEN_WEATHER_MAP
-  int rxStatus = getOWMonecall(client, owm_onecall);
+  int rxStatus = getOWMonecall(client, environment_data);
   if (rxStatus != HTTP_CODE_OK)
   {
     killWiFi();
@@ -272,23 +285,8 @@ void setup()
     beginDeepSleep(startTime, &timeInfo);
   }
 
-  rxStatus = getOWMairpollution(client, owm_air_pollution);
-  if (rxStatus != HTTP_CODE_OK)
-  {
-    killWiFi();
-    statusStr = "Air Pollution API";
-    tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
-    initDisplay();
-    do
-    {
-      drawError(wi_cloud_down_196x196, statusStr, tmpStr);
-    } while (display.nextPage());
-    powerOffDisplay();
-    beginDeepSleep(startTime, &timeInfo);
-  }
-
 #elif WEATHER_API == OPEN_METEO
-  int rxStatus = getOMCall(client, owm_onecall);
+  int rxStatus = getOMCall(client, environment_data);
   if (rxStatus != HTTP_CODE_OK)
   {
     killWiFi();
@@ -304,53 +302,29 @@ void setup()
   }
 #endif
 
+#if AIR_QUALITY_API == OPEN_WEATHER_MAP
+#if HTTP_MODE == HTTPS_WITH_CERT_VERIF
+  client.setCACert(cert_USERTrust_RSA_Certification_Authority);
+#endif
+  rxStatus = getOWMairpollution(client, owm_air_pollution);
+  if (rxStatus != HTTP_CODE_OK)
+  {
+    killWiFi();
+    statusStr = "Air Pollution API";
+    tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
+    initDisplay();
+    do
+    {
+      drawError(wi_cloud_down_196x196, statusStr, tmpStr);
+    } while (display.nextPage());
+    powerOffDisplay();
+    beginDeepSleep(startTime, &timeInfo);
+  }
+#endif
+
   killWiFi(); // WiFi no longer needed
 
-  // GET INDOOR TEMPERATURE AND HUMIDITY, start BMEx80...
-  pinMode(PIN_BME_PWR, OUTPUT);
-  digitalWrite(PIN_BME_PWR, HIGH);
-  delay(11);
-  TwoWire I2C_bme = TwoWire(0);
-  I2C_bme.begin(PIN_BME_SDA, PIN_BME_SCL, 100000); // 100kHz
-  float inTemp     = NAN;
-  float inHumidity = NAN;
-
-#if SENSOR == BME280
-  Serial.print(String(TXT_READING_FROM) + " BME280... ");
-  Adafruit_BME280 bme;
-
-  if (bme.begin(BME_ADDRESS, &I2C_bme))
-  {
-#elif SENSOR == BME680
-  Serial.print(String(TXT_READING_FROM) + " BME680... ");
-  Adafruit_BME680 bme(&I2C_bme);
-
-  if (bme.begin(BME_ADDRESS))
-  {
-#endif
-    inTemp     = bme.readTemperature(); // Celsius
-    inHumidity = bme.readHumidity();    // %
-
-    // check if BME readings are valid
-    // note: readings are checked again before drawing to screen. If a reading
-    //       is not a number (NAN) then an error occurred, a dash '-' will be
-    //       displayed.
-    if (std::isnan(inTemp) || std::isnan(inHumidity))
-    {
-      statusStr = "BME " + String(TXT_READ_FAILED);
-      Serial.println(statusStr);
-    }
-    else
-    {
-      Serial.println(TXT_SUCCESS);
-    }
-  }
-  else
-  {
-    statusStr = "BME " + String(TXT_NOT_FOUND); // check wiring
-    Serial.println(statusStr);
-  }
-  digitalWrite(PIN_BME_PWR, LOW);
+  enrichWithMoonData(environment_data, &timeInfo);
 
   String refreshTimeStr;
   getRefreshTimeStr(refreshTimeStr, timeConfigured, &timeInfo);
@@ -361,17 +335,19 @@ void setup()
   initDisplay();
   do
   {
-    drawCurrentConditions(owm_onecall.current, owm_onecall.daily[0],
-                          owm_air_pollution, inTemp, inHumidity);
+    drawCurrentConditions(
+      environment_data.current, 
+      environment_data.daily[0],
+      owm_air_pollution);
     Serial.println("Drawing current conditions");
-    drawOutlookGraph(owm_onecall.hourly, owm_onecall.daily, timeInfo);
+    drawOutlookGraph(environment_data.hourly, environment_data.daily, timeInfo);
     Serial.println("Drawing outlook graph");
-    drawForecast(owm_onecall.daily, timeInfo);
+    drawForecast(environment_data.daily, timeInfo);
     Serial.println("Drawing forecast");
     drawLocationDate(CITY_STRING, dateStr);
     Serial.println("Drawing location and date");
 #if DISPLAY_ALERTS
-    drawAlerts(owm_onecall.alerts, CITY_STRING, dateStr);
+    drawAlerts(environment_data.alerts, CITY_STRING, dateStr);
 #endif
     drawStatusBar(statusStr, refreshTimeStr, wifiRSSI, batteryVoltage);
   } while (display.nextPage());

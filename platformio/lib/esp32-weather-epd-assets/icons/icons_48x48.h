@@ -1042,4 +1042,6 @@
 #include "48x48/wi_wind_beaufort_8_48x48.h"
 #include "48x48/wi_wind_beaufort_9_48x48.h"
 #include "48x48/wi_windy_48x48.h"
+#include "48x48/wi_sun_shortwave_radiation_48x48.h"
+#include "48x48/wi_soil_temperature_48x48.h"
 #endif

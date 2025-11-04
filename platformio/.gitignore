@@ -2,3 +2,4 @@
 .vscode
 /python/__pycache__
 /config.json
+/http

@@ -87,8 +87,8 @@ const char *TXT_PRESSURE           = "Luchtdruk";
 const char *TXT_AIR_QUALITY        = "Luchtkwaliteit";
 const char *TXT_AIR_POLLUTION      = "Luchtvervuiling";
 const char *TXT_VISIBILITY         = "Zichtbaarheid";
-const char *TXT_INDOOR_TEMPERATURE = "Temperatuur";
-const char *TXT_INDOOR_HUMIDITY    = "Vochtigheid";
+const char *TXT_MOONRISE           = "Maansopgang";
+const char *TXT_MOONSET            = "Maanset";
 
 // UV INDEX
 const char *TXT_UV_LOW       = "Laag";

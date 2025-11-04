@@ -87,8 +87,8 @@ const char *TXT_PRESSURE           = "R\xF5hk";
 const char *TXT_AIR_QUALITY        = "\xD5hu Kvaliteet";
 const char *TXT_AIR_POLLUTION      = "\xD5husaaste";
 const char *TXT_VISIBILITY         = "N\xE4htavus";
-const char *TXT_INDOOR_TEMPERATURE = "Temperatuur";
-const char *TXT_INDOOR_HUMIDITY    = "\xD5huniiskus";
+const char *TXT_MOONRISE           = "Kuu t\xF5us";
+const char *TXT_MOONSET            = "Kuu loojang";
 
 // UV INDEX
 const char *TXT_UV_LOW       = "Madal";

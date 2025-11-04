@@ -45,7 +45,7 @@ uint32_t readBatteryVoltage()
   adc_power_release();
 
   // We will use the eFuse ADC calibration bits, to get accurate voltage
-  // readings. The DFRobot FireBeetle Esp32-E V1.0's ADC is 12 bit, and uses
+  // readings. The Esp32-E V1.0's ADC is 12 bit, and uses
   // 11db attenuation, which gives it a measurable input voltage range of 150mV
   // to 2450mV.
   val_type = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_11db,
@@ -67,8 +67,7 @@ uint32_t readBatteryVoltage()
 #endif
 
   uint32_t batteryVoltage = esp_adc_cal_raw_to_voltage(adc_val, &adc_chars);
-  // DFRobot FireBeetle Esp32-E V1.0 voltage divider (1M+1M), so readings are
-  // multiplied by 2.
+  // Assuming equal resistor values in voltage divider (1M + 1M or 100k + 100k).
   batteryVoltage *= 2;
   return batteryVoltage;
 } // end readBatteryVoltage
@@ -974,13 +973,13 @@ const uint8_t *getConditionsBitmap(int id, bool day, bool moon, bool cloudy,
 } // end getConditionsBitmap
 #endif
 
-/* Takes the daily weather forecast (from OpenWeatherMap API response) and
+/* Takes the hourly weather forecast and
  * returns a pointer to the icon's 32x32 bitmap.
  *
  * The daily weather forcast of today is needed for moonrise and moonset times.
  */
-const uint8_t *getHourlyForecastBitmap32(const owm_hourly_t &hourly,
-                                         const owm_daily_t &today)
+const uint8_t *getHourlyForecastBitmap32(const hourly_t &hourly,
+                                         const daily_t &today)
 {
   const int id = hourly.weather.id;
   const bool day = hourly.is_day;
@@ -994,7 +993,7 @@ const uint8_t *getHourlyForecastBitmap32(const owm_hourly_t &hourly,
 /* Takes the daily weather forecast (from OpenWeatherMap API response) and
  * returns a pointer to the icon's 64x64 bitmap.
  */
-const uint8_t *getDailyForecastBitmap64(const owm_daily_t &daily)
+const uint8_t *getDailyForecastBitmap64(const daily_t &daily)
 {
   const int id = daily.weather.id;
   // always show daytime icon for daily forecast
@@ -1011,8 +1010,8 @@ const uint8_t *getDailyForecastBitmap64(const owm_daily_t &daily)
  *
  * The daily weather forcast of today is needed for moonrise and moonset times.
  */
-const uint8_t *getCurrentConditionsBitmap196(const owm_current_t &current,
-                                             const owm_daily_t &today)
+const uint8_t *getCurrentConditionsBitmap196(const current_t &current,
+                                             const daily_t &today)
 {
   const int id = current.weather.id;
   const bool day = current.is_day;
@@ -2014,15 +2013,3 @@ const char *getWifiStatusPhrase(wl_status_t status)
     return "";
   }
 } // end getWifiStatusPhrase
-
-/* This function sets the builtin LED to LOW and disables it even during deep
- * sleep.
- */
-void disableBuiltinLED()
-{
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, LOW);
-  gpio_hold_en(static_cast<gpio_num_t>(LED_BUILTIN));
-  gpio_deep_sleep_hold_en();
-  return;
-} // end disableBuiltinLED

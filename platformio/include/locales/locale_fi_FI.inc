@@ -88,8 +88,8 @@ const char *TXT_PRESSURE           = "Ilmanpaine";
 const char *TXT_AIR_QUALITY        = "Ilman Laatu";
 const char *TXT_AIR_POLLUTION      = "Ilmansaaste";
 const char *TXT_VISIBILITY         = "N\xE4kyvyys";
-const char *TXT_INDOOR_TEMPERATURE = "L\xE4mp\xF6tila";
-const char *TXT_INDOOR_HUMIDITY    = "Ilmankosteus";
+const char *TXT_MOONRISE           = "Kuu nousee";
+const char *TXT_MOONSET            = "Kuu loojang";
 
 // UV INDEX
 const char *TXT_UV_LOW       = "Matala";

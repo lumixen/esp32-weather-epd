@@ -53,6 +53,8 @@
   #define NVS_NAMESPACE "weather_epd"
 #endif
 
+#define ACCENT_COLOR GxEPD_RED
+
 // Set the below constants in "config.cpp"
 extern const char *WIFI_SSID;
 extern const unsigned long WIFI_TIMEOUT;

@@ -22,6 +22,7 @@
 #include "config.h"
 #include "conversions.h"
 #include "display_utils.h"
+#include "moon_tools.h"
 
 // fonts
 #include FONT_HEADER
@@ -49,6 +50,14 @@
   GxEPD2_3C<GxEPD2_750c_Z08,
             GxEPD2_750c_Z08::HEIGHT / 2> display(
     GxEPD2_750c_Z08(PIN_EPD_CS,
+                    PIN_EPD_DC,
+                    PIN_EPD_RST,
+                    PIN_EPD_BUSY));
+#endif
+#if EPD_PANEL == DISP_3C_86BF
+  GxEPD2_3C<GxEPD2_750c_86BF,
+            GxEPD2_750c_86BF::HEIGHT / 2> display(
+    GxEPD2_750c_86BF(PIN_EPD_CS,
                     PIN_EPD_DC,
                     PIN_EPD_RST,
                     PIN_EPD_BUSY));
@@ -263,10 +272,9 @@ void powerOffDisplay()
 /* This function is responsible for drawing the current conditions and
  * associated icons.
  */
-void drawCurrentConditions(const owm_current_t &current,
-                           const owm_daily_t &today,
-                           const owm_resp_air_pollution_t &owm_air_pollution,
-                           float inTemp, float inHumidity)
+void drawCurrentConditions(const current_t &current,
+                           const daily_t &today,
+                           const owm_resp_air_pollution_t &owm_air_pollution)
 {
   String dataStr, unitStr;
   // current weather icon
@@ -326,7 +334,7 @@ void drawCurrentConditions(const owm_current_t &current,
   display.drawInvertedBitmap(0, 204 + (48 + 8) * 3,
                              air_filter_48x48, 48, 48, GxEPD_BLACK);
   display.drawInvertedBitmap(0, 204 + (48 + 8) * 4,
-                             house_thermometer_48x48, 48, 48, GxEPD_BLACK);
+                             wi_moonrise_48x48, 48, 48, GxEPD_BLACK);
 #endif
   display.drawInvertedBitmap(170, 204 + (48 + 8) * 0,
                              wi_sunset_48x48, 48, 48, GxEPD_BLACK);
@@ -338,7 +346,7 @@ void drawCurrentConditions(const owm_current_t &current,
   display.drawInvertedBitmap(170, 204 + (48 + 8) * 3,
                              visibility_icon_48x48, 48, 48, GxEPD_BLACK);
   display.drawInvertedBitmap(170, 204 + (48 + 8) * 4,
-                             house_humidity_48x48, 48, 48, GxEPD_BLACK);
+                              wi_moonset_48x48, 48, 48, GxEPD_BLACK);
 #endif
 
   // current weather data labels
@@ -357,22 +365,22 @@ void drawCurrentConditions(const owm_current_t &current,
     air_quality_index_label = TXT_AIR_POLLUTION;
   }
   drawString(48, 204 + 10 + (48 + 8) * 3, air_quality_index_label, LEFT);
-  drawString(48, 204 + 10 + (48 + 8) * 4, TXT_INDOOR_TEMPERATURE, LEFT);
+  drawString(48, 204 + 10 + (48 + 8) * 4, TXT_MOONRISE, LEFT);
 #endif
   drawString(170 + 48, 204 + 10 + (48 + 8) * 0, TXT_SUNSET, LEFT);
   drawString(170 + 48, 204 + 10 + (48 + 8) * 1, TXT_HUMIDITY, LEFT);
   drawString(170 + 48, 204 + 10 + (48 + 8) * 2, TXT_PRESSURE, LEFT);
 #if EPD_PANEL != DISP_BW_V1
   drawString(170 + 48, 204 + 10 + (48 + 8) * 3, TXT_VISIBILITY, LEFT);
-  drawString(170 + 48, 204 + 10 + (48 + 8) * 4, TXT_INDOOR_HUMIDITY, LEFT);
+  drawString(170 + 48, 204 + 10 + (48 + 8) * 4, TXT_MOONSET, LEFT);
 #endif
 
   // sunrise
-  display.setFont(&FONT_12pt8b);
   char timeBuffer[12] = {}; // big enough to accommodate "hh:mm:ss am"
   time_t ts = current.sunrise;
   tm *timeInfo = localtime(&ts);
   _strftime(timeBuffer, sizeof(timeBuffer), TIME_FORMAT, timeInfo);
+  display.setFont(&FONT_12pt8b);
   drawString(48, 204 + 17 / 2 + (48 + 8) * 0 + 48 / 2, timeBuffer, LEFT);
 
   // wind
@@ -506,24 +514,13 @@ void drawCurrentConditions(const owm_current_t &current,
     }
   }
 
-  // indoor temperature
+  // Moonrise
+  memset(timeBuffer, '\0', sizeof(timeBuffer));
+  ts = today.moonrise;
+  timeInfo = localtime(&ts);
+  _strftime(timeBuffer, sizeof(timeBuffer), TIME_FORMAT, timeInfo);
   display.setFont(&FONT_12pt8b);
-  if (!std::isnan(inTemp))
-  {
-#if UNITS_TEMP == KELVIN
-    dataStr = String(std::round(celsius_to_kelvin(inTemp) * 10) / 10.0f, 1) + 'K';
-#elif UNITS_TEMP == CELSIUS
-    dataStr = String(std::round(inTemp * 10) / 10.0f, 1) + "\260C";
-#elif UNITS_TEMP == FAHRENHEIT
-    dataStr = String(static_cast<int>(
-              std::round(celsius_to_fahrenheit(inTemp)))) + "\260F";
-#endif
-  }
-  else
-  {
-    dataStr = "--";
-  }
-  drawString(48, 204 + 17 / 2 + (48 + 8) * 4 + 48 / 2, dataStr, LEFT);
+  drawString(48, 204 + 17 / 2 + (48 + 8) * 4 + 48 / 2, timeBuffer, LEFT);
 #endif // EPD_PANEL != DISP_BW_V1
 
   // sunset
@@ -616,27 +613,19 @@ void drawCurrentConditions(const owm_current_t &current,
   drawString(display.getCursorX(), 204 + 17 / 2 + (48 + 8) * 3 + 48 / 2,
              unitStr, LEFT);
 
-  // indoor humidity
+  memset(timeBuffer, '\0', sizeof(timeBuffer));
+  ts = today.moonset;
+  timeInfo = localtime(&ts);
+  _strftime(timeBuffer, sizeof(timeBuffer), TIME_FORMAT, timeInfo);
   display.setFont(&FONT_12pt8b);
-  if (!std::isnan(inHumidity))
-  {
-    dataStr = String(static_cast<int>(std::round(inHumidity)));
-  }
-  else
-  {
-    dataStr = "--";
-  }
-  drawString(170 + 48, 204 + 17 / 2 + (48 + 8) * 4 + 48 / 2, dataStr, LEFT);
-  display.setFont(&FONT_8pt8b);
-  drawString(display.getCursorX(), 204 + 17 / 2 + (48 + 8) * 4 + 48 / 2,
-             "%", LEFT);
+  drawString(170 + 48, 204 + 17 / 2 + (48 + 8) * 4 + 48 / 2, timeBuffer, LEFT);
 #endif // EPD_PANEL != DISP_BW_V1
   return;
 } // end drawCurrentConditions
 
 /* This function is responsible for drawing the five day forecast.
  */
-void drawForecast(const owm_daily_t *daily, tm timeInfo)
+void drawForecast(const daily_t *daily, tm timeInfo)
 {
   // 5 day, forecast
   String hiStr, loStr;
@@ -844,9 +833,9 @@ void drawLocationDate(const String &city, const String &date)
 {
   // location, date
   display.setFont(&FONT_16pt8b);
-  drawString(DISP_WIDTH - 2, 23, city, RIGHT, ACCENT_COLOR);
+  drawString(DISP_WIDTH - 6, 25, city, RIGHT, ACCENT_COLOR);
   display.setFont(&FONT_12pt8b);
-  drawString(DISP_WIDTH - 2, 30 + 4 + 17, date, RIGHT);
+  drawString(DISP_WIDTH - 6, 32 + 4 + 17, date, RIGHT);
   return;
 } // end drawLocationDate
 
@@ -881,7 +870,7 @@ int celsius_to_plot_y(float temp, int tempBoundMin, float yPxPerUnit,
 /* This function is responsible for drawing the outlook graph for the specified
  * number of hours(up to 48).
  */
-void drawOutlookGraph(const owm_hourly_t *hourly, const owm_daily_t *daily,
+void drawOutlookGraph(const hourly_t *hourly, const daily_t *daily,
                       tm timeInfo)
 {
   const int xPos0 = 350;
@@ -1213,7 +1202,7 @@ void drawStatusBar(const String &statusStr, const String &refreshTimeStr,
   String dataStr;
   uint16_t dataColor = GxEPD_BLACK;
   display.setFont(&FONT_6pt8b);
-  int pos = DISP_WIDTH - 2;
+  int pos = DISP_WIDTH - 6;
   const int sp = 2;
 
 #if BATTERY_MONITORING
@@ -1221,7 +1210,7 @@ void drawStatusBar(const String &statusStr, const String &refreshTimeStr,
   uint32_t batPercent = calcBatPercent(batVoltage,
                                        MIN_BATTERY_VOLTAGE,
                                        MAX_BATTERY_VOLTAGE);
-#if EPD_PANEL == DISP_3C_B || EPD_PANEL == DISP_7C_F
+#if EPD_PANEL == DISP_3C_B || EPD_PANEL == DISP_3C_86BF || EPD_PANEL == DISP_7C_F
   if (batVoltage < WARN_BATTERY_VOLTAGE)
   {
     dataColor = ACCENT_COLOR;
@@ -1231,9 +1220,9 @@ void drawStatusBar(const String &statusStr, const String &refreshTimeStr,
 #if STATUS_BAR_EXTRAS_BAT_VOLTAGE
   dataStr += " (" + String(std::round(batVoltage / 10.f) / 100.f, 2) + "v)";
 #endif
-  drawString(pos, DISP_HEIGHT - 1 - 2, dataStr, RIGHT, dataColor);
+  drawString(pos, DISP_HEIGHT - 1 - 4, dataStr, RIGHT, dataColor);
   pos -= getStringWidth(dataStr) + 25;
-  display.drawInvertedBitmap(pos, DISP_HEIGHT - 1 - 17,
+  display.drawInvertedBitmap(pos, DISP_HEIGHT - 1 - 19,
                              getBatBitmap24(batPercent), 24, 24, dataColor);
   pos -= sp + 9;
 #endif
@@ -1247,17 +1236,17 @@ void drawStatusBar(const String &statusStr, const String &refreshTimeStr,
     dataStr += " (" + String(rssi) + "dBm)";
   }
 #endif
-  drawString(pos, DISP_HEIGHT - 1 - 2, dataStr, RIGHT, dataColor);
+  drawString(pos, DISP_HEIGHT - 1 - 4, dataStr, RIGHT, dataColor);
   pos -= getStringWidth(dataStr) + 19;
-  display.drawInvertedBitmap(pos, DISP_HEIGHT - 1 - 13, getWiFiBitmap16(rssi),
+  display.drawInvertedBitmap(pos, DISP_HEIGHT - 1 - 15, getWiFiBitmap16(rssi),
                              16, 16, dataColor);
   pos -= sp + 8;
 
   // last refresh
   dataColor = GxEPD_BLACK;
-  drawString(pos, DISP_HEIGHT - 1 - 2, refreshTimeStr, RIGHT, dataColor);
+  drawString(pos, DISP_HEIGHT - 1 - 4, refreshTimeStr, RIGHT, dataColor);
   pos -= getStringWidth(refreshTimeStr) + 25;
-  display.drawInvertedBitmap(pos, DISP_HEIGHT - 1 - 21, wi_refresh_32x32,
+  display.drawInvertedBitmap(pos, DISP_HEIGHT - 1 - 23, wi_refresh_32x32,
                              32, 32, dataColor);
   pos -= sp;
 
@@ -1265,9 +1254,9 @@ void drawStatusBar(const String &statusStr, const String &refreshTimeStr,
   dataColor = ACCENT_COLOR;
   if (!statusStr.isEmpty())
   {
-    drawString(pos, DISP_HEIGHT - 1 - 2, statusStr, RIGHT, dataColor);
+    drawString(pos, DISP_HEIGHT - 1 - 4, statusStr, RIGHT, dataColor);
     pos -= getStringWidth(statusStr) + 24;
-    display.drawInvertedBitmap(pos, DISP_HEIGHT - 1 - 18, error_icon_24x24,
+    display.drawInvertedBitmap(pos, DISP_HEIGHT - 1 - 20, error_icon_24x24,
                                24, 24, dataColor);
   }
 
