@@ -1,13 +1,12 @@
-## What's is different
-- Adjusted specifically for Lolin D32 board.
-- Open-Meteo is the main weather API. No need to provide the credit card details to get the OWM token.
-- Configuration moved to a non-versioned JSON file which is processed by a Python script to generate C++ defines.
-- Added support for DKE DEPG0750RWF86BF display.
-- Removed BME integration.
+## Highlights
 
----
+- Optimized for the Lolin D32 board.
+- Uses Open-Meteo as the primary weather API - no credit card required for tokens.
+- Configuration is managed via a non-versioned JSON file, processed by a Python script to generate C++ defines.
+- Supports the DKE DEPG0750RWF86BF e-paper display.
+- BME sensor integration removed.
 
-# ESP32 E-Paper Weather Display
+### ESP32 E-Paper Weather Display
 
 <p float="left">
   <img src="https://github.com/user-attachments/assets/15d49106-3b07-4fbe-b252-1a642cb1251c" width="49%" />
@@ -29,7 +28,7 @@
   | Good Display 7.5in e-paper (GDEW075T8)  | 640x384px  | Black/White     | Limited support. Some information not displayed, see [image](showcase/demo-waveshare75-version1.jpg).                 |
 
 
-## Setup Guide
+### Setup Guide
 
 1. **Connect the Hardware**
    - Wire your Lolin D32 board to the e-paper panel according to the wiring schematic provided below.
@@ -49,6 +48,8 @@
 ### Wiring Schematic (Lolin D32 Board)
 
 Wiring is specific for Lolin D32 board:
+
+<img width="459" height="525" alt="image" src="https://github.com/user-attachments/assets/278b804c-fa89-4595-b60a-8fa0e6571931" />
 
 | Signal         | Lolin D32 Pin | E-Paper Pin      | Description                |
 |----------------|--------------|------------------|----------------------------|
