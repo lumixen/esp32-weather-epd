@@ -227,7 +227,7 @@ int getAirPollution(WiFiClientSecure &client, air_pollution_t &r)
                         "/data/2.5/air_pollution/history?lat=" + LAT + "&lon=" + LON + "&start=" + startStr + "&end=" + endStr + "&appid={API key}";
   String host = OWM_ENDPOINT;
 #elif AIR_QUALITY_API == OPEN_METEO
-  String uri = "/v1/air-quality?latitude=" + LAT + "&longitude=" + LON + "&hourly=pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ammonia,nitrogen_monoxide,ozone,pm10&forecast_days=1&timeformat=unixtime";
+  String uri = "/v1/air-quality?latitude=" + LAT + "&longitude=" + LON + "&hourly=pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ammonia,nitrogen_monoxide,ozone,pm10&past_days=1&forecast_days=1&timeformat=unixtime";
   String sanitizedUri = OM_AIR_QUALITY_ENDPOINT + uri;
   String host = OM_AIR_QUALITY_ENDPOINT;
 #endif

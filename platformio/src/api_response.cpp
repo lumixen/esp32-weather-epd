@@ -331,17 +331,41 @@ DeserializationError deserializeOpenMeteoAirQuality(WiFiClient &json,
   JsonObject hourly = doc["hourly"];
   int count = hourly["time"].size();
 
-  for (int i = 0; i < count && i < NUM_AIR_POLLUTION; ++i)
+  // Find index of closest timestamp below 'now'
+  int closest_idx = -1;
+  int64_t now = time(nullptr);
+  for (int i = 0; i < count; i++)
   {
-    r.dt[i] = hourly["time"][i].as<int64_t>();
-    r.components.pm2_5[i] = hourly["pm2_5"][i].as<float>();
-    r.components.pm10[i] = hourly["pm10"][i].as<float>();
-    r.components.co[i] = hourly["carbon_monoxide"][i].as<float>();
-    r.components.no[i] = hourly["nitrogen_monoxide"][i].as<float>();
-    r.components.no2[i] = hourly["nitrogen_dioxide"][i].as<float>();
-    r.components.o3[i] = hourly["ozone"][i].as<float>();
-    r.components.so2[i] = hourly["sulphur_dioxide"][i].as<float>();
-    r.components.nh3[i] = hourly["ammonia"][i].as<float>();
+    int64_t ts = hourly["time"][i].as<int64_t>();
+    if (ts <= now)
+    {
+      closest_idx = i;
+    }
+    else
+    {
+      break;
+    }
+  }
+
+  // Pick 24 entries: closest below and 23 previous
+  int start_idx = closest_idx - NUM_AIR_POLLUTION + 1;
+  if (start_idx < 0)
+    start_idx = 0;
+  int actual_count = closest_idx - start_idx + 1;
+  if (actual_count > NUM_AIR_POLLUTION)
+    actual_count = NUM_AIR_POLLUTION;
+  for (int i = 0; i < actual_count; i++)
+  {
+    int idx = start_idx + i;
+    r.dt[i] = hourly["time"][idx].as<int64_t>();
+    r.components.pm2_5[i] = hourly["pm2_5"][idx].as<float>();
+    r.components.pm10[i] = hourly["pm10"][idx].as<float>();
+    r.components.co[i] = hourly["carbon_monoxide"][idx].as<float>();
+    r.components.no[i] = hourly["nitrogen_monoxide"][idx].as<float>();
+    r.components.no2[i] = hourly["nitrogen_dioxide"][idx].as<float>();
+    r.components.o3[i] = hourly["ozone"][idx].as<float>();
+    r.components.so2[i] = hourly["sulphur_dioxide"][idx].as<float>();
+    r.components.nh3[i] = hourly["ammonia"][idx].as<float>();
   }
   return error;
 } // end deserializeOpenMeteoAirQuality
