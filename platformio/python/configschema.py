@@ -153,7 +153,7 @@ class ConfigSchema(BaseModel):
     locale: Locale
     weatherAPI: WeatherAPI = WeatherAPI.OPEN_METEO
     airQualityAPI: AirQualityAPI = AirQualityAPI.OPEN_METEO
-    useImperialUnitsAsDefault: bool = False # TODO: Use locale to set units
+    useImperialUnitsAsDefault: bool = False
     unitsTemp: UnitsTemp = Field(default_factory=lambda data: UnitsTemp.FAHRENHEIT if data['useImperialUnitsAsDefault'] else UnitsTemp.CELSIUS)
     unitsSpeed: UnitsSpeed = Field(default_factory=lambda data: UnitsSpeed.MILESPERHOUR if data['useImperialUnitsAsDefault'] else UnitsSpeed.KILOMETERSPERHOUR)
     unitsPres: UnitsPres = Field(default_factory=lambda data: UnitsPres.INCHESOFMERCURY if data['useImperialUnitsAsDefault'] else UnitsPres.MILLIBAR)
@@ -170,7 +170,7 @@ class ConfigSchema(BaseModel):
     statusBarExtrasWifiRSSI: bool = False
     batteryMonitoring: bool = True
     debugLevel: int = 0 # TODO: From 0 to 2
-    pinBatAdc: int = 34 # TODO: Manage An nomenclature for analog pins
+    pinBatAdc: int = 35
     pinEpdBusy: int = 14
     pinEpdCS: int = 13
     pinEpdRst: int = 21
@@ -187,7 +187,6 @@ class ConfigSchema(BaseModel):
     longitude: str
     city: str
     timezone: str
-    # TODO: Use locale to set formats
     timeFormat: str = "%H:%M"
     hourFormat: str = "%H"
     dateFormat: str

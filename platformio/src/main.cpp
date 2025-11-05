@@ -124,7 +124,7 @@ void beginDeepSleep(unsigned long startTime, tm *timeInfo)
   esp_deep_sleep_start();
 } // end beginDeepSleep
 
-void enrichWithMoonData(environment_data_t &data, tm *timeInfo)
+void enrichWithMoonData(environment_data_t &data)
 {
   moon_state_t moonState = getMoonState(LAT.toDouble(), LON.toDouble());
   data.daily[0].moonrise = moonState.moonrise;
@@ -326,7 +326,7 @@ void setup()
 
   killWiFi(); // WiFi no longer needed
 
-  enrichWithMoonData(environment_data, &timeInfo);
+  enrichWithMoonData(environment_data);
 
   String refreshTimeStr;
   getRefreshTimeStr(refreshTimeStr, timeConfigured, &timeInfo);
