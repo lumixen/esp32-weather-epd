@@ -2,7 +2,7 @@
 
 - Optimized for the Lolin D32 board.
 - Uses [Open-Meteo](https://open-meteo.com/) as the primary weather API.
-- Configuration is managed via a non-versioned JSON file, processed by a Python script to generate C++ defines.
+- Configuration is managed via a non-versioned YAML file.
 - Supports the DKE DEPG0750RWF86BF e-paper display.
 - BME sensor integration removed.
 
@@ -39,7 +39,7 @@ Enclosure files and assembly instructions are available at [printables](https://
    - Make sure you have [PlatformIO](https://platformio.org/) installed in VS Code.
 
 3. **Configure the Software**
-   - Create a `config.json` file in the `platformio` folder.
+   - Create a `config.yml` file in the `platformio` folder.
    - Copy and edit the example configuration to match your hardware and preferences (WiFi credentials, location, panel type, etc.).
 
 4. **Compile and Upload**
@@ -65,9 +65,9 @@ Wiring is specific for Lolin D32 board:
 | EPD PWR        | 2            | VCC/PWR          | E-paper power              |
 
 
-### Configuration, Compilation, and Upload
+### Configuration, Compilation and Uploading
 
-To configure the build, create a new `config.json` file in the `platformio` folder that provides the configuration variables. For example:
+To configure the build, create a new `config.yml` file in the `platformio` folder with the configuration variables. For example:
 ```yaml
 epdPanel: DISP_3C_86BF
 epdDriver: Waveshare
