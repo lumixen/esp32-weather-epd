@@ -174,6 +174,7 @@ def enum_schema(enum: Enum):
         }
     )
 
+
 class PinsConfig(BaseModel):
     batAdc: int = 35
     epdBusy: int = 14
@@ -184,6 +185,7 @@ class PinsConfig(BaseModel):
     epdMISO: int = 19
     epdMOSI: int = 23
     epdPwr: int = 26
+
 
 class ConfigSchema(BaseModel):
     epdPanel: Annotated[EpdPanel, enum_schema(EpdPanel)] = EpdPanel.DISP_BW_V2
@@ -248,6 +250,9 @@ class ConfigSchema(BaseModel):
 
     @model_validator(mode="after")
     def validate_apikey(self):
-        if (self.weatherAPI == WeatherAPI.OPEN_WEATHER_MAP or self.airQualityAPI == AirQualityAPI.OPEN_WEATHER_MAP) and not self.owmApikey:
+        if (
+            self.weatherAPI == WeatherAPI.OPEN_WEATHER_MAP
+            or self.airQualityAPI == AirQualityAPI.OPEN_WEATHER_MAP
+        ) and not self.owmApikey:
             raise ValueError("The API key is required on OpenWeatherMap")
         return self

@@ -68,55 +68,53 @@ Wiring is specific for Lolin D32 board:
 ### Configuration, Compilation, and Upload
 
 To configure the build, create a new `config.json` file in the `platformio` folder that provides the configuration variables. For example:
-
-```json
-{
-  "epdPanel": "DISP_3C_86BF",
-  "epdDriver": "Waveshare",
-  "locale": "en_US",
-  "weatherAPI": "Open-Meteo",
-  "airQualityAPI": "Open-Meteo",
-  "useImperialUnitsAsDefault": false,
-  "unitsTemp": "Celsius",
-  "unitsSpeed": "km/h",
-  "unitsPres": "mbar",
-  "unitsDistance": "km",
-  "unitsHourlyPrecip": "probability of precipitation",
-  "unitsDailyPrecip": "mm",
-  "windDirectionLabel": "hidden",
-  "windArrowPrecision": "secondary intercardinal",
-  "font": "FreeSans",
-  "displayDailyPrecip": "smart",
-  "displayHourlyIcons": true,
-  "displayAlerts": false,
-  "batteryMonitoring": true,
-  "statusBarExtrasBatVoltage": true,
-  "statusBarExtrasWifiRSSI": false,
-  "debugLevel": 0,
-  "pinBatAdc": 35,
-  "pinEpdBusy": 4,
-  "pinEpdCS": 5,
-  "pinEpdRst": 16,
-  "pinEpdDC": 17,
-  "pinEpdSCK": 18,
-  "pinEpdMISO": 19,
-  "pinEpdMOSI": 23,
-  "pinEpdPwr": 2,
-  "wifiSSID": "SSID",
-  "wifiPassword": "PASSWORD",
-  "owmApikey": "",
-  "owmOnecallVersion": "",
-  "latitude": "64",
-  "longitude": "-22",
-  "city": "ESPLand",
-  "timezone": "UTC0",
-  "timeFormat": "%H:%M",
-  "hourFormat": "%H",
-  "dateFormat": "%d/%m/%Y",
-  "refreshTimeFormat": "%x %H:%M",
-  "sleepDuration": 30,
-  "bedTime": 0,
-  "wakeTime": 6,
-  "hourlyGraphMax": 24
-}
+```yaml
+epdPanel: DISP_3C_86BF
+epdDriver: Waveshare
+locale: en_US
+weatherAPI: Open-Meteo
+airQualityAPI: Open-Meteo
+useImperialUnitsAsDefault: false
+unitsTemp: Celsius
+unitsSpeed: km/h
+unitsPres: mbar
+unitsDistance: km
+unitsHourlyPrecip: probability of precipitation
+unitsDailyPrecip: mm
+windDirectionLabel: hidden
+windArrowPrecision: secondary intercardinal
+font: FreeSans
+displayDailyPrecip: smart
+displayHourlyIcons: true
+displayAlerts: false
+batteryMonitoring: true
+statusBarExtrasBatVoltage: true
+statusBarExtrasWifiRSSI: false
+debugLevel: 0
+pin:
+  batAdc: 35
+  epdBusy: 4
+  epdCS: 5
+  epdRst: 16
+  epdDC: 17
+  epdSCK: 18
+  epdMISO: 19
+  epdMOSI: 23
+  epdPwr: 2
+wifiSSID: SSID
+wifiPassword: PASSWORD
+owmApikey:
+owmOnecallVersion: ""
+latitude: "64"
+longitude: "-22"
+city: ESPLand
+timezone: UTC0
+timeFormat: "%H:%M"
+hourFormat: "%H"
+dateFormat: "%d/%m/%Y"
+refreshTimeFormat: "%x %H:%M"
+sleepDuration: 30
+bedTime: 0
+wakeTime: 6
+hourlyGraphMax: 24
 ```
