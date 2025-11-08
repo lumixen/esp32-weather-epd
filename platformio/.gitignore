@@ -1,5 +1,5 @@
 .pio
 .vscode
-/python/__pycache__
-/config.json
+/config/__pycache__
+config.yml
 /http

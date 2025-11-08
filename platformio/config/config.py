@@ -5,19 +5,26 @@ try:
 except ImportError:
     env.Execute("$PYTHONEXE -m pip install pydantic")
 
-from configschema import ConfigSchema, defined_enums
-import json
+try:
+    import yaml
+except ImportError:
+    env.Execute("$PYTHONEXE -m pip install pyyaml")
+
+from schema import ConfigSchema, defined_enums
+from pydantic import BaseModel
 from re import sub
 
+
 def upper_snake(s: str):
-  return '_'.join(
-    sub('([A-Z][a-z]+)', r' \1',
-    sub('([A-Z]+)', r' \1', s)).split()).upper()
+    return "_".join(
+        sub("([A-Z][a-z]+)", r" \1", sub("([A-Z]+)", r" \1", s)).split()
+    ).upper()
+
 
 cppDefines = {}
 
-with open("./config.json", "r", encoding="utf-8") as config_file:
-    user_config = json.load(config_file)
+with open("./config.yml", "r", encoding="utf-8") as config_file:
+    user_config = yaml.safe_load(config_file)
     config = ConfigSchema(**user_config)
 
     # Add enum members as macros
@@ -40,10 +47,10 @@ with open("./config.json", "r", encoding="utf-8") as config_file:
         "Roboto Mono": "fonts/RobotoMono_Regular.h",
         "Roboto Slab": "fonts/RobotoSlab_Regular.h",
         "Ubuntu": "fonts/Ubuntu_R.h",
-        "Ubuntu Mono": "fonts/UbuntuMono_R.h"
+        "Ubuntu Mono": "fonts/UbuntuMono_R.h",
     }
 
-    for k,v in config:
+    for k, v in config:
         if hasattr(v, "name"):
             if k == "locale":
                 # For locale take its value and add to macro as literal
@@ -54,6 +61,10 @@ with open("./config.json", "r", encoding="utf-8") as config_file:
             else:
                 # For the other enums take the member name (not its value)
                 cppDefines[upper_snake(k)] = v.name
+        elif isinstance(v, BaseModel):
+            # Convert Pydantic models to dict
+            for nested_k, nested_v in v.model_dump().items():
+                cppDefines[upper_snake(k) + "_" + upper_snake(nested_k)] = nested_v
         elif type(v) == str:
             cppDefines["D_" + upper_snake(k)] = env.StringifyMacro(v)
         elif v is None:
@@ -64,18 +75,6 @@ with open("./config.json", "r", encoding="utf-8") as config_file:
             cppDefines[upper_snake(k)] = v
 
     print("Defines:")
-    print(json.dumps(cppDefines, indent=4, ensure_ascii=False))
+    print(yaml.dump(cppDefines, indent=4, allow_unicode=True, sort_keys=False))
 
     projenv.Append(CPPDEFINES=cppDefines)
-
-
-
-"""
-# https://docs.platformio.org/en/latest/scripting/examples/asking_for_input.html
-# TODO: To get the input (e.g. Wi-Fi password):
-print("Enter your name:")
-user_name = input()
-
-# https://docs.platformio.org/en/latest/scripting/actions.html
-env.AddPreAction("buildprog", callback...)
-"""
