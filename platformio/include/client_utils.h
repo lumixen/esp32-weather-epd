@@ -22,7 +22,7 @@
 #include <WiFiClient.h>
 #include "api_response.h"
 #include "config.h"
-#ifdef MQTT_ENABLED
+#ifdef HOME_ASSISTANT_MQTT_ENABLED
 #include <PubSubClient.h>
 #endif
 
@@ -35,7 +35,7 @@ int getOWMonecall(WiFiClient &client, environment_data_t &r);
 int getOMCall(WiFiClient &client, environment_data_t &r);
 int getAirPollution(WiFiClient &client, air_pollution_t &r);
 
-#ifdef MQTT_ENABLED
+#ifdef HOME_ASSISTANT_MQTT_ENABLED
 void sendMQTTStatus(uint32_t batteryVoltage, uint32_t batteryPercentage);
 #endif
 

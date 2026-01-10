@@ -258,7 +258,7 @@ void setup()
   }
 
 // SEND MQTT STATUS
-#if BATTERY_MONITORING && MQTT_ENABLED
+#if BATTERY_MONITORING && HOME_ASSISTANT_MQTT_ENABLED
   if (WiFi.status() == WL_CONNECTED)
   {
     uint8_t batPercent = calcBatPercent(batteryVoltage, MIN_BATTERY_VOLTAGE, MAX_BATTERY_VOLTAGE);

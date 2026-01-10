@@ -39,9 +39,7 @@
 #include "config.h"
 #include "display_utils.h"
 #include "renderer.h"
-// MQTT config/progmem strings
-#include "mqtt.h"
-// MQTT
+#include "home_assistant_mqtt.h"
 #if HTTP_MODE == HTTP
 #include <WiFiClientSecure.h>
 #endif
@@ -344,27 +342,27 @@ void printHeapUsage()
   return;
 }
 
-#ifdef MQTT_ENABLED
+#ifdef HOME_ASSISTANT_MQTT_ENABLED
 void sendMQTTStatus(uint32_t batteryVoltage, uint32_t batteryPercentage)
 {
     WiFiClient mqttWifi;
     PubSubClient mqtt(mqttWifi);
     mqtt.setBufferSize(768); // increase buffer size for discovery payload
-    mqtt.setServer(D_MQTT_SERVER, MQTT_PORT);
+    mqtt.setServer(D_HOME_ASSISTANT_MQTT_SERVER, HOME_ASSISTANT_MQTT_PORT);
     Serial.println("Connecting to MQTT...");
-    bool connected = mqtt.connect(D_MQTT_CLIENT_ID, D_MQTT_USERNAME, D_MQTT_PASSWORD);
+    bool connected = mqtt.connect(D_HOME_ASSISTANT_MQTT_CLIENT_ID, D_HOME_ASSISTANT_MQTT_USERNAME, D_HOME_ASSISTANT_MQTT_PASSWORD);
     if (connected)
     {
       Serial.println("MQTT connected. Now publishing discovery and status.");
       // Home Assistant discovery (retain so HA picks it up even while device sleeps)
-      String discoveryTopic = FPSTR(MQTT_DEVICE_DISCOVERY_TOPIC);
-      String discoveryPayload = FPSTR(MQTT_DEVICE_DISCOVERY_PAYLOAD);
+      String discoveryTopic = FPSTR(HOME_ASSISTANT_MQTT_DEVICE_DISCOVERY_TOPIC);
+      String discoveryPayload = FPSTR(HOME_ASSISTANT_MQTT_DEVICE_DISCOVERY_PAYLOAD);
 
       mqtt.publish(discoveryTopic.c_str(), discoveryPayload.c_str(), true);
 
       // Publish current battery values
-      String stateVoltTopic = FPSTR(MQTT_STATE_TOPIC_VOLTAGE);
-      String statePctTopic = FPSTR(MQTT_STATE_TOPIC_PERCENT);
+      String stateVoltTopic = FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_VOLTAGE);
+      String statePctTopic = FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_PERCENT);
 
       char voltageStr[5];
       snprintf(voltageStr, sizeof(voltageStr), "%04u", batteryVoltage);

@@ -11,10 +11,7 @@ class DocEnum(Enum):
             self.__doc__ = doc
         return self
 
-
 # ENUMS
-
-
 class Epd(DocEnum):
     """E-Paper panel type"""
 
@@ -187,7 +184,7 @@ class PinsConfig(BaseModel):
     epdPwr: int = 26
 
 
-class MqttConfig(BaseModel):
+class HomeAssistantMqttConfig(BaseModel):
     enabled: bool = False
     server: str
     port: int = 1883
@@ -258,7 +255,7 @@ class ConfigSchema(BaseModel):
     bedTime: int = 0
     wakeTime: int = 6
     hourlyGraphMax: int = 24
-    mqtt: MqttConfig | None = None
+    homeAssistantMqtt: HomeAssistantMqttConfig | None = None
 
     @model_validator(mode="after")
     def validate_apikey(self):
