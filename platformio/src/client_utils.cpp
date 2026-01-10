@@ -40,9 +40,6 @@
 #include "display_utils.h"
 #include "renderer.h"
 #include "home_assistant_mqtt.h"
-#if HTTP_MODE != HTTP
-#include <WiFiClientSecure.h>
-#endif
 
 #if HTTP_MODE == HTTP
 static const uint16_t PORT = 80;
