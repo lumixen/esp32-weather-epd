@@ -19,12 +19,11 @@
 #define __CLIENT_UTILS_H__
 
 #include <Arduino.h>
+#include <WiFiClient.h>
 #include "api_response.h"
 #include "config.h"
-#if HTTP_MODE == HTTP
-  #include <WiFiClient.h>
-#else
-  #include <WiFiClientSecure.h>
+#ifdef MQTT_ENABLED
+#include <PubSubClient.h>
 #endif
 
 wl_status_t startWiFi(int &wifiRSSI);
@@ -32,14 +31,12 @@ void killWiFi();
 bool waitForSNTPSync(tm *timeInfo);
 bool printLocalTime(tm *timeInfo);
 
-#if HTTP_MODE == HTTP
-  int getOWMonecall(WiFiClient &client, environment_data_t &r);
-  int getOMCall(WiFiClient &client, environment_data_t &r);
-  int getAirPollution(WiFiClient &client, air_pollution_t &r);
-#else
-  int getOWMonecall(WiFiClientSecure &client, environment_data_t &r);
-  int getOMCall(WiFiClientSecure &client, environment_data_t &r);
-  int getAirPollution(WiFiClientSecure &client, air_pollution_t &r);
+int getOWMonecall(WiFiClient &client, environment_data_t &r);
+int getOMCall(WiFiClient &client, environment_data_t &r);
+int getAirPollution(WiFiClient &client, air_pollution_t &r);
+
+#ifdef MQTT_ENABLED
+void sendMQTTStatus(uint32_t batteryVoltage, uint32_t batteryPercentage);
 #endif
 
 #endif

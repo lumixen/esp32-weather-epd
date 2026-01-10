@@ -15,7 +15,7 @@ class DocEnum(Enum):
 # ENUMS
 
 
-class EpdPanel(DocEnum):
+class Epd(DocEnum):
     """E-Paper panel type"""
 
     DISP_BW_V2 = "DISP_BW_V2", "7.5in e-Paper (v2) 800x480px Black/White"
@@ -28,7 +28,7 @@ class EpdPanel(DocEnum):
     DISP_BW_V1 = "DISP_BW_V1", "7.5in e-Paper (v1) 640x384px Black/White"
 
 
-class EpdDriver(str, Enum):
+class Driver(str, Enum):
     """E-Paper driver board"""
 
     DESPI_C02 = "Good Display DESPI-C02"
@@ -149,8 +149,8 @@ class Font(str, Enum):
 # END ENUMS
 
 defined_enums: list[Enum] = [
-    EpdPanel,
-    EpdDriver,
+    Epd,
+    Driver,
     WeatherAPI,
     AirQualityAPI,
     UnitsTemp,
@@ -187,9 +187,20 @@ class PinsConfig(BaseModel):
     epdPwr: int = 26
 
 
+class MqttConfig(BaseModel):
+    enabled: bool = False
+    server: str
+    port: int = 1883
+    username: str
+    password: str
+    clientId: str = "esp32-weather-epd"
+    deviceName: str = "Weather EPD"
+    discoveryPrefix: str = "homeassistant"
+
+
 class ConfigSchema(BaseModel):
-    epdPanel: Annotated[EpdPanel, enum_schema(EpdPanel)] = EpdPanel.DISP_BW_V2
-    epdDriver: EpdDriver = EpdDriver.DESPI_C02
+    epdPanel: Annotated[Epd, enum_schema(Epd)] = Epd.DISP_BW_V2
+    epdDriver: Driver = Driver.DESPI_C02
     locale: Locale
     weatherAPI: WeatherAPI = WeatherAPI.OPEN_METEO
     airQualityAPI: AirQualityAPI = AirQualityAPI.OPEN_METEO
@@ -247,6 +258,7 @@ class ConfigSchema(BaseModel):
     bedTime: int = 0
     wakeTime: int = 6
     hourlyGraphMax: int = 24
+    mqtt: MqttConfig | None = None
 
     @model_validator(mode="after")
     def validate_apikey(self):

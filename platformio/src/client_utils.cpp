@@ -39,6 +39,9 @@
 #include "config.h"
 #include "display_utils.h"
 #include "renderer.h"
+// MQTT config/progmem strings
+#include "mqtt.h"
+// MQTT
 #if HTTP_MODE == HTTP
 #include <WiFiClientSecure.h>
 #endif
@@ -141,11 +144,7 @@ bool waitForSNTPSync(tm *timeInfo)
  *
  * Returns the HTTP Status Code.
  */
-#if HTTP_MODE == HTTP
 int getOWMonecall(WiFiClient &client, environment_data_t &r)
-#else
-int getOWMonecall(WiFiClientSecure &client, environment_data_t &r)
-#endif
 {
   int attempts = 0;
   bool rxSuccess = false;
@@ -204,17 +203,13 @@ int getOWMonecall(WiFiClientSecure &client, environment_data_t &r)
  *
  * Returns the HTTP Status Code.
  */
-#if HTTP_MODE == HTTP
 int getAirPollution(WiFiClient &client, air_pollution_t &r)
-#else
-int getAirPollution(WiFiClientSecure &client, air_pollution_t &r)
-#endif
 {
   int attempts = 0;
   bool rxSuccess = false;
   DeserializationError jsonErr = {};
 
-#if AIR_QUALITY_API == OPEN_WEATHER_MAP
+#if AIR_QUALITY_API == AIR_QUALITY_API_OPEN_WEATHER_MAP
   int64_t end = time(nullptr);
   // minus 1 is important here, otherwise we could get an extra hour of history
   int64_t start = end - ((3600 * NUM_AIR_POLLUTION) - 1);
@@ -226,7 +221,7 @@ int getAirPollution(WiFiClientSecure &client, air_pollution_t &r)
   String sanitizedUri = OWM_ENDPOINT +
                         "/data/2.5/air_pollution/history?lat=" + LAT + "&lon=" + LON + "&start=" + startStr + "&end=" + endStr + "&appid={API key}";
   String host = OWM_ENDPOINT;
-#elif AIR_QUALITY_API == OPEN_METEO
+#elif AIR_QUALITY_API == AIR_QUALITY_API_OPEN_METEO
   String uri = "/v1/air-quality?latitude=" + LAT + "&longitude=" + LON + "&hourly=pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ammonia,nitrogen_monoxide,ozone,pm10&past_days=1&forecast_days=1&timeformat=unixtime";
   String sanitizedUri = OM_AIR_QUALITY_ENDPOINT + uri;
   String host = OM_AIR_QUALITY_ENDPOINT;
@@ -247,16 +242,16 @@ int getAirPollution(WiFiClientSecure &client, air_pollution_t &r)
     HTTPClient http;
     http.setConnectTimeout(HTTP_CLIENT_TCP_TIMEOUT); // default 5000ms
     http.setTimeout(HTTP_CLIENT_TCP_TIMEOUT);        // default 5000ms
-#if AIR_QUALITY_API == OPEN_METEO
+#if AIR_QUALITY_API == AIR_QUALITY_API_OPEN_METEO
     http.useHTTP10(true);
 #endif
     http.begin(client, host, PORT, uri);
     httpResponse = http.GET();
     if (httpResponse == HTTP_CODE_OK)
     {
-#if AIR_QUALITY_API == OPEN_WEATHER_MAP
+#if AIR_QUALITY_API == AIR_QUALITY_API_OPEN_WEATHER_MAP
       jsonErr = deserializeOWMAirQuality(http.getStream(), r);
-#elif AIR_QUALITY_API == OPEN_METEO
+#elif AIR_QUALITY_API == AIR_QUALITY_API_OPEN_METEO
       jsonErr = deserializeOpenMeteoAirQuality(http.getStream(), r);
 #endif
       if (jsonErr)
@@ -281,11 +276,7 @@ int getAirPollution(WiFiClientSecure &client, air_pollution_t &r)
  *
  * Returns the HTTP Status Code.
  */
-#if HTTP_MODE == HTTP
 int getOMCall(WiFiClient &client, environment_data_t &r)
-#else
-int getOMCall(WiFiClientSecure &client, environment_data_t &r)
-#endif
 {
   int attempts = 0;
   bool rxSuccess = false;
@@ -352,3 +343,40 @@ void printHeapUsage()
   Serial.println("[debug] Max Allocatable : " + String(ESP.getMaxAllocHeap()) + " B");
   return;
 }
+
+#ifdef MQTT_ENABLED
+void sendMQTTStatus(uint32_t batteryVoltage, uint32_t batteryPercentage)
+{
+    WiFiClient mqttWifi;
+    PubSubClient mqtt(mqttWifi);
+    mqtt.setBufferSize(768); // increase buffer size for discovery payload
+    mqtt.setServer(D_MQTT_SERVER, MQTT_PORT);
+    Serial.println("Connecting to MQTT...");
+    bool connected = mqtt.connect(D_MQTT_CLIENT_ID, D_MQTT_USERNAME, D_MQTT_PASSWORD);
+    if (connected)
+    {
+      Serial.println("MQTT connected. Now publishing discovery and status.");
+      // Home Assistant discovery (retain so HA picks it up even while device sleeps)
+      String discoveryTopic = FPSTR(MQTT_DEVICE_DISCOVERY_TOPIC);
+      String discoveryPayload = FPSTR(MQTT_DEVICE_DISCOVERY_PAYLOAD);
+
+      mqtt.publish(discoveryTopic.c_str(), discoveryPayload.c_str(), true);
+
+      // Publish current battery values
+      String stateVoltTopic = FPSTR(MQTT_STATE_TOPIC_VOLTAGE);
+      String statePctTopic = FPSTR(MQTT_STATE_TOPIC_PERCENT);
+
+      char voltageStr[5];
+      snprintf(voltageStr, sizeof(voltageStr), "%04u", batteryVoltage);
+      mqtt.publish(stateVoltTopic.c_str(), voltageStr, true);
+
+      char percentStr[4];
+      snprintf(percentStr, sizeof(percentStr), "%u", batteryPercentage);
+      mqtt.publish(statePctTopic.c_str(), percentStr, true);
+      mqtt.disconnect();
+    } else {
+      Serial.println(mqtt.state());
+      Serial.println("MQTT connection failed.");
+    }
+}
+#endif
