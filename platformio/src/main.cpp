@@ -22,6 +22,10 @@
 #include <time.h>
 #include <WiFi.h>
 #include <Wire.h>
+#if HOME_ASSISTANT_MQTT_ENABLED
+#include <PubSubClient.h>
+#include <pgmspace.h>
+#endif
 
 #include "_locale.h"
 #include "api_response.h"
@@ -31,8 +35,6 @@
 #include "icons/icons_196x196.h"
 #include "renderer.h"
 #include "moon_tools.h"
-#include <PubSubClient.h>
-#include <pgmspace.h>
 
 #if HTTP_MODE != HTTP
 #include <WiFiClientSecure.h>

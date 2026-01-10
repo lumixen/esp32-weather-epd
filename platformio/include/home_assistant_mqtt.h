@@ -30,7 +30,7 @@ static const char HOME_ASSISTANT_MQTT_DEVICE_DISCOVERY_PAYLOAD[] PROGMEM =
       "\"state_topic\":\"esp32_weather_epd/" D_HOME_ASSISTANT_MQTT_CLIENT_ID "/battery/percent\""
     "}"
   "},"
-  "\"qos\":2"
+  "\"qos\":0"
 "}";
 
 // Discovery Topic
