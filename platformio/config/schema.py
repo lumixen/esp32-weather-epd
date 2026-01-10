@@ -186,10 +186,10 @@ class PinsConfig(BaseModel):
 
 class HomeAssistantMqttConfig(BaseModel):
     enabled: bool = False
-    server: str
+    server: str = ""
     port: int = 1883
-    username: str
-    password: str
+    username: str = ""
+    password: str = ""
     clientId: str = "esp32-weather-epd"
     deviceName: str = "Weather EPD"
     discoveryPrefix: str = "homeassistant"
