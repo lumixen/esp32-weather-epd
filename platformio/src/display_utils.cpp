@@ -84,7 +84,7 @@ uint32_t readBatteryVoltage()
  *
  * c - c / (1 + k*x/v)^3
  */
-uint32_t calcBatPercent(uint32_t v, uint32_t minv, uint32_t maxv)
+uint8_t calcBatPercent(uint32_t v, uint32_t minv, uint32_t maxv)
 {
   // slow
   // uint32_t p = 110 - (110 / (1 + pow(1.468 * (v - minv)/(maxv - minv), 6)));
@@ -93,7 +93,7 @@ uint32_t calcBatPercent(uint32_t v, uint32_t minv, uint32_t maxv)
   // uint32_t p = 102 - (102 / (1 + pow(1.621 * (v - minv)/(maxv - minv), 8.1)));
 
   // normal
-  uint32_t p = 105 - (105 / (1 + pow(1.724 * (v - minv) / (maxv - minv), 5.5)));
+  uint8_t p = 105 - (105 / (1 + pow(1.724 * (v - minv) / (maxv - minv), 5.5)));
   return p >= 100 ? 100 : p;
 } // end calcBatPercent
 
@@ -449,7 +449,7 @@ bool isWindy(float wind_speed, float wind_gust)
           || wind_gust >= 40.2 /*m/s*/);
 }
 
-#if WEATHER_API == OPEN_WEATHER_MAP
+#if WEATHER_API == WEATHER_API_OPEN_WEATHER_MAP
 /* Takes the current weather and today's daily weather forcast (from
  * OpenWeatherMap API response) and returns a pointer to the icon's 196x196
  * bitmap.
@@ -746,7 +746,7 @@ const uint8_t *getConditionsBitmap(int id, bool day, bool moon, bool cloudy,
     return getBitmap(wi_na, BitmapSize);
   }
 } // end getConditionsBitmap
-#elif WEATHER_API == OPEN_METEO
+#elif WEATHER_API == WEATHER_API_OPEN_METEO
 /* Takes the current weather and today's daily weather forcast (from
  * OpenMeteo API response) and returns a pointer to the icon's 196x196
  * bitmap.
@@ -1289,13 +1289,13 @@ enum alert_category getAlertCategory(const owm_alerts_t &alert)
   return alert_category::NOT_FOUND;
 } // end getAlertCategory
 
-#if WIND_ARROW_PRECISION == CARDINAL
+#if WIND_ARROW_PRECISION == WIND_ARROW_PRECISION_CARDINAL
 static const unsigned char *wind_direction_icon_arr[] = {
   wind_direction_meteorological_0deg_24x24,    // N
   wind_direction_meteorological_90deg_24x24,   // E
   wind_direction_meteorological_180deg_24x24,  // S
   wind_direction_meteorological_270deg_24x24}; // W
-#elif WIND_ARROW_PRECISION == INTERCARDINAL
+#elif WIND_ARROW_PRECISION == WIND_ARROW_PRECISION_INTERCARDINAL
 static const unsigned char *wind_direction_icon_arr[] = {
   wind_direction_meteorological_0deg_24x24,    // N
   wind_direction_meteorological_45deg_24x24,   // NE
@@ -1305,7 +1305,7 @@ static const unsigned char *wind_direction_icon_arr[] = {
   wind_direction_meteorological_225deg_24x24,  // SW
   wind_direction_meteorological_270deg_24x24,  // W
   wind_direction_meteorological_315deg_24x24}; // NW
-#elif WIND_ARROW_PRECISION == SECONDARY_INTERCARDINAL
+#elif WIND_ARROW_PRECISION == WIND_ARROW_PRECISION_SECONDARY_INTERCARDINAL
 static const unsigned char *wind_direction_icon_arr[] = {
   wind_direction_meteorological_0deg_24x24,      // N
   wind_direction_meteorological_22_5deg_24x24,   // NNE
@@ -1323,7 +1323,7 @@ static const unsigned char *wind_direction_icon_arr[] = {
   wind_direction_meteorological_292_5deg_24x24,  // WNW
   wind_direction_meteorological_315deg_24x24,    // NW
   wind_direction_meteorological_337_5deg_24x24}; // NNW
-#elif WIND_ARROW_PRECISION == TERTIARY_INTERCARDINAL
+#elif WIND_ARROW_PRECISION == WIND_ARROW_PRECISION_TERTIARY_INTERCARDINAL
 static const unsigned char *wind_direction_icon_arr[] = {
   wind_direction_meteorological_0deg_24x24,       // N
   wind_direction_meteorological_11_25deg_24x24,   // NbE
@@ -1357,7 +1357,7 @@ static const unsigned char *wind_direction_icon_arr[] = {
   wind_direction_meteorological_326_25deg_24x24,  // NWbN
   wind_direction_meteorological_337_5deg_24x24,   // NNW
   wind_direction_meteorological_348_75deg_24x24}; // NbW
-#elif WIND_ARROW_PRECISION == ANY_360
+#elif WIND_ARROW_PRECISION == WIND_ARROW_PRECISION_ANY_360
 static const unsigned char *wind_direction_icon_arr[] = {
   wind_direction_meteorological_0deg_24x24,
   wind_direction_meteorological_1deg_24x24,
@@ -1746,13 +1746,13 @@ const uint8_t *getWindBitmap24(int windDeg)
  */
 const char *getCompassPointNotation(int windDeg)
 {
-#if WIND_DIRECTION_LABEL == CARDINAL
+#if WIND_DIRECTION_LABEL == WIND_DIRECTION_LABEL_CARDINAL
   const int precision = 4;
-#elif WIND_DIRECTION_LABEL == INTERCARDINAL
+#elif WIND_DIRECTION_LABEL == WIND_DIRECTION_LABEL_INTERCARDINAL
   const int precision = 8;
-#elif WIND_DIRECTION_LABEL == SECONDARY_INTERCARDINAL
+#elif WIND_DIRECTION_LABEL == WIND_DIRECTION_LABEL_SECONDARY_INTERCARDINAL
   const int precision = 16;
-#elif WIND_DIRECTION_LABEL == TERTIARY_INTERCARDINAL
+#elif WIND_DIRECTION_LABEL == WIND_DIRECTION_LABEL_TERTIARY_INTERCARDINAL
   const int precision = 32;
 #else
   const int precision = 4;

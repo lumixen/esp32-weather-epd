@@ -19,7 +19,7 @@
 #include "config.h"
 
 // WIFI
-const char *WIFI_SSID     = D_WIFI_SSID;
+const char *WIFI_SSID = D_WIFI_SSID;
 const unsigned long WIFI_TIMEOUT = 10000; // ms, WiFi connection timeout.
 
 // HTTP
@@ -73,13 +73,12 @@ const String CITY_STRING = D_CITY;
 // Time format used when displaying sunrise/set times. (Max 11 characters)
 // For more information about formatting see
 // https://man7.org/linux/man-pages/man3/strftime.3.html
-// const char *TIME_FORMAT = "%l:%M%P"; // 12-hour ex: 1:23am  11:00pm
-const char *TIME_FORMAT = D_TIME_FORMAT;   // 24-hour ex: 01:23   23:00
+const char *TIME_FORMAT = D_TIME_FORMAT; // 24-hour ex: 01:23   23:00
 // Time format used when displaying axis labels. (Max 11 characters)
 // For more information about formatting see
 // https://man7.org/linux/man-pages/man3/strftime.3.html
 // const char *HOUR_FORMAT = "%l%P"; // 12-hour ex: 1am  11pm
-const char *HOUR_FORMAT = D_HOUR_FORMAT;      // 24-hour ex: 01   23
+const char *HOUR_FORMAT = D_HOUR_FORMAT; // 24-hour ex: 01   23
 // NTP_SERVER_1 is the primary time server, while NTP_SERVER_2 is a fallback.
 // pool.ntp.org will find the closest available NTP server to you.
 const char *NTP_SERVER_1 = "pool.ntp.org";

@@ -15,11 +15,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef __CONFIG_H__
-#define __CONFIG_H__
+#pragma once
 
 #include <cstdint>
 #include <Arduino.h>
+#include "defines.h"
 
 // DEFAULT CONFIGS
 
@@ -80,5 +80,3 @@ extern const unsigned long LOW_BATTERY_SLEEP_INTERVAL;
 extern const unsigned long VERY_LOW_BATTERY_SLEEP_INTERVAL;
 extern const uint32_t MAX_BATTERY_VOLTAGE;
 extern const uint32_t MIN_BATTERY_VOLTAGE;
-
-#endif

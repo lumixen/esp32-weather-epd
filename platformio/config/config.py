@@ -13,6 +13,7 @@ except ImportError:
 from schema import ConfigSchema, defined_enums
 from pydantic import BaseModel
 from re import sub
+import os
 
 
 def upper_snake(s: str):
@@ -21,16 +22,53 @@ def upper_snake(s: str):
     ).upper()
 
 
-cppDefines = {}
+def escape_c_string(value):
+    """Escape a string for C++ string literal."""
+    s = str(value)
+    s = s.replace("\\", "\\\\")
+    s = s.replace('"', '\\"')
+    s = s.replace("\n", "\\n")
+    s = s.replace("\r", "\\r")
+    return s
+
+
+def format_cpp_define(key, value):
+    """Format a C++ #define macro."""
+    if isinstance(value, str):
+        escaped = escape_c_string(value)
+        return f'#define D_{key} "{escaped}"'
+    elif isinstance(value, bool):
+        return f'#define {key} {"true" if value else "false"}'
+    elif isinstance(value, int):
+        return f'#define {key} {value}'
+    elif isinstance(value, float):
+        return f'#define {key} {value}f'
+    elif value is None:
+        return f'#define D_{key} ""'
+    else:
+        return f'#define {key} {value}'
+
+
+# Generate header file
+header_lines = [
+    "// Auto-generated configuration header",
+    "// DO NOT EDIT - Generated from config.yml",
+    "",
+    "#pragma once",
+    "",
+    "// Enum definitions",
+]
 
 with open("./config.yml", "r", encoding="utf-8") as config_file:
     user_config = yaml.safe_load(config_file)
     config = ConfigSchema(**user_config)
 
-    # Add enum members as macros
+    # Define all enum members with unique numeric values, prefixed with enum name
     for enum in defined_enums:
+        enum_prefix = upper_snake(enum.__name__)
         for i, member in enumerate(enum):
-            cppDefines[member.name] = i
+            header_lines.append(f'#define {enum_prefix}_{member.name} {i}')
+        header_lines.append("")
 
     # Font name to header mappings
     font_files = {
@@ -50,31 +88,36 @@ with open("./config.yml", "r", encoding="utf-8") as config_file:
         "Ubuntu Mono": "fonts/UbuntuMono_R.h",
     }
 
+    # Add configuration defines
+    header_lines.append("// Configuration")
     for k, v in config:
         if hasattr(v, "name"):
             if k == "locale":
-                # For locale take its value and add to macro as literal
-                cppDefines[upper_snake(k)] = v.value
+                # For locale take its value
+                header_lines.append(f'#define LOCALE {v.value}')
             elif k == "font":
-                # Font is taken from the font_files dictionary as string
-                cppDefines["FONT_HEADER"] = env.StringifyMacro(font_files[v])
+                # Font is taken from the font_files dictionary
+                header_lines.append(f'#define FONT_HEADER "{font_files[v]}"')
             else:
-                # For the other enums take the member name (not its value)
-                cppDefines[upper_snake(k)] = v.name
+                # For enums, define key = prefixed enum member name
+                enum_prefix = upper_snake(type(v).__name__)
+                header_lines.append(f'#define {upper_snake(k)} {enum_prefix}_{v.name}')
         elif isinstance(v, BaseModel):
             # Convert Pydantic models to dict
+            header_lines.append(f"// {k} configuration")
             for nested_k, nested_v in v.model_dump().items():
-                cppDefines[upper_snake(k) + "_" + upper_snake(nested_k)] = nested_v
-        elif type(v) == str:
-            cppDefines["D_" + upper_snake(k)] = env.StringifyMacro(v)
-        elif v is None:
-            cppDefines["D_" + upper_snake(k)] = env.StringifyMacro("")
-        elif type(v) == bool:
-            cppDefines[upper_snake(k)] = int(v)
+                macro_key = upper_snake(k) + "_" + upper_snake(nested_k)
+                header_lines.append(format_cpp_define(macro_key, nested_v))
+            header_lines.append("")
         else:
-            cppDefines[upper_snake(k)] = v
+            header_lines.append(format_cpp_define(upper_snake(k), v))
 
-    print("Defines:")
-    print(yaml.dump(cppDefines, indent=4, allow_unicode=True, sort_keys=False))
+# Write header file to include directory
+header_path = os.path.join("include", "defines.h")
+os.makedirs(os.path.dirname(header_path), exist_ok=True)
 
-    projenv.Append(CPPDEFINES=cppDefines)
+with open(header_path, "w", encoding="utf-8") as header_file:
+    header_file.write("\n".join(header_lines))
+
+print(f"Generated configuration header: {header_path}")
+print(f"Total defines: {len([l for l in header_lines if l.startswith('#define')])}")

@@ -22,6 +22,10 @@
 #include <time.h>
 #include <WiFi.h>
 #include <Wire.h>
+#if HOME_ASSISTANT_MQTT_ENABLED
+#include <PubSubClient.h>
+#include <pgmspace.h>
+#endif
 
 #include "_locale.h"
 #include "api_response.h"
@@ -255,7 +259,16 @@ void setup()
     beginDeepSleep(startTime, &timeInfo);
   }
 
-  // MAKE API REQUESTS
+// SEND MQTT STATUS
+#if BATTERY_MONITORING && HOME_ASSISTANT_MQTT_ENABLED
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    uint8_t batPercent = calcBatPercent(batteryVoltage, MIN_BATTERY_VOLTAGE, MAX_BATTERY_VOLTAGE);
+    sendMQTTStatus(batteryVoltage, batPercent);
+  }
+#endif // BATTERY_MONITORING
+
+// MAKE API REQUESTS
 #if HTTP_MODE == HTTP
   WiFiClient client;
 #elif HTTP_MODE == HTTPS_NO_CERT_VERIF
@@ -263,13 +276,13 @@ void setup()
   client.setInsecure();
 #elif HTTP_MODE == HTTPS_WITH_CERT_VERIF
   WiFiClientSecure client;
-#if WEATHER_API == OPEN_WEATHER_MAP
+#if WEATHER_API == WEATHER_API_OPEN_WEATHER_MAP
   client.setCACert(cert_USERTrust_RSA_Certification_Authority);
-#elif WEATHER_API == OPEN_METEO
+#elif WEATHER_API == WEATHER_API_OPEN_METEO
   client.setCACert(cert_ISRG_Root_X1);
 #endif
 #endif
-#if WEATHER_API == OPEN_WEATHER_MAP
+#if WEATHER_API == WEATHER_API_OPEN_WEATHER_MAP
   int rxStatus = getOWMonecall(client, environment_data);
   if (rxStatus != HTTP_CODE_OK)
   {
@@ -285,7 +298,7 @@ void setup()
     beginDeepSleep(startTime, &timeInfo);
   }
 
-#elif WEATHER_API == OPEN_METEO
+#elif WEATHER_API == WEATHER_API_OPEN_METEO
   int rxStatus = getOMCall(client, environment_data);
   if (rxStatus != HTTP_CODE_OK)
   {
@@ -303,9 +316,9 @@ void setup()
 #endif
 
 #if HTTP_MODE == HTTPS_WITH_CERT_VERIF
-#if AIR_QUALITY_API == OPEN_WEATHER_MAP
+#if AIR_QUALITY_API == AIR_QUALITY_API_OPEN_WEATHER_MAP
   client.setCACert(cert_USERTrust_RSA_Certification_Authority);
-#elif AIR_QUALITY_API == OPEN_METEO
+#elif AIR_QUALITY_API == AIR_QUALITY_API_OPEN_METEO
   client.setCACert(cert_ISRG_Root_X1);
 #endif
 #endif

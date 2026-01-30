@@ -11,22 +11,18 @@ class DocEnum(Enum):
             self.__doc__ = doc
         return self
 
-
 # ENUMS
-
-
 class EpdPanel(DocEnum):
     """E-Paper panel type"""
 
-    DISP_BW_V2 = "DISP_BW_V2", "7.5in e-Paper (v2) 800x480px Black/White"
-    DISP_3C_B = "DISP_3C_B", "7.5in e-Paper (B) 800x480px Red/Black/White"
-    DISP_3C_86BF = (
-        "DISP_3C_86BF",
+    GENERIC_BW_V2 = "GENERIC_BW_V2", "7.5in e-Paper (v2) 800x480px Black/White"
+    GENERIC_3C_B = "GENERIC_3C_B", "7.5in e-Paper (B) 800x480px Red/Black/White"
+    DKE_3C_86BF = (
+        "DKE_3C_86BF",
         "7.5in e-Paper (B) 800x480px Red/Black/White DEPG0750RWF86BF",
     )
-    DISP_7C_F = "DISP_7C_F", "7.3in ACeP e-Paper (F) 800x480px 7-Colors"
-    DISP_BW_V1 = "DISP_BW_V1", "7.5in e-Paper (v1) 640x384px Black/White"
-
+    GENERIC_7C_F = "GENERIC_7C_F", "7.3in ACeP e-Paper (F) 800x480px 7-Colors"
+    GENERIC_BW_V1 = "GENERIC_BW_V1", "7.5in e-Paper (v1) 640x384px Black/White"
 
 class EpdDriver(str, Enum):
     """E-Paper driver board"""
@@ -187,8 +183,19 @@ class PinsConfig(BaseModel):
     epdPwr: int = 26
 
 
+class HomeAssistantMqttConfig(BaseModel):
+    enabled: bool = False
+    server: str = ""
+    port: int = 1883
+    username: str = ""
+    password: str = ""
+    clientId: str = "esp32-weather-epd"
+    deviceName: str = "Weather EPD"
+    discoveryPrefix: str = "homeassistant"
+
+
 class ConfigSchema(BaseModel):
-    epdPanel: Annotated[EpdPanel, enum_schema(EpdPanel)] = EpdPanel.DISP_BW_V2
+    epdPanel: Annotated[EpdPanel, enum_schema(EpdPanel)] = EpdPanel.GENERIC_BW_V2
     epdDriver: EpdDriver = EpdDriver.DESPI_C02
     locale: Locale
     weatherAPI: WeatherAPI = WeatherAPI.OPEN_METEO
@@ -247,6 +254,7 @@ class ConfigSchema(BaseModel):
     bedTime: int = 0
     wakeTime: int = 6
     hourlyGraphMax: int = 24
+    homeAssistantMqtt: HomeAssistantMqttConfig | None = None
 
     @model_validator(mode="after")
     def validate_apikey(self):

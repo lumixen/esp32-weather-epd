@@ -3,3 +3,4 @@
 /config/__pycache__
 config.yml
 /http
+/include/defines.h
