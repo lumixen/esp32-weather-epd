@@ -4,8 +4,7 @@
 - Uses [Open-Meteo](https://open-meteo.com/) as the primary weather API.
 - Configuration is managed via a non-versioned YAML file.
 - Supports the DKE DEPG0750RWF86BF e-paper display.
-- Moon data is calculated locally.
-- Supports Home Assistant integration through MQTT.
+- Home Assistant integration through MQTT.
 
 ### ESP32 E-Paper Weather Display
 
