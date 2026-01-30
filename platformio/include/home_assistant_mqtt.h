@@ -18,7 +18,7 @@ static const char HOME_ASSISTANT_MQTT_DEVICE_DISCOVERY_PAYLOAD[] PROGMEM =
     "\"battery_voltage\":{"
       "\"p\":\"sensor\","
       "\"device_class\":\"voltage\","
-      "\"unit_of_measurement\":\"mV\","
+      "\"unit_of_measurement\":\"V\","
       "\"unique_id\":\"" D_HOME_ASSISTANT_MQTT_CLIENT_ID "_battery_voltage\","
       "\"state_topic\":\"esp32_weather_epd/" D_HOME_ASSISTANT_MQTT_CLIENT_ID "/battery/voltage\""
     "},"
@@ -35,7 +35,7 @@ static const char HOME_ASSISTANT_MQTT_DEVICE_DISCOVERY_PAYLOAD[] PROGMEM =
 
 // Discovery Topic
 static const char HOME_ASSISTANT_MQTT_DEVICE_DISCOVERY_TOPIC[] PROGMEM = 
-  "homeassistant/device/" D_HOME_ASSISTANT_MQTT_CLIENT_ID "/config";
+  D_HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/device/" D_HOME_ASSISTANT_MQTT_CLIENT_ID "/config";
 
 // State Topics
 static const char HOME_ASSISTANT_MQTT_STATE_TOPIC_VOLTAGE[] PROGMEM = 
@@ -43,4 +43,4 @@ static const char HOME_ASSISTANT_MQTT_STATE_TOPIC_VOLTAGE[] PROGMEM =
 static const char HOME_ASSISTANT_MQTT_STATE_TOPIC_PERCENT[] PROGMEM = 
   "esp32_weather_epd/" D_HOME_ASSISTANT_MQTT_CLIENT_ID "/battery/percent";
 
-#endif // MQTT_ENABLED
+#endif // HOME_ASSISTANT_MQTT_ENABLED

@@ -361,8 +361,8 @@ void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage)
     String stateVoltTopic = FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_VOLTAGE);
     String statePctTopic = FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_PERCENT);
 
-    char voltageStr[5];
-    snprintf(voltageStr, sizeof(voltageStr), "%04u", batteryVoltage);
+    char voltageStr[8];
+    snprintf(voltageStr, sizeof(voltageStr), "%.3f", batteryVoltage / 1000.0);
     mqtt.publish(stateVoltTopic.c_str(), voltageStr, true);
 
     char percentStr[4];

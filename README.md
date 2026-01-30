@@ -4,7 +4,8 @@
 - Uses [Open-Meteo](https://open-meteo.com/) as the primary weather API.
 - Configuration is managed via a non-versioned JSON file, processed by a Python script to generate C++ defines.
 - Supports the DKE DEPG0750RWF86BF e-paper display.
-- BME sensor integration removed.
+- Moon data is calculated locally.
+- Supports Home Assistant integration through MQTT.
 
 ### ESP32 E-Paper Weather Display
 
@@ -65,15 +66,25 @@ Wiring is specific for Lolin D32 board:
 | EPD PWR        | 2            | VCC/PWR          | E-paper power              |
 
 
-### Configuration, Compilation, and Upload
+### Configuration
 
 To configure the build, create a new `config.json` file in the `platformio` folder that provides the configuration variables. For example:
 ```yaml
-epdPanel: DISP_3C_86BF
+epdPanel: DKE_3C_86BF
 epdDriver: Waveshare
 locale: en_US
 weatherAPI: Open-Meteo
 airQualityAPI: Open-Meteo
+pin:
+  batAdc: 35
+  epdBusy: 4
+  epdCS: 5
+  epdRst: 16
+  epdDC: 17
+  epdSCK: 18
+  epdMISO: 19
+  epdMOSI: 23
+  epdPwr: 2
 useImperialUnitsAsDefault: false
 unitsTemp: Celsius
 unitsSpeed: km/h
@@ -91,16 +102,6 @@ batteryMonitoring: true
 statusBarExtrasBatVoltage: true
 statusBarExtrasWifiRSSI: false
 debugLevel: 0
-pin:
-  batAdc: 35
-  epdBusy: 4
-  epdCS: 5
-  epdRst: 16
-  epdDC: 17
-  epdSCK: 18
-  epdMISO: 19
-  epdMOSI: 23
-  epdPwr: 2
 wifiSSID: SSID
 wifiPassword: PASSWORD
 owmApikey:
@@ -117,4 +118,17 @@ sleepDuration: 30
 bedTime: 0
 wakeTime: 6
 hourlyGraphMax: 24
+homeAssistantMqtt:
+  enabled: true
+  server: XXX.XXX.XXX.XXX
+  port: 1883
+  username: USERNAME
+  password: PASSWORD
+  clientId: esp32-weather-epd
+  deviceName: Device Name
+  discoveryPrefix: homeassistant
 ```
+
+### Home Assistant integration through MQTT
+
+The device supports Home Assistant integration via MQTT for monitoring. When enabled, the device publishes sensor data and device information using Home Assistant's MQTT discovery protocol.

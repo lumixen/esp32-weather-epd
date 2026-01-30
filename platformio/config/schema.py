@@ -12,20 +12,19 @@ class DocEnum(Enum):
         return self
 
 # ENUMS
-class Epd(DocEnum):
+class EpdPanel(DocEnum):
     """E-Paper panel type"""
 
-    DISP_BW_V2 = "DISP_BW_V2", "7.5in e-Paper (v2) 800x480px Black/White"
-    DISP_3C_B = "DISP_3C_B", "7.5in e-Paper (B) 800x480px Red/Black/White"
-    DISP_3C_86BF = (
-        "DISP_3C_86BF",
+    GENERIC_BW_V2 = "GENERIC_BW_V2", "7.5in e-Paper (v2) 800x480px Black/White"
+    GENERIC_3C_B = "GENERIC_3C_B", "7.5in e-Paper (B) 800x480px Red/Black/White"
+    DKE_3C_86BF = (
+        "DKE_3C_86BF",
         "7.5in e-Paper (B) 800x480px Red/Black/White DEPG0750RWF86BF",
     )
-    DISP_7C_F = "DISP_7C_F", "7.3in ACeP e-Paper (F) 800x480px 7-Colors"
-    DISP_BW_V1 = "DISP_BW_V1", "7.5in e-Paper (v1) 640x384px Black/White"
+    GENERIC_7C_F = "GENERIC_7C_F", "7.3in ACeP e-Paper (F) 800x480px 7-Colors"
+    GENERIC_BW_V1 = "GENERIC_BW_V1", "7.5in e-Paper (v1) 640x384px Black/White"
 
-
-class Driver(str, Enum):
+class EpdDriver(str, Enum):
     """E-Paper driver board"""
 
     DESPI_C02 = "Good Display DESPI-C02"
@@ -146,8 +145,8 @@ class Font(str, Enum):
 # END ENUMS
 
 defined_enums: list[Enum] = [
-    Epd,
-    Driver,
+    EpdPanel,
+    EpdDriver,
     WeatherAPI,
     AirQualityAPI,
     UnitsTemp,
@@ -196,8 +195,8 @@ class HomeAssistantMqttConfig(BaseModel):
 
 
 class ConfigSchema(BaseModel):
-    epdPanel: Annotated[Epd, enum_schema(Epd)] = Epd.DISP_BW_V2
-    epdDriver: Driver = Driver.DESPI_C02
+    epdPanel: Annotated[EpdPanel, enum_schema(EpdPanel)] = EpdPanel.GENERIC_BW_V2
+    epdDriver: EpdDriver = EpdDriver.DESPI_C02
     locale: Locale
     weatherAPI: WeatherAPI = WeatherAPI.OPEN_METEO
     airQualityAPI: AirQualityAPI = AirQualityAPI.OPEN_METEO

@@ -38,7 +38,7 @@
 #include "icons/icons_160x160.h"
 #include "icons/icons_196x196.h"
 
-#if EPD_PANEL == EPD_DISP_BW_V2
+#if EPD_PANEL == EPD_PANEL_GENERIC_BW_V2
   GxEPD2_BW<GxEPD2_750_T7,
             GxEPD2_750_T7::HEIGHT> display(
     GxEPD2_750_T7(PIN_EPD_CS,
@@ -46,7 +46,7 @@
                   PIN_EPD_RST,
                   PIN_EPD_BUSY));
 #endif
-#if EPD_PANEL == EPD_DISP_3C_B
+#if EPD_PANEL == EPD_PANEL_GENERIC_3C_B
   GxEPD2_3C<GxEPD2_750c_Z08,
             GxEPD2_750c_Z08::HEIGHT / 2> display(
     GxEPD2_750c_Z08(PIN_EPD_CS,
@@ -54,7 +54,7 @@
                     PIN_EPD_RST,
                     PIN_EPD_BUSY));
 #endif
-#if EPD_PANEL == EPD_DISP_3C_86BF
+#if EPD_PANEL == EPD_PANEL_DKE_3C_86BF
   GxEPD2_3C<GxEPD2_750c_86BF,
             GxEPD2_750c_86BF::HEIGHT / 2> display(
     GxEPD2_750c_86BF(PIN_EPD_CS,
@@ -62,7 +62,7 @@
                     PIN_EPD_RST,
                     PIN_EPD_BUSY));
 #endif
-#if EPD_PANEL == EPD_DISP_7C_F
+#if EPD_PANEL == EPD_PANEL_GENERIC_7C_F
   GxEPD2_7C<GxEPD2_730c_GDEY073D46,
             GxEPD2_730c_GDEY073D46::HEIGHT / 4> display(
     GxEPD2_730c_GDEY073D46(PIN_EPD_CS,
@@ -70,7 +70,7 @@
                            PIN_EPD_RST,
                            PIN_EPD_BUSY));
 #endif
-#if EPD_PANEL == EPD_DISP_BW_V1
+#if EPD_PANEL == EPD_PANEL_GENERIC_BW_V1
   GxEPD2_BW<GxEPD2_750,
             GxEPD2_750::HEIGHT> display(
     GxEPD2_750(PIN_EPD_CS,
@@ -237,9 +237,9 @@ void initDisplay()
 {
   pinMode(PIN_EPD_PWR, OUTPUT);
   digitalWrite(PIN_EPD_PWR, HIGH);
-#if EPD_DRIVER == DRIVER_WAVESHARE
+#if EPD_DRIVER == EPD_DRIVER_WAVESHARE
   display.init(115200, true, 2, false);
-#elif EPD_DRIVER == DRIVER_DESPI_C02
+#elif EPD_DRIVER == EPD_DRIVER_DESPI_C02
   display.init(115200, true, 10, false);
 #endif
   // remap spi
@@ -298,7 +298,7 @@ void drawCurrentConditions(const current_t &current,
   // FONT_**_temperature fonts only have the character set used for displaying
   // temperature (0123456789.-\260)
   display.setFont(&FONT_48pt8b_temperature);
-#if EPD_PANEL != EPD_DISP_BW_V1
+#if EPD_PANEL != EPD_PANEL_GENERIC_BW_V1
   drawString(196 + 164 / 2 - 20, 196 / 2 + 69 / 2, dataStr, CENTER);
 #else
   drawString(156 + 164 / 2 - 20, 196 / 2 + 69 / 2, dataStr, CENTER);
@@ -315,7 +315,7 @@ void drawCurrentConditions(const current_t &current,
   dataStr = String(TXT_FEELS_LIKE) + ' ' + String(static_cast<int>(std::round(celsius_to_fahrenheit(current.feels_like)))) + "\260F";
 #endif
   display.setFont(&FONT_12pt8b);
-#if EPD_PANEL != EPD_DISP_BW_V1
+#if EPD_PANEL != EPD_PANEL_GENERIC_BW_V1
   drawString(196 + 164 / 2, 98 + 69 / 2 + 12 + 17, dataStr, CENTER);
 #else
   drawString(156 + 164 / 2, 98 + 69 / 2 + 12 + 17, dataStr, CENTER);
@@ -330,7 +330,7 @@ void drawCurrentConditions(const current_t &current,
                              wi_strong_wind_48x48, 48, 48, GxEPD_BLACK);
   display.drawInvertedBitmap(0, 204 + (48 + 8) * 2,
                              wi_day_sunny_48x48, 48, 48, GxEPD_BLACK);
-#if EPD_PANEL != EPD_DISP_BW_V1
+#if EPD_PANEL != EPD_PANEL_GENERIC_BW_V1
   display.drawInvertedBitmap(0, 204 + (48 + 8) * 3,
                              air_filter_48x48, 48, 48, GxEPD_BLACK);
   display.drawInvertedBitmap(0, 204 + (48 + 8) * 4,
@@ -342,7 +342,7 @@ void drawCurrentConditions(const current_t &current,
                              wi_humidity_48x48, 48, 48, GxEPD_BLACK);
   display.drawInvertedBitmap(170, 204 + (48 + 8) * 2,
                              wi_barometer_48x48, 48, 48, GxEPD_BLACK);
-#if EPD_PANEL != EPD_DISP_BW_V1
+#if EPD_PANEL != EPD_PANEL_GENERIC_BW_V1
   display.drawInvertedBitmap(170, 204 + (48 + 8) * 3,
                              visibility_icon_48x48, 48, 48, GxEPD_BLACK);
   display.drawInvertedBitmap(170, 204 + (48 + 8) * 4,
@@ -354,7 +354,7 @@ void drawCurrentConditions(const current_t &current,
   drawString(48, 204 + 10 + (48 + 8) * 0, TXT_SUNRISE, LEFT);
   drawString(48, 204 + 10 + (48 + 8) * 1, TXT_WIND, LEFT);
   drawString(48, 204 + 10 + (48 + 8) * 2, TXT_UV_INDEX, LEFT);
-#if EPD_PANEL != EPD_DISP_BW_V1
+#if EPD_PANEL != EPD_PANEL_GENERIC_BW_V1
   const char *air_quality_index_label;
   if (aqi_desc_type(AQI_SCALE) == AIR_QUALITY_DESC)
   {
@@ -370,7 +370,7 @@ void drawCurrentConditions(const current_t &current,
   drawString(170 + 48, 204 + 10 + (48 + 8) * 0, TXT_SUNSET, LEFT);
   drawString(170 + 48, 204 + 10 + (48 + 8) * 1, TXT_HUMIDITY, LEFT);
   drawString(170 + 48, 204 + 10 + (48 + 8) * 2, TXT_PRESSURE, LEFT);
-#if EPD_PANEL != EPD_DISP_BW_V1
+#if EPD_PANEL != EPD_PANEL_GENERIC_BW_V1
   drawString(170 + 48, 204 + 10 + (48 + 8) * 3, TXT_VISIBILITY, LEFT);
   drawString(170 + 48, 204 + 10 + (48 + 8) * 4, TXT_MOONSET, LEFT);
 #endif
@@ -472,7 +472,7 @@ void drawCurrentConditions(const current_t &current,
     }
   }
 
-#if EPD_PANEL != EPD_DISP_BW_V1
+#if EPD_PANEL != EPD_PANEL_GENERIC_BW_V1
   // air quality index
   display.setFont(&FONT_12pt8b);
   const air_components_t &c = air_pollution.components;
@@ -580,7 +580,7 @@ void drawCurrentConditions(const current_t &current,
   drawString(display.getCursorX(), 204 + 17 / 2 + (48 + 8) * 2 + 48 / 2,
              unitStr, LEFT);
 
-#if EPD_PANEL != EPD_DISP_BW_V1
+#if EPD_PANEL != EPD_PANEL_GENERIC_BW_V1
   // visibility
   display.setFont(&FONT_12pt8b);
 #if UNITS_DISTANCE == UNITS_DISTANCE_KILOMETERS
@@ -632,7 +632,7 @@ void drawForecast(const daily_t *daily, tm timeInfo)
   String dataStr, unitStr;
   for (int i = 0; i < 5; ++i)
   {
-#if EPD_PANEL != EPD_DISP_BW_V1
+#if EPD_PANEL != EPD_PANEL_GENERIC_BW_V1
     int x = 398 + (i * 82);
 #else
     int x = 318 + (i * 64);
@@ -1210,7 +1210,7 @@ void drawStatusBar(const String &statusStr, const String &refreshTimeStr,
   uint8_t batPercent = calcBatPercent(batVoltage,
                                        MIN_BATTERY_VOLTAGE,
                                        MAX_BATTERY_VOLTAGE);
-#if EPD_PANEL == EPD_DISP_3C_B || EPD_PANEL == EPD_DISP_3C_86BF || EPD_PANEL == EPD_DISP_7C_F
+#if EPD_PANEL == EPD_PANEL_GENERIC_3C_B || EPD_PANEL == EPD_PANEL_DKE_3C_86BF || EPD_PANEL == EPD_PANEL_GENERIC_7C_F
   if (batVoltage < WARN_BATTERY_VOLTAGE)
   {
     dataColor = ACCENT_COLOR;
