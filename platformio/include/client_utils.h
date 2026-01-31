@@ -36,7 +36,7 @@ int getOMCall(WiFiClient &client, environment_data_t &r);
 int getAirPollution(WiFiClient &client, air_pollution_t &r);
 
 #ifdef HOME_ASSISTANT_MQTT_ENABLED
-void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage);
+void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t wifiRSSI);
 #endif
 
 #endif

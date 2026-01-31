@@ -28,6 +28,13 @@ static const char HOME_ASSISTANT_MQTT_DEVICE_DISCOVERY_PAYLOAD[] PROGMEM =
       "\"unit_of_measurement\":\"%\","
       "\"unique_id\":\"" D_HOME_ASSISTANT_MQTT_CLIENT_ID "_battery_percent\","
       "\"state_topic\":\"esp32_weather_epd/" D_HOME_ASSISTANT_MQTT_CLIENT_ID "/battery/percent\""
+    "},"
+    "\"wifi_rssi\":{"
+      "\"p\":\"sensor\","
+      "\"device_class\":\"signal_strength\","
+      "\"unit_of_measurement\":\"dBm\","
+      "\"unique_id\":\"" D_HOME_ASSISTANT_MQTT_CLIENT_ID "_wifi_rssi\","
+      "\"state_topic\":\"esp32_weather_epd/" D_HOME_ASSISTANT_MQTT_CLIENT_ID "/wifi/rssi\""
     "}"
   "},"
   "\"qos\":0"
@@ -42,5 +49,7 @@ static const char HOME_ASSISTANT_MQTT_STATE_TOPIC_VOLTAGE[] PROGMEM =
  "esp32_weather_epd/" D_HOME_ASSISTANT_MQTT_CLIENT_ID "/battery/voltage";
 static const char HOME_ASSISTANT_MQTT_STATE_TOPIC_PERCENT[] PROGMEM = 
   "esp32_weather_epd/" D_HOME_ASSISTANT_MQTT_CLIENT_ID "/battery/percent";
+static const char HOME_ASSISTANT_MQTT_STATE_TOPIC_RSSI[] PROGMEM = 
+  "esp32_weather_epd/" D_HOME_ASSISTANT_MQTT_CLIENT_ID "/wifi/rssi";
 
 #endif // HOME_ASSISTANT_MQTT_ENABLED
