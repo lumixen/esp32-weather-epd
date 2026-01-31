@@ -374,8 +374,6 @@ void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t w
     mqtt.publish(stateRSSITopic.c_str(), rssiStr, true);
 
     mqtt.disconnect();
-
-
   }
   else
   {
