@@ -340,11 +340,11 @@ void printHeapUsage()
 }
 
 #ifdef HOME_ASSISTANT_MQTT_ENABLED
-void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage)
+void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t wifiRSSI)
 {
   WiFiClient mqttWifi;
   PubSubClient mqtt(mqttWifi);
-  mqtt.setBufferSize(768); // increase buffer size for discovery payload
+  mqtt.setBufferSize(1024); // increase buffer size for discovery payload
   mqtt.setServer(D_HOME_ASSISTANT_MQTT_SERVER, HOME_ASSISTANT_MQTT_PORT);
   Serial.println("Connecting to MQTT...");
   bool connected = mqtt.connect(D_HOME_ASSISTANT_MQTT_CLIENT_ID, D_HOME_ASSISTANT_MQTT_USERNAME, D_HOME_ASSISTANT_MQTT_PASSWORD);
@@ -357,9 +357,9 @@ void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage)
 
     mqtt.publish(discoveryTopic.c_str(), discoveryPayload.c_str(), true);
 
-    // Publish current battery values
     String stateVoltTopic = FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_VOLTAGE);
     String statePctTopic = FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_PERCENT);
+    String stateRSSITopic = FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_RSSI);
 
     char voltageStr[8];
     snprintf(voltageStr, sizeof(voltageStr), "%.3f", batteryVoltage / 1000.0);
@@ -368,6 +368,11 @@ void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage)
     char percentStr[4];
     snprintf(percentStr, sizeof(percentStr), "%u", batteryPercentage);
     mqtt.publish(statePctTopic.c_str(), percentStr, true);
+
+    char rssiStr[5];
+    snprintf(rssiStr, sizeof(rssiStr), "%d", wifiRSSI);
+    mqtt.publish(stateRSSITopic.c_str(), rssiStr, true);
+
     mqtt.disconnect();
   }
   else

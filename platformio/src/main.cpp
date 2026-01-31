@@ -264,7 +264,7 @@ void setup()
   if (WiFi.status() == WL_CONNECTED)
   {
     uint8_t batPercent = calcBatPercent(batteryVoltage, MIN_BATTERY_VOLTAGE, MAX_BATTERY_VOLTAGE);
-    sendMQTTStatus(batteryVoltage, batPercent);
+    sendMQTTStatus(batteryVoltage, batPercent, wifiRSSI);
   }
 #endif // BATTERY_MONITORING
 
