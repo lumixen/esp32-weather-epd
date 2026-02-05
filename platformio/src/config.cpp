@@ -20,7 +20,6 @@
 
 // WIFI
 const char *WIFI_SSID = D_WIFI_SSID;
-const unsigned long WIFI_TIMEOUT = 10000; // ms, WiFi connection timeout.
 
 // HTTP
 // The following errors are likely the result of insuffient http client tcp

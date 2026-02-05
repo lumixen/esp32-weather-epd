@@ -57,7 +57,6 @@
 
 // Set the below constants in "config.cpp"
 extern const char *WIFI_SSID;
-extern const unsigned long WIFI_TIMEOUT;
 extern const unsigned HTTP_CLIENT_TCP_TIMEOUT;
 extern const String OWM_APIKEY;
 extern const String OWM_ENDPOINT;

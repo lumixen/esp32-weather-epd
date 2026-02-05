@@ -57,7 +57,40 @@ wl_status_t startWiFi(int &wifiRSSI)
 {
   WiFi.mode(WIFI_STA);
   Serial.printf("%s '%s'", TXT_CONNECTING_TO, WIFI_SSID);
+#if WIFI_SCAN
+  // Scan for networks, if there are multiple with the same SSID, connect to the one
+  // with the best RSSI.
+  Serial.print("\nScanning for WiFi networks...");
+  int numNetworks = WiFi.scanNetworks();
+  int bestRSSI = -100;
+  uint8_t bestBSSID[6];
+  bool foundNetwork = false;
+
+  for (int i = 0; i < numNetworks; i++)
+  {
+    if (WiFi.SSID(i) == WIFI_SSID)
+    {
+      if (WiFi.RSSI(i) > bestRSSI)
+      {
+        bestRSSI = WiFi.RSSI(i);
+        memcpy(bestBSSID, WiFi.BSSID(i), 6);
+        Serial.printf("\n  Found SSID '%s', BSSID %02X:%02X:%02X:%02X:%02X:%02X with RSSI %d dBm", WIFI_SSID,
+                      bestBSSID[0], bestBSSID[1], bestBSSID[2], bestBSSID[3], bestBSSID[4], bestBSSID[5], WiFi.RSSI(i));
+        foundNetwork = true;
+      }
+    }
+  }
+  if (foundNetwork)
+  {
+    WiFi.begin(WIFI_SSID, D_WIFI_PASSWORD, 0, bestBSSID);
+  }
+  else
+  {
+    WiFi.begin(WIFI_SSID, D_WIFI_PASSWORD);
+  }
+#else
   WiFi.begin(WIFI_SSID, D_WIFI_PASSWORD);
+#endif
 
   // timeout if WiFi does not connect in WIFI_TIMEOUT ms from now
   unsigned long timeout = millis() + WIFI_TIMEOUT;
