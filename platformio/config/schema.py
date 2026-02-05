@@ -240,6 +240,8 @@ class ConfigSchema(BaseModel):
     pin: PinsConfig = Field(default_factory=PinsConfig)
     wifiSSID: str
     wifiPassword: str
+    wifiTimeout: int = 10000
+    wifiScan: bool = False
     owmApikey: str | None = None
     owmOnecallVersion: str = "3.0"
     latitude: str
