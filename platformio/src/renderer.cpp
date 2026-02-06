@@ -284,7 +284,7 @@ void drawCurrentConditions(const current_t &current,
                              196, 196, GxEPD_BLACK);
 
   // current temp
-#if UNITS_TEMP == UNITS_TEMP_KELVIN
+#ifdef UNITS_TEMP_KELVIN
   dataStr = String(static_cast<int>(
       std::round(celsius_to_kelvin(current.temp))));
   unitStr = TXT_UNITS_TEMP_KELVIN;
