@@ -54,12 +54,12 @@ class UnitsSpeed(str, Enum):
 class UnitsPres(str, Enum):
     """Atmospheric pressure units"""
 
-    HECTOPASCAL = "hPa"
-    PASCAL = "Pa"
+    HECTOPASCALS = "hPa"
+    PASCALS = "Pa"
     MILLIMETERSOFMERCURY = "mmHg"
     INCHESOFMERCURY = "inHg"
-    MILLIBAR = "mbar"
-    ATMOSPHERE = "atm"
+    MILLIBARS = "mbar"
+    ATMOSPHERES = "atm"
     GRAMSPERSQUARECENTIMETER = "gsc"
     POUNDSPERSQUAREINCH = "psi"
 
@@ -219,7 +219,7 @@ class ConfigSchema(BaseModel):
     unitsPres: UnitsPres = Field(
         default_factory=lambda data: UnitsPres.INCHESOFMERCURY
         if data["useImperialUnitsAsDefault"]
-        else UnitsPres.MILLIBAR
+        else UnitsPres.MILLIBARS
     )
     unitsDistance: UnitsDistance = Field(
         default_factory=lambda data: UnitsDistance.MILES

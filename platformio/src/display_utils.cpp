@@ -2103,7 +2103,7 @@ const uint8_t *getMoonPhaseBitmap48(const daily_t &daily)
 
 
 // Returns the current moon phase string
-  const char *getMoonPhaseStr(const daily_t &daily)
+const char *getMoonPhaseStr(const daily_t &daily)
 {
   int n = static_cast<int>(daily.moon_phase * 28 + 0.5);
   switch(n)

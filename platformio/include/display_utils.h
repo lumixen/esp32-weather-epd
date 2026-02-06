@@ -77,6 +77,8 @@ const char *getCompassPointNotation(int windDeg);
 const char *getHttpResponsePhrase(int code);
 const char *getWifiStatusPhrase(wl_status_t status);
 void printHeapUsage();
+const uint8_t *getMoonPhaseBitmap48(const daily_t &daily);
+const char *getMoonPhaseStr(const daily_t &daily);
 
 #endif
 

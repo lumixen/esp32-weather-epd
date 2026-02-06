@@ -1,6 +1,7 @@
+#include "defines.h"
 #include "moon_tools.h"
 
-moonPhase moonPhase;
+MoonPhase moonPhase;
 
 moon_state_t getMoonState(float latitude, float longitude)
 {
@@ -14,8 +15,14 @@ moon_state_t getMoonState(float latitude, float longitude)
     Serial.println("[debug] Moonrise: " + String(moonrise) + " Moonset: " + String(moonset));
 #endif
     moonData_t moon = moonPhase.getPhase(now);
+    // Convert angle (0-360) to phase cycle (0.0-1.0)
+    // 0 deg = 0.0 (New)
+    // 90 deg = 0.25 (First Quarter)
+    // 180 deg = 0.5 (Full)
+    // 270 deg = 0.75 (Third Quarter)
+    float moonPhase = moon.angleDeg / 360.0f;
 #if DEBUG_LEVEL >= 1
-    Serial.println("[debug] Moon phase percent lit: " + String(moon.percentLit));
+    Serial.println("[debug] Moon phase: " + String(moonPhase, 4));
 #endif
-    return moon_state_t{moonrise, moonset, moon.percentLit};
+    return moon_state_t{moonrise, moonset, moonPhase};
 }
