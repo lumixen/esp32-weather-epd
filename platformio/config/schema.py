@@ -12,6 +12,7 @@ class DocEnum(Enum):
             self.__doc__ = doc
         return self
 
+
 # ENUMS
 class EpdPanel(DocEnum):
     """E-Paper panel type"""
@@ -24,6 +25,7 @@ class EpdPanel(DocEnum):
     )
     GENERIC_7C_F = "GENERIC_7C_F", "7.3in ACeP e-Paper (F) 800x480px 7-Colors"
     GENERIC_BW_V1 = "GENERIC_BW_V1", "7.5in e-Paper (v1) 640x384px Black/White"
+
 
 class EpdDriver(str, Enum):
     """E-Paper driver board"""
@@ -143,9 +145,11 @@ class Font(str, Enum):
     UBUNTU = "Ubuntu"
     UBUNTU_MONO = "Ubuntu Mono"
 
+
 class MoonPhaseStyle(str, Enum):
     PRIMARY = "primary"
     ALTERNATIVE = "alternative"
+
 
 # END ENUMS
 
@@ -272,4 +276,41 @@ class ConfigSchema(BaseModel):
             or self.airQualityAPI == AirQualityAPI.OPEN_WEATHER_MAP
         ) and not self.owmApikey:
             raise ValueError("The API key is required on OpenWeatherMap")
+        return self
+
+    @model_validator(mode="after")
+    def validate_left_panel_positions(self):
+        allowed_left_panel_keys = {
+            "SUNRISE",
+            "SUNSET",
+            "WIND",
+            "HUMIDITY",
+            "UVI",
+            "PRESSURE",
+            "AIR_QUALITY",
+            "VISIBILITY",
+            "MOONRISE",
+            "MOONSET",
+            "MOONPHASE",
+            "DEWPOINT",
+        }
+        invalid_keys = [
+            k
+            for k in self.leftPanelPositions.keys()
+            if k not in allowed_left_panel_keys
+        ]
+        if invalid_keys:
+            raise ValueError(
+                f"Invalid keys in leftPanelPositions: {invalid_keys}. "
+                f"Allowed keys are: {sorted(allowed_left_panel_keys)}"
+            )
+        invalid_indices = [
+            (k, v)
+            for k, v in self.leftPanelPositions.items()
+            if not isinstance(v, int) or v < 0 or v > 9
+        ]
+        if invalid_indices:
+            raise ValueError(
+                f"Invalid indices in leftPanelPositions (must be integer between 0 and 9): {invalid_indices}"
+            )
         return self
