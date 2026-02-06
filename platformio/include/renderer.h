@@ -29,6 +29,18 @@
 #include "config.h"
 #include "moon_tools.h"
 
+// Ensure exactly one EPD_PANEL_* is defined
+#define EPD_PANEL_COUNT \
+  (defined(EPD_PANEL_GENERIC_BW_V2) + defined(EPD_PANEL_GENERIC_3C_B) + \
+   defined(EPD_PANEL_DKE_3C_86BF) + defined(EPD_PANEL_GENERIC_7C_F) + \
+   defined(EPD_PANEL_GENERIC_BW_V1))
+
+#if EPD_PANEL_COUNT == 0
+  #error "No EPD_PANEL_* macro defined. Please define exactly one panel type."
+#elif EPD_PANEL_COUNT > 1
+  #error "Multiple EPD_PANEL_* macros defined. Please define exactly one panel type."
+#endif
+
 #if defined(EPD_PANEL_GENERIC_BW_V2)
   #define DISP_WIDTH  800
   #define DISP_HEIGHT 480
@@ -59,9 +71,9 @@
   #include <GxEPD2_BW.h>
   extern GxEPD2_BW<GxEPD2_750,
                    GxEPD2_750::HEIGHT> display;
-#else
-  #error "No valid EPD_PANEL_* macro defined. Please define exactly one panel type."
 #endif
+
+#undef EPD_PANEL_COUNT
 
 typedef enum alignment
 {
