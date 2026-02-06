@@ -38,7 +38,7 @@
 #include "icons/icons_160x160.h"
 #include "icons/icons_196x196.h"
 
-#if EPD_PANEL == EPD_PANEL_GENERIC_BW_V2
+#ifdef EPD_PANEL_GENERIC_BW_V2
   GxEPD2_BW<GxEPD2_750_T7,
             GxEPD2_750_T7::HEIGHT> display(
     GxEPD2_750_T7(PIN_EPD_CS,
@@ -46,7 +46,7 @@
                   PIN_EPD_RST,
                   PIN_EPD_BUSY));
 #endif
-#if EPD_PANEL == EPD_PANEL_GENERIC_3C_B
+#ifdef EPD_PANEL_GENERIC_3C_B
   GxEPD2_3C<GxEPD2_750c_Z08,
             GxEPD2_750c_Z08::HEIGHT / 2> display(
     GxEPD2_750c_Z08(PIN_EPD_CS,
@@ -54,7 +54,7 @@
                     PIN_EPD_RST,
                     PIN_EPD_BUSY));
 #endif
-#if EPD_PANEL == EPD_PANEL_DKE_3C_86BF
+#ifdef EPD_PANEL_DKE_3C_86BF
   GxEPD2_3C<GxEPD2_750c_86BF,
             GxEPD2_750c_86BF::HEIGHT / 2> display(
     GxEPD2_750c_86BF(PIN_EPD_CS,
@@ -62,7 +62,7 @@
                     PIN_EPD_RST,
                     PIN_EPD_BUSY));
 #endif
-#if EPD_PANEL == EPD_PANEL_GENERIC_7C_F
+#ifdef EPD_PANEL_GENERIC_7C_F
   GxEPD2_7C<GxEPD2_730c_GDEY073D46,
             GxEPD2_730c_GDEY073D46::HEIGHT / 4> display(
     GxEPD2_730c_GDEY073D46(PIN_EPD_CS,
@@ -70,7 +70,7 @@
                            PIN_EPD_RST,
                            PIN_EPD_BUSY));
 #endif
-#if EPD_PANEL == EPD_PANEL_GENERIC_BW_V1
+#ifdef EPD_PANEL_GENERIC_BW_V1
   GxEPD2_BW<GxEPD2_750,
             GxEPD2_750::HEIGHT> display(
     GxEPD2_750(PIN_EPD_CS,
@@ -237,9 +237,10 @@ void initDisplay()
 {
   pinMode(PIN_EPD_PWR, OUTPUT);
   digitalWrite(PIN_EPD_PWR, HIGH);
-#if EPD_DRIVER == EPD_DRIVER_WAVESHARE
+#ifdef EPD_DRIVER_WAVESHARE
   display.init(115200, true, 2, false);
-#elif EPD_DRIVER == EPD_DRIVER_DESPI_C02
+#endif
+#ifdef EPD_DRIVER_DESPI_C02
   display.init(115200, true, 10, false);
 #endif
   // remap spi
@@ -283,14 +284,16 @@ void drawCurrentConditions(const current_t &current,
                              196, 196, GxEPD_BLACK);
 
   // current temp
-#if UNITS_TEMP == UNITS_TEMP_KELVIN
+#ifdef UNITS_TEMP_KELVIN
   dataStr = String(static_cast<int>(
       std::round(celsius_to_kelvin(current.temp))));
   unitStr = TXT_UNITS_TEMP_KELVIN;
-#elif UNITS_TEMP == UNITS_TEMP_CELSIUS
+#endif
+#ifdef UNITS_TEMP_CELSIUS
   dataStr = String(static_cast<int>(std::round(current.temp)));
   unitStr = TXT_UNITS_TEMP_CELSIUS;
-#elif UNITS_TEMP == UNITS_TEMP_FAHRENHEIT
+#endif
+#ifdef UNITS_TEMP_FAHRENHEIT
   dataStr = String(static_cast<int>(
       std::round(celsius_to_fahrenheit(current.temp))));
   unitStr = TXT_UNITS_TEMP_FAHRENHEIT;
@@ -298,26 +301,28 @@ void drawCurrentConditions(const current_t &current,
   // FONT_**_temperature fonts only have the character set used for displaying
   // temperature (0123456789.-\260)
   display.setFont(&FONT_48pt8b_temperature);
-#if EPD_PANEL != EPD_PANEL_GENERIC_BW_V1
+#ifndef EPD_PANEL_GENERIC_BW_V1
   drawString(196 + 164 / 2 - 20, 196 / 2 + 69 / 2, dataStr, CENTER);
-#else
+#elif defined(EPD_PANEL_GENERIC_BW_V1)
   drawString(156 + 164 / 2 - 20, 196 / 2 + 69 / 2, dataStr, CENTER);
 #endif
   display.setFont(&FONT_14pt8b);
   drawString(display.getCursorX(), 196 / 2 - 69 / 2 + 20, unitStr, LEFT);
 
   // current feels like
-#if UNITS_TEMP == UNITS_TEMP_KELVIN
+#ifdef UNITS_TEMP_KELVIN
   dataStr = String(TXT_FEELS_LIKE) + ' ' + String(static_cast<int>(std::round(celsius_to_kelvin(current.feels_like)))) + 'K';
-#elif UNITS_TEMP == UNITS_TEMP_CELSIUS
+#endif
+#ifdef UNITS_TEMP_CELSIUS
   dataStr = String(TXT_FEELS_LIKE) + ' ' + String(static_cast<int>(std::round(current.feels_like))) + "\260C";
-#elif UNITS_TEMP == UNITS_TEMP_FAHRENHEIT
+#endif
+#ifdef UNITS_TEMP_FAHRENHEIT
   dataStr = String(TXT_FEELS_LIKE) + ' ' + String(static_cast<int>(std::round(celsius_to_fahrenheit(current.feels_like)))) + "\260F";
 #endif
   display.setFont(&FONT_12pt8b);
-#if EPD_PANEL != EPD_PANEL_GENERIC_BW_V1
+#ifndef EPD_PANEL_GENERIC_BW_V1
   drawString(196 + 164 / 2, 98 + 69 / 2 + 12 + 17, dataStr, CENTER);
-#else
+#elif defined(EPD_PANEL_GENERIC_BW_V1)
   drawString(156 + 164 / 2, 98 + 69 / 2 + 12 + 17, dataStr, CENTER);
 #endif
   // line dividing top and bottom display areas
@@ -330,7 +335,7 @@ void drawCurrentConditions(const current_t &current,
                              wi_strong_wind_48x48, 48, 48, GxEPD_BLACK);
   display.drawInvertedBitmap(0, 204 + (48 + 8) * 2,
                              wi_day_sunny_48x48, 48, 48, GxEPD_BLACK);
-#if EPD_PANEL != EPD_PANEL_GENERIC_BW_V1
+#ifndef EPD_PANEL_GENERIC_BW_V1
   display.drawInvertedBitmap(0, 204 + (48 + 8) * 3,
                              air_filter_48x48, 48, 48, GxEPD_BLACK);
   display.drawInvertedBitmap(0, 204 + (48 + 8) * 4,
@@ -342,7 +347,7 @@ void drawCurrentConditions(const current_t &current,
                              wi_humidity_48x48, 48, 48, GxEPD_BLACK);
   display.drawInvertedBitmap(170, 204 + (48 + 8) * 2,
                              wi_barometer_48x48, 48, 48, GxEPD_BLACK);
-#if EPD_PANEL != EPD_PANEL_GENERIC_BW_V1
+#ifndef EPD_PANEL_GENERIC_BW_V1
   display.drawInvertedBitmap(170, 204 + (48 + 8) * 3,
                              visibility_icon_48x48, 48, 48, GxEPD_BLACK);
   display.drawInvertedBitmap(170, 204 + (48 + 8) * 4,
@@ -354,7 +359,7 @@ void drawCurrentConditions(const current_t &current,
   drawString(48, 204 + 10 + (48 + 8) * 0, TXT_SUNRISE, LEFT);
   drawString(48, 204 + 10 + (48 + 8) * 1, TXT_WIND, LEFT);
   drawString(48, 204 + 10 + (48 + 8) * 2, TXT_UV_INDEX, LEFT);
-#if EPD_PANEL != EPD_PANEL_GENERIC_BW_V1
+#ifndef EPD_PANEL_GENERIC_BW_V1
   const char *air_quality_index_label;
   if (aqi_desc_type(AQI_SCALE) == AIR_QUALITY_DESC)
   {
@@ -370,7 +375,7 @@ void drawCurrentConditions(const current_t &current,
   drawString(170 + 48, 204 + 10 + (48 + 8) * 0, TXT_SUNSET, LEFT);
   drawString(170 + 48, 204 + 10 + (48 + 8) * 1, TXT_HUMIDITY, LEFT);
   drawString(170 + 48, 204 + 10 + (48 + 8) * 2, TXT_PRESSURE, LEFT);
-#if EPD_PANEL != EPD_PANEL_GENERIC_BW_V1
+#ifndef EPD_PANEL_GENERIC_BW_V1
   drawString(170 + 48, 204 + 10 + (48 + 8) * 3, TXT_VISIBILITY, LEFT);
   drawString(170 + 48, 204 + 10 + (48 + 8) * 4, TXT_MOONSET, LEFT);
 #endif
@@ -384,36 +389,41 @@ void drawCurrentConditions(const current_t &current,
   drawString(48, 204 + 17 / 2 + (48 + 8) * 0 + 48 / 2, timeBuffer, LEFT);
 
   // wind
-#if WIND_ARROW_PRECISION
+#ifdef WIND_DIRECTION_INDICATOR_ARROW
   display.drawInvertedBitmap(48, 204 + 24 / 2 + (48 + 8) * 1,
                              getWindBitmap24(current.wind_deg),
                              24, 24, GxEPD_BLACK);
 #endif
-#if UNITS_SPEED == UNITS_SPEED_METERSPERSECOND
+#ifdef UNITS_SPEED_METERSPERSECOND
   dataStr = String(static_cast<int>(std::round(current.wind_speed)));
   unitStr = String(" ") + TXT_UNITS_SPEED_METERSPERSECOND;
-#elif UNITS_SPEED == UNITS_SPEED_FEETPERSECOND
+#endif
+#ifdef UNITS_SPEED_FEETPERSECOND
   dataStr = String(static_cast<int>(std::round(
       meterspersecond_to_feetpersecond(current.wind_speed))));
   unitStr = String(" ") + TXT_UNITS_SPEED_FEETPERSECOND;
-#elif UNITS_SPEED == UNITS_SPEED_KILOMETERSPERHOUR
+#endif
+#ifdef UNITS_SPEED_KILOMETERSPERHOUR
   dataStr = String(static_cast<int>(std::round(
       meterspersecond_to_kilometersperhour(current.wind_speed))));
   unitStr = String(" ") + TXT_UNITS_SPEED_KILOMETERSPERHOUR;
-#elif UNITS_SPEED == UNITS_SPEED_MILESPERHOUR
+#endif
+#ifdef UNITS_SPEED_MILESPERHOUR
   dataStr = String(static_cast<int>(std::round(
       meterspersecond_to_milesperhour(current.wind_speed))));
   unitStr = String(" ") + TXT_UNITS_SPEED_MILESPERHOUR;
-#elif UNITS_SPEED == UNITS_SPEED_KNOTS
+#endif
+#ifdef UNITS_SPEED_KNOTS
   dataStr = String(static_cast<int>(std::round(
       meterspersecond_to_knots(current.wind_speed))));
   unitStr = String(" ") + TXT_UNITS_SPEED_KNOTS;
-#elif UNITS_SPEED == UNITS_SPEED_BEAUFORT
+#endif
+#ifdef UNITS_SPEED_BEAUFORT
   dataStr = String(meterspersecond_to_beaufort(current.wind_speed));
   unitStr = String(" ") + TXT_UNITS_SPEED_BEAUFORT;
 #endif
 
-#if WIND_ARROW_PRECISION
+#ifdef WIND_DIRECTION_INDICATOR_ARROW
   drawString(48 + 24, 204 + 17 / 2 + (48 + 8) * 1 + 48 / 2, dataStr, LEFT);
 #else
   drawString(48, 204 + 17 / 2 + (48 + 8) * 1 + 48 / 2, dataStr, LEFT);
@@ -422,15 +432,16 @@ void drawCurrentConditions(const current_t &current,
   drawString(display.getCursorX(), 204 + 17 / 2 + (48 + 8) * 1 + 48 / 2,
              unitStr, LEFT);
 
-#if WIND_DIRECTION_LABEL == WIND_DIRECTION_LABEL_NUMBER
+#if defined(WIND_DIRECTION_INDICATOR_NUMBER)
   dataStr = String(current.wind_deg) + "\260";
   display.setFont(&FONT_12pt8b);
   drawString(display.getCursorX() + 6, 204 + 17 / 2 + (48 + 8) * 1 + 48 / 2,
              dataStr, LEFT);
-#elif WIND_DIRECTION_LABEL == WIND_DIRECTION_LABEL_CARDINAL                \
-   || WIND_DIRECTION_LABEL == WIND_DIRECTION_LABEL_INTERCARDINAL           \
-   || WIND_DIRECTION_LABEL == WIND_DIRECTION_LABEL_SECONDARY_INTERCARDINAL \
-   || WIND_DIRECTION_LABEL == WIND_DIRECTION_LABEL_TERTIARY_INTERCARDINAL
+#endif
+#if defined(WIND_DIRECTION_INDICATOR_CARDINAL)                \
+ || defined(WIND_DIRECTION_INDICATOR_INTERCARDINAL)           \
+ || defined(WIND_DIRECTION_INDICATOR_SECONDARY_INTERCARDINAL) \
+ || defined(WIND_DIRECTION_INDICATOR_TERTIARY_INTERCARDINAL)
   dataStr = getCompassPointNotation(current.wind_deg);
   display.setFont(&FONT_12pt8b);
   drawString(display.getCursorX() + 6, 204 + 17 / 2 + (48 + 8) * 1 + 48 / 2,
@@ -472,7 +483,7 @@ void drawCurrentConditions(const current_t &current,
     }
   }
 
-#if EPD_PANEL != EPD_PANEL_GENERIC_BW_V1
+#ifndef EPD_PANEL_GENERIC_BW_V1
   // air quality index
   display.setFont(&FONT_12pt8b);
   const air_components_t &c = air_pollution.components;
@@ -521,7 +532,7 @@ void drawCurrentConditions(const current_t &current,
   _strftime(timeBuffer, sizeof(timeBuffer), TIME_FORMAT, timeInfo);
   display.setFont(&FONT_12pt8b);
   drawString(48, 204 + 17 / 2 + (48 + 8) * 4 + 48 / 2, timeBuffer, LEFT);
-#endif // EPD_PANEL != DISP_BW_V1
+#endif // !EPD_PANEL_GENERIC_BW_V1
 
   // sunset
   memset(timeBuffer, '\0', sizeof(timeBuffer));
@@ -538,37 +549,44 @@ void drawCurrentConditions(const current_t &current,
              "%", LEFT);
 
   // pressure
-#if UNITS_PRES == UNITS_PRES_HECTOPASCAL
+#ifdef UNITS_PRES_HECTOPASCAL
   dataStr = String(current.pressure);
   unitStr = String(" ") + TXT_UNITS_PRES_HECTOPASCALS;
-#elif UNITS_PRES == UNITS_PRES_PASCAL
+#endif
+#ifdef UNITS_PRES_PASCAL
   dataStr = String(static_cast<int>(std::round(
                    hectopascals_to_pascals(current.pressure) )));
   unitStr = String(" ") + TXT_UNITS_PRES_PASCALS;
-#elif UNITS_PRES == UNITS_PRES_MILLIMETERSOFMERCURY
+#endif
+#ifdef UNITS_PRES_MILLIMETERSOFMERCURY
   dataStr = String(static_cast<int>(std::round(
                    hectopascals_to_millimetersofmercury(current.pressure) )));
   unitStr = String(" ") + TXT_UNITS_PRES_MILLIMETERSOFMERCURY;
-#elif UNITS_PRES == UNITS_PRES_INCHESOFMERCURY
+#endif
+#ifdef UNITS_PRES_INCHESOFMERCURY
   dataStr = String(std::round(1e1f *
                    hectopascals_to_inchesofmercury(current.pressure)
                    ) / 1e1f, 1);
   unitStr = String(" ") + TXT_UNITS_PRES_INCHESOFMERCURY;
-#elif UNITS_PRES == UNITS_PRES_MILLIBAR
+#endif
+#ifdef UNITS_PRES_MILLIBAR
   dataStr = String(static_cast<int>(std::round(
                    hectopascals_to_millibars(current.pressure) )));
   unitStr = String(" ") + TXT_UNITS_PRES_MILLIBARS;
-#elif UNITS_PRES == UNITS_PRES_ATMOSPHERE
+#endif
+#ifdef UNITS_PRES_ATMOSPHERE
   dataStr = String(std::round(1e3f *
                    hectopascals_to_atmospheres(current.pressure) )
                    / 1e3f, 3);
   unitStr = String(" ") + TXT_UNITS_PRES_ATMOSPHERES;
-#elif UNITS_PRES == UNITS_PRES_GRAMSPERSQUARECENTIMETER
+#endif
+#ifdef UNITS_PRES_GRAMSPERSQUARECENTIMETER
   dataStr = String(static_cast<int>(std::round(
                    hectopascals_to_gramspersquarecentimeter(current.pressure)
                    )));
   unitStr = String(" ") + TXT_UNITS_PRES_GRAMSPERSQUARECENTIMETER;
-#elif UNITS_PRES == UNITS_PRES_POUNDSPERSQUAREINCH
+#endif
+#ifdef UNITS_PRES_POUNDSPERSQUAREINCH
   dataStr = String(std::round(1e2f *
                    hectopascals_to_poundspersquareinch(current.pressure)
                    ) / 1e2f, 2);
@@ -580,13 +598,14 @@ void drawCurrentConditions(const current_t &current,
   drawString(display.getCursorX(), 204 + 17 / 2 + (48 + 8) * 2 + 48 / 2,
              unitStr, LEFT);
 
-#if EPD_PANEL != EPD_PANEL_GENERIC_BW_V1
+#ifndef EPD_PANEL_GENERIC_BW_V1
   // visibility
   display.setFont(&FONT_12pt8b);
-#if UNITS_DISTANCE == UNITS_DISTANCE_KILOMETERS
+#ifdef UNITS_DISTANCE_KILOMETERS
   float vis = meters_to_kilometers(current.visibility);
   unitStr = String(" ") + TXT_UNITS_DIST_KILOMETERS;
-#elif UNITS_DISTANCE == UNITS_DISTANCE_MILES
+#endif
+#ifdef UNITS_DISTANCE_MILES
   float vis = meters_to_miles(current.visibility);
   unitStr = String(" ") + TXT_UNITS_DIST_MILES;
 #endif
@@ -600,9 +619,10 @@ void drawCurrentConditions(const current_t &current,
   {
     dataStr = String(static_cast<int>(std::round(vis)));
   }
-#if UNITS_DISTANCE == UNITS_DISTANCE_KILOMETERS
+#ifdef UNITS_DISTANCE_KILOMETERS
   if (vis >= 10)
-#elif UNITS_DISTANCE == UNITS_DISTANCE_MILES
+#endif
+#ifdef UNITS_DISTANCE_MILES
   if (vis >= 6)
 #endif
   {
@@ -619,7 +639,7 @@ void drawCurrentConditions(const current_t &current,
   _strftime(timeBuffer, sizeof(timeBuffer), TIME_FORMAT, timeInfo);
   display.setFont(&FONT_12pt8b);
   drawString(170 + 48, 204 + 17 / 2 + (48 + 8) * 4 + 48 / 2, timeBuffer, LEFT);
-#endif // EPD_PANEL != DISP_BW_V1
+#endif
   return;
 } // end drawCurrentConditions
 
@@ -632,9 +652,9 @@ void drawForecast(const daily_t *daily, tm timeInfo)
   String dataStr, unitStr;
   for (int i = 0; i < 5; ++i)
   {
-#if EPD_PANEL != EPD_PANEL_GENERIC_BW_V1
+#ifndef EPD_PANEL_GENERIC_BW_V1
     int x = 398 + (i * 82);
-#else
+#elif defined(EPD_PANEL_GENERIC_BW_V1)
     int x = 318 + (i * 64);
 #endif
     // icons
@@ -651,15 +671,17 @@ void drawForecast(const daily_t *daily, tm timeInfo)
     // high | low
     display.setFont(&FONT_8pt8b);
     drawString(x + 31, 98 + 69 / 2 + 38 - 6 + 12, "|", CENTER);
-#if UNITS_TEMP == UNITS_TEMP_KELVIN
+#ifdef UNITS_TEMP_KELVIN
     hiStr = String(static_cast<int>(
                 std::round(celsius_to_kelvin(daily[i].temp.max))));
     loStr = String(static_cast<int>(
                 std::round(celsius_to_kelvin(daily[i].temp.min))));
-#elif UNITS_TEMP == UNITS_TEMP_CELSIUS
+#endif
+#ifdef UNITS_TEMP_CELSIUS
     hiStr = String(static_cast<int>(std::round(daily[i].temp.max))) + "\260";
     loStr = String(static_cast<int>(std::round(daily[i].temp.min))) + "\260";
-#elif UNITS_TEMP == UNITS_TEMP_FAHRENHEIT
+#endif
+#ifdef UNITS_TEMP_FAHRENHEIT
     hiStr = String(static_cast<int>(
                 std::round(celsius_to_fahrenheit(daily[i].temp.max)))) +
             "\260";
@@ -671,26 +693,26 @@ void drawForecast(const daily_t *daily, tm timeInfo)
     drawString(x + 31 + 5, 98 + 69 / 2 + 38 - 6 + 12, loStr, LEFT);
 
 // daily forecast precipitation
-#if DISPLAY_DAILY_PRECIP
+#ifndef DISPLAY_DAILY_PRECIP_DISABLED
     float dailyPrecip;
-#if UNITS_DAILY_PRECIP == UNITS_PRECIP_POP
+#if defined(UNITS_DAILY_PRECIP_POP)
     dailyPrecip = daily[i].pop;
     dataStr = String(static_cast<int>(dailyPrecip));
     unitStr = "%";
 #else
     dailyPrecip = daily[i].snow + daily[i].rain;
-#if UNITS_DAILY_PRECIP == UNITS_PRECIP_MILLIMETERS
+#if defined(UNITS_DAILY_PRECIP_MILLIMETERS)
     // Round up to nearest mm
     dailyPrecip = std::round(dailyPrecip);
     dataStr = String(static_cast<int>(dailyPrecip));
     unitStr = String(" ") + TXT_UNITS_PRECIP_MILLIMETERS;
-#elif UNITS_DAILY_PRECIP == UNITS_PRECIP_CENTIMETERS
+#elif defined(UNITS_DAILY_PRECIP_CENTIMETERS)
     // Round up to nearest 0.1 cm
     dailyPrecip = millimeters_to_centimeters(dailyPrecip);
     dailyPrecip = std::round(dailyPrecip * 10) / 10.0f;
     dataStr = String(dailyPrecip, 1);
     unitStr = String(" ") + TXT_UNITS_PRECIP_CENTIMETERS;
-#elif UNITS_DAILY_PRECIP == UNITS_PRECIP_INCHES
+#elif defined(UNITS_DAILY_PRECIP_INCHES)
     // Round up to nearest 0.1 inch
     dailyPrecip = millimeters_to_inches(dailyPrecip);
     dailyPrecip = std::round(dailyPrecip * 10) / 10.0f;
@@ -698,14 +720,14 @@ void drawForecast(const daily_t *daily, tm timeInfo)
     unitStr = String(" ") + TXT_UNITS_PRECIP_INCHES;
 #endif
 #endif
-#if (DISPLAY_DAILY_PRECIP == DISPLAY_DAILY_PRECIP_PRECIP_SMART) // smart
+#ifdef DISPLAY_DAILY_PRECIP_SMART
       if (dailyPrecip > 0.0f)
       {
 #endif
         display.setFont(&FONT_6pt8b);
         drawString(x + 31, 98 + 69 / 2 + 38 - 6 + 26,
                    dataStr + unitStr, CENTER);
-#if (DISPLAY_DAILY_PRECIP == DISPLAY_DAILY_PRECIP_PRECIP_SMART) // smart
+#ifdef DISPLAY_DAILY_PRECIP_SMART
       }
 #endif
 #endif // DISPLAY_DAILY_PRECIP
@@ -855,13 +877,15 @@ inline int modulo(int a, int b)
 int celsius_to_plot_y(float temp, int tempBoundMin, float yPxPerUnit,
                      int yBoundMin)
 {
-#if UNITS_TEMP == UNITS_TEMP_KELVIN
+#ifdef UNITS_TEMP_KELVIN
   return static_cast<int>(std::round(
     yBoundMin - (yPxPerUnit * (celsius_to_kelvin(temp) - tempBoundMin))));
-#elif UNITS_TEMP == UNITS_TEMP_CELSIUS
+#endif
+#ifdef UNITS_TEMP_CELSIUS
   return static_cast<int>(std::round(
     yBoundMin - (yPxPerUnit * (temp - tempBoundMin))));
-#elif UNITS_TEMP == UNITS_TEMP_FAHRENHEIT
+#endif
+#ifdef UNITS_TEMP_FAHRENHEIT
   return static_cast<int>(std::round(
     yBoundMin - (yPxPerUnit * (celsius_to_fahrenheit(temp) - tempBoundMin))));
 #endif
@@ -880,15 +904,17 @@ void drawOutlookGraph(const hourly_t *hourly, const daily_t *daily,
 
   // calculate y max/min and intervals
   int yMajorTicks = 5;
-#if UNITS_TEMP == UNITS_TEMP_KELVIN
+#ifdef UNITS_TEMP_KELVIN
   float tempMin = celsius_to_kelvin(hourly[0].temp);
-#elif UNITS_TEMP == UNITS_TEMP_CELSIUS
+#endif
+#ifdef UNITS_TEMP_CELSIUS
   float tempMin = hourly[0].temp;
-#elif UNITS_TEMP == UNITS_TEMP_FAHRENHEIT
+#endif
+#ifdef UNITS_TEMP_FAHRENHEIT
   float tempMin = celsius_to_fahrenheit(hourly[0].temp);
 #endif
   float tempMax = tempMin;
-#if UNITS_HOURLY_PRECIP == UNITS_PRECIP_POP
+#ifdef UNITS_HOURLY_PRECIP_POP
   float precipMax = hourly[0].pop;
 #else
   float precipMax = hourly[0].rain_1h + hourly[0].snow_1h;
@@ -897,16 +923,18 @@ void drawOutlookGraph(const hourly_t *hourly, const daily_t *daily,
   float newTemp = 0;
   for (int i = 1; i < HOURLY_GRAPH_MAX; ++i)
   {
-#if UNITS_TEMP == UNITS_TEMP_KELVIN
+#ifdef UNITS_TEMP_KELVIN
     newTemp = celsius_to_kelvin(hourly[i].temp);
-#elif UNITS_TEMP == UNITS_TEMP_CELSIUS
+#endif
+#ifdef UNITS_TEMP_CELSIUS
     newTemp = hourly[i].temp;
-#elif UNITS_TEMP == UNITS_TEMP_FAHRENHEIT
+#endif
+#ifdef UNITS_TEMP_FAHRENHEIT
     newTemp = celsius_to_fahrenheit(hourly[i].temp);
 #endif
     tempMin = std::min(tempMin, newTemp);
     tempMax = std::max(tempMax, newTemp);
-#if UNITS_HOURLY_PRECIP == UNITS_PRECIP_POP
+#ifdef UNITS_HOURLY_PRECIP_POP
     precipMax = std::max<float>(precipMax, hourly[i].pop);
 #else
     precipMax = std::max<float>(
@@ -937,7 +965,7 @@ void drawOutlookGraph(const hourly_t *hourly, const daily_t *daily,
     }
   }
 
-#if UNITS_HOURLY_PRECIP == UNITS_PRECIP_POP
+#ifdef UNITS_HOURLY_PRECIP_POP
   xPos1 = DISP_WIDTH - 23;
   float precipBoundMax;
   if (precipMax > 0)
@@ -949,11 +977,12 @@ void drawOutlookGraph(const hourly_t *hourly, const daily_t *daily,
     precipBoundMax = 0.0f;
   }
 #else
-#if UNITS_HOURLY_PRECIP == UNITS_PRECIP_MILLIMETERS
+#ifdef UNITS_HOURLY_PRECIP_MILLIMETERS
   xPos1 = DISP_WIDTH - 24;
   float precipBoundMax = std::ceil(precipMax); // Round up to nearest mm
   int yPrecipMajorTickDecimals = (precipBoundMax < 10);
-#elif UNITS_HOURLY_PRECIP == UNITS_PRECIP_CENTIMETERS
+#endif
+#ifdef UNITS_HOURLY_PRECIP_CENTIMETERS
   xPos1 = DISP_WIDTH - 25;
   precipMax = millimeters_to_centimeters(precipMax);
   // Round up to nearest 0.1 cm
@@ -975,7 +1004,8 @@ void drawOutlookGraph(const hourly_t *hourly, const daily_t *daily,
   {
     yPrecipMajorTickDecimals = 0;
   }
-#elif UNITS_HOURLY_PRECIP == UNITS_PRECIP_INCHES
+#endif
+#ifdef UNITS_HOURLY_PRECIP_INCHES
   xPos1 = DISP_WIDTH - 25;
   precipMax = millimeters_to_inches(precipMax);
   // Round up to nearest 0.1 inch
@@ -1016,14 +1046,14 @@ void drawOutlookGraph(const hourly_t *hourly, const daily_t *daily,
     display.setFont(&FONT_8pt8b);
     // Temperature
     dataStr = String(tempBoundMax - (i * yTempMajorTicks));
-#if UNITS_TEMP != UNITS_TEMP_KELVIN
+#if defined(UNITS_TEMP_CELSIUS) || defined(UNITS_TEMP_FAHRENHEIT)
     dataStr += "\260";
 #endif
     drawString(xPos0 - 8, yTick + 4, dataStr, RIGHT, ACCENT_COLOR);
 
     if (precipBoundMax > 0)
     { // don't labels if precip is 0
-#if UNITS_HOURLY_PRECIP == UNITS_PRECIP_POP
+#ifdef UNITS_HOURLY_PRECIP_POP
       // PoP
       dataStr = String(100 - (i * 20));
       String precipUnit = "%";
@@ -1033,11 +1063,13 @@ void drawOutlookGraph(const hourly_t *hourly, const daily_t *daily,
       precipTick = std::round(precipTick * precipRoundingMultiplier)
                               / precipRoundingMultiplier;
       dataStr = String(precipTick, yPrecipMajorTickDecimals);
-#if UNITS_HOURLY_PRECIP == UNITS_PRECIP_MILLIMETERS
+#ifdef UNITS_HOURLY_PRECIP_MILLIMETERS
       String precipUnit = String(" ") + TXT_UNITS_PRECIP_MILLIMETERS;
-#elif UNITS_HOURLY_PRECIP == UNITS_PRECIP_CENTIMETERS
+#endif
+#ifdef UNITS_HOURLY_PRECIP_CENTIMETERS
       String precipUnit = String(" ") + TXT_UNITS_PRECIP_CENTIMETERS;
-#elif UNITS_HOURLY_PRECIP == UNITS_PRECIP_INCHES
+#endif
+#ifdef UNITS_HOURLY_PRECIP_INCHES
       String precipUnit = String(" ") + TXT_UNITS_PRECIP_INCHES;
 #endif
 #endif
@@ -1134,13 +1166,14 @@ void drawOutlookGraph(const hourly_t *hourly, const daily_t *daily,
 #endif
     }
 
-#if UNITS_HOURLY_PRECIP == UNITS_PRECIP_POP
+#ifdef UNITS_HOURLY_PRECIP_POP
     float precipVal = hourly[i].pop;
 #else
     float precipVal = hourly[i].rain_1h + hourly[i].snow_1h;
-#if UNITS_HOURLY_PRECIP == UNITS_PRECIP_CENTIMETERS
+#ifdef UNITS_HOURLY_PRECIP_CENTIMETERS
     precipVal = millimeters_to_centimeters(precipVal);
-#elif UNITS_HOURLY_PRECIP == UNITS_PRECIP_INCHES
+#endif
+#ifdef UNITS_HOURLY_PRECIP_INCHES
     precipVal = millimeters_to_inches(precipVal);
 #endif
 #endif
@@ -1210,7 +1243,7 @@ void drawStatusBar(const String &statusStr, const String &refreshTimeStr,
   uint8_t batPercent = calcBatPercent(batVoltage,
                                        MIN_BATTERY_VOLTAGE,
                                        MAX_BATTERY_VOLTAGE);
-#if EPD_PANEL == EPD_PANEL_GENERIC_3C_B || EPD_PANEL == EPD_PANEL_DKE_3C_86BF || EPD_PANEL == EPD_PANEL_GENERIC_7C_F
+#if defined(EPD_PANEL_GENERIC_3C_B) || defined(EPD_PANEL_DKE_3C_86BF) || defined(EPD_PANEL_GENERIC_7C_F)
   if (batVoltage < WARN_BATTERY_VOLTAGE)
   {
     dataColor = ACCENT_COLOR;

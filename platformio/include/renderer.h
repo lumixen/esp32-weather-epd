@@ -18,41 +18,46 @@
 #ifndef __RENDERER_H__
 #define __RENDERER_H__
 
+#include "defines.h"
 #include <vector>
 #include <Arduino.h>
 #include <time.h>
-#if EPD_PANEL == EPD_PANEL_DKE_3C_86BF
+#ifdef EPD_PANEL_DKE_3C_86BF
 #include <GxEPD2_750c_86BF.h>
 #endif
 #include "api_response.h"
 #include "config.h"
 #include "moon_tools.h"
 
-#if EPD_PANEL == EPD_PANEL_GENERIC_BW_V2
+#ifdef EPD_PANEL_GENERIC_BW_V2
   #define DISP_WIDTH  800
   #define DISP_HEIGHT 480
   #include <GxEPD2_BW.h>
   extern GxEPD2_BW<GxEPD2_750_T7,
                    GxEPD2_750_T7::HEIGHT> display;
-#elif EPD_PANEL == EPD_PANEL_GENERIC_3C_B
+#endif
+#ifdef EPD_PANEL_GENERIC_3C_B
   #define DISP_WIDTH  800
   #define DISP_HEIGHT 480
   #include <GxEPD2_3C.h>
   extern GxEPD2_3C<GxEPD2_750c_Z08,
                    GxEPD2_750c_Z08::HEIGHT / 2> display;
-#elif EPD_PANEL == EPD_PANEL_DKE_3C_86BF
+#endif
+#ifdef EPD_PANEL_DKE_3C_86BF
   #define DISP_WIDTH  800
   #define DISP_HEIGHT 480
   #include <GxEPD2_3C.h>
   extern GxEPD2_3C<GxEPD2_750c_86BF,
                    GxEPD2_750c_86BF::HEIGHT / 2> display;
-#elif EPD_PANEL == EPD_PANEL_GENERIC_7C_F
+#endif
+#ifdef EPD_PANEL_GENERIC_7C_F
   #define DISP_WIDTH  800
   #define DISP_HEIGHT 480
   #include <GxEPD2_7C.h>
   extern GxEPD2_7C<GxEPD2_730c_GDEY073D46, 
                    GxEPD2_730c_GDEY073D46::HEIGHT / 4> display;
-#elif EPD_PANEL == EPD_PANEL_GENERIC_BW_V1
+#endif
+#ifdef EPD_PANEL_GENERIC_BW_V1
   #define DISP_WIDTH  640
   #define DISP_HEIGHT 384
   #include <GxEPD2_BW.h>

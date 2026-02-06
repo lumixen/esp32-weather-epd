@@ -38,15 +38,15 @@ def format_cpp_define(key, value):
         escaped = escape_c_string(value)
         return f'#define D_{key} "{escaped}"'
     elif isinstance(value, bool):
-        return f'#define {key} {"true" if value else "false"}'
+        return f"#define {key} {'true' if value else 'false'}"
     elif isinstance(value, int):
-        return f'#define {key} {value}'
+        return f"#define {key} {value}"
     elif isinstance(value, float):
-        return f'#define {key} {value}f'
+        return f"#define {key} {value}f"
     elif value is None:
         return f'#define D_{key} ""'
     else:
-        return f'#define {key} {value}'
+        return f"#define {key} {value}"
 
 
 # Generate header file
@@ -56,19 +56,11 @@ header_lines = [
     "",
     "#pragma once",
     "",
-    "// Enum definitions",
 ]
 
 with open("./config.yml", "r", encoding="utf-8") as config_file:
     user_config = yaml.safe_load(config_file)
     config = ConfigSchema(**user_config)
-
-    # Define all enum members with unique numeric values, prefixed with enum name
-    for enum in defined_enums:
-        enum_prefix = upper_snake(enum.__name__)
-        for i, member in enumerate(enum):
-            header_lines.append(f'#define {enum_prefix}_{member.name} {i}')
-        header_lines.append("")
 
     # Font name to header mappings
     font_files = {
@@ -94,20 +86,29 @@ with open("./config.yml", "r", encoding="utf-8") as config_file:
         if hasattr(v, "name"):
             if k == "locale":
                 # For locale take its value
-                header_lines.append(f'#define LOCALE {v.value}')
+                header_lines.append(f"#define LOCALE {v.value}")
             elif k == "font":
                 # Font is taken from the font_files dictionary
                 header_lines.append(f'#define FONT_HEADER "{font_files[v]}"')
             else:
-                # For enums, define key = prefixed enum member name
-                enum_prefix = upper_snake(type(v).__name__)
-                header_lines.append(f'#define {upper_snake(k)} {enum_prefix}_{v.name}')
+                # For enums, use config key as prefix and enum value as suffix
+                # Don't convert enum value since it's already in correct format
+                config_key = upper_snake(k)
+                enum_value = v.name  # Use as-is, already uppercase with underscores
+                header_lines.append(f"#define {config_key}_{enum_value}")
         elif isinstance(v, BaseModel):
             # Convert Pydantic models to dict
             header_lines.append(f"// {k} configuration")
             for nested_k, nested_v in v.model_dump().items():
-                macro_key = upper_snake(k) + "_" + upper_snake(nested_k)
-                header_lines.append(format_cpp_define(macro_key, nested_v))
+                config_key = upper_snake(k)
+                nested_key = upper_snake(nested_k)
+                if isinstance(nested_v, str):
+                    # Check if nested value is an enum-like string
+                    macro_key = f"{config_key}_{nested_key}"
+                    header_lines.append(format_cpp_define(macro_key, nested_v))
+                else:
+                    macro_key = f"{config_key}_{nested_key}"
+                    header_lines.append(format_cpp_define(macro_key, nested_v))
             header_lines.append("")
         else:
             header_lines.append(format_cpp_define(upper_snake(k), v))

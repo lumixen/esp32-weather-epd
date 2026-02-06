@@ -91,7 +91,7 @@ unitsPres: mbar
 unitsDistance: km
 unitsHourlyPrecip: probability of precipitation
 unitsDailyPrecip: mm
-windDirectionLabel: hidden
+windDirectionIndicator: arrow
 windArrowPrecision: secondary intercardinal
 font: FreeSans
 displayDailyPrecip: smart
