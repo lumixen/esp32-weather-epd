@@ -835,11 +835,7 @@ void drawCurrentDewpoint(const current_t &current)
   {
     dataStr = "--";
   }
-#if defined(UNITS_TEMP_CELSIUS) || defined(UNITS_TEMP_FAHRENHEIT)
-  dataStr += "\260";
-#endif
   drawString(48 + (162 * PosX), 204 + 17 / 2 + (48 + 8) * PosY + 48 / 2, dataStr, LEFT);
-  return;
 } 
 #endif
 // end drawCurrentDewpoint
