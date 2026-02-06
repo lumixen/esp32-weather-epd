@@ -51,17 +51,17 @@ const char *LC_AM_STR      = "";
 // PM_STR                  Post Meridian affix
 const char *LC_PM_STR      = "";
 // DAY_{1-7}               name of the n-th day of the week
-const char *LC_DAY[7]      = {"dimanche", "lundi", "mardi", "mercredi", 
+const char *LC_DAY[7]      = {"dimanche", "lundi", "mardi", "mercredi",
                               "jeudi", "vendredi", "samedi"};
 // ABDAY_{1-7}             abbreviated ame of the n-th day of the week
 const char *LC_ABDAY[7]    = {"dim.", "lun.", "mar.", "mer.", "jeu.", "ven.", "sam."};
 // MON_{1-12}              name of the n-th month of the year
-const char *LC_MON[12]     = {"janvier", "f\351vrier", "mars", "avril", 
-                               "mai",       "juin",     "juillet",     "ao\373t", 
-                               "septembre", "octobre",  "novembre", "d\351cembre"};
+const char *LC_MON[12]     = {"janvier",    "f\351vrier", "mars",     "avril",
+                               "mai",       "juin",       "juillet",  "ao\373t",
+                               "septembre", "octobre",    "novembre", "d\351cembre"};
 // ABMON_{1-12}            abbreviated name of the n-th month of the year
-const char *LC_ABMON[12]   = {"janv.", "f\351vr.", "mars", "avril", "mai", "juin", 
-                              "juil.", "ao\373t", "sept.", "oct.", "nov.", "d\351c."};
+const char *LC_ABMON[12]   = {"janv.", "f\351vr.", "mars",  "avril", "mai",  "juin",
+                              "juil.", "ao\373t",  "sept.", "oct.",  "nov.", "d\351c."};
 // ERA                     era description segments
 const char *LC_ERA         = "";
 // ERA_D_FMT               era date format string
@@ -72,7 +72,7 @@ const char *LC_ERA_D_T_FMT = "";
 const char *LC_ERA_T_FMT   = "";
 
 // OWM LANGUAGE
-// For full list of languages, see 
+// For full list of languages, see
 // https://openweathermap.org/api/one-call-api#multi
 // Note: "[only] The contents of the 'description' field will be translated."
 const String OWM_LANG = "fr";
@@ -81,19 +81,33 @@ const String OWM_LANG = "fr";
 const char *TXT_FEELS_LIKE         = "Temperature Ressentie";
 const char *TXT_SUNRISE            = "Lever de Soleil";
 const char *TXT_SUNSET             = "Coucher de Soleil";
+const char *TXT_MOONRISE           = "Lever de Lune";
+const char *TXT_MOONSET            = "Coucher de Lune";
 const char *TXT_WIND               = "Vent";
 const char *TXT_HUMIDITY           = "Humidit\351";
 const char *TXT_UV_INDEX           = "Indice UV";
 const char *TXT_PRESSURE           = "Pression";
 const char *TXT_AIR_QUALITY        = "Qualit\351 de L'air";
-const char *TXT_AIR_POLLUTION      = "La Pollution de L'air";
+const char *TXT_AIR_POLLUTION      = "Pollution de L'air";
 const char *TXT_VISIBILITY         = "Visibilit\351";
-const char *TXT_MOONRISE           = "Lever de Lune";
-const char *TXT_MOONSET            = "Coucher de Lune";
+const char *TXT_INDOOR_TEMPERATURE = "Temp\351rature";
+const char *TXT_INDOOR_HUMIDITY    = "Humidit\351";
+const char *TXT_DEWPOINT           = "Point de ros\351e";
+
+// MOON PHASE
+const char *TXT_MOONPHASE          = "Phase lunaire";
+const char *TXT_NEW_MOON           = "Nouvelle";
+const char *TXT_WAXING_CRESCENT    = "Premier croissant";
+const char *TXT_FIRST_QUARTER      = "Premier quartier";
+const char *TXT_WAXING_GIBBOUS     = "Gibbeuse croissante";
+const char *TXT_FULL_MOON          = "Pleine";
+const char *TXT_WANING_GIBBOUS     = "Gibbeuse d\351croissante";
+const char *TXT_THIRD_QUARTER      = "Dernier quartier";
+const char *TXT_WANING_CRESCENT    = "Dernier croissant";
 
 // UV INDEX
 const char *TXT_UV_LOW       = "Bas";
-const char *TXT_UV_MODERATE  = "Moderat\351";
+const char *TXT_UV_MODERATE  = "Mod\351r\351";
 const char *TXT_UV_HIGH      = "Haut";
 const char *TXT_UV_VERY_HIGH = "Tr\350s haut";
 const char *TXT_UV_EXTREME   = "Extr\352me";
@@ -103,7 +117,7 @@ const char *TXT_WIFI_EXCELLENT     = "Excellent";
 const char *TXT_WIFI_GOOD          = "Bon";
 const char *TXT_WIFI_FAIR          = "Juste";
 const char *TXT_WIFI_WEAK          = "Faible";
-const char *TXT_WIFI_NO_CONNECTION = "Pas de Connection";
+const char *TXT_WIFI_NO_CONNECTION = "Pas de Connexion";
 
 // UNIT SYMBOLS - TEMPERATURE
 const char *TXT_UNITS_TEMP_KELVIN     = "K";
@@ -135,10 +149,10 @@ const char *TXT_UNITS_PRECIP_INCHES      = "in";
 
 // MISCELLANEOUS MESSAGES
 // Title Case
-const char *TXT_LOW_BATTERY = "Low Battery";
-const char *TXT_NETWORK_NOT_AVAILABLE = "Network Not Available";
-const char *TXT_TIME_SYNCHRONIZATION_FAILED = "Time Synchronization Failed";
-const char *TXT_WIFI_CONNECTION_FAILED = "WiFi Connection Failed";
+const char *TXT_LOW_BATTERY = "Batterie Faible";
+const char *TXT_NETWORK_NOT_AVAILABLE = "R\351seau Non Disponible";
+const char *TXT_TIME_SYNCHRONIZATION_FAILED = "\311chec de la Synchronisation Horaire";
+const char *TXT_WIFI_CONNECTION_FAILED = "\311chec de la Connexion WiFi";
 // First Word Capitalized
 const char *TXT_ATTEMPTING_HTTP_REQ = "Attempting HTTP request";
 const char *TXT_AWAKE_FOR = "Awake for";
@@ -239,7 +253,7 @@ const std::vector<String> TERM_HURRICANE =
 const std::vector<String> TERM_DUST =
     {"dust", "sand"};
 const std::vector<String> TERM_STRONG_WIND =
-    {"wind"};
+    {"wind", "monsoon"};
 
 // AIR QUALITY INDEX
 extern "C" {

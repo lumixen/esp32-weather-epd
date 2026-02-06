@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Dict
 from typing import Annotated
 from pydantic import BaseModel, Field, WithJsonSchema, model_validator
 
@@ -142,6 +143,9 @@ class Font(str, Enum):
     UBUNTU = "Ubuntu"
     UBUNTU_MONO = "Ubuntu Mono"
 
+class MoonPhaseStyle(str, Enum):
+    PRIMARY = "primary"
+    ALTERNATIVE = "alternative"
 
 # END ENUMS
 
@@ -258,6 +262,8 @@ class ConfigSchema(BaseModel):
     wakeTime: int = 6
     hourlyGraphMax: int = 24
     homeAssistantMqtt: HomeAssistantMqttConfig | None = None
+    leftPanelPositions: Dict[str, int] = {}
+    moonPhaseStyle: MoonPhaseStyle = MoonPhaseStyle.PRIMARY
 
     @model_validator(mode="after")
     def validate_apikey(self):
