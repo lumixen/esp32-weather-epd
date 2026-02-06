@@ -79,8 +79,9 @@ class UnitsPrecip(str, Enum):
     INCHES = "in"
 
 
-class WindDirectionLabel(str, Enum):
-    WIND_HIDDEN = "hidden"
+class WindDirectionIndicator(str, Enum):
+    NONE = "none"
+    ARROW = "arrow"
     NUMBER = "number"
     CARDINAL = "cardinal"
     INTERCARDINAL = "intercardinal"
@@ -98,9 +99,9 @@ class WindArrowPrecision(str, Enum):
 
 
 class DisplayDailyPrecip(str, Enum):
-    PRECIP_DISABLED = "disabled"
-    PRECIP_ENABLED = "enabled"
-    PRECIP_SMART = "smart"
+    DISABLED = "disabled"
+    ENABLED = "enabled"
+    SMART = "smart"
 
 
 class Locale(str, Enum):
@@ -154,7 +155,7 @@ defined_enums: list[Enum] = [
     UnitsPres,
     UnitsDistance,
     UnitsPrecip,
-    WindDirectionLabel,
+    WindDirectionIndicator,
     WindArrowPrecision,
     DisplayDailyPrecip,
 ]
@@ -227,10 +228,10 @@ class ConfigSchema(BaseModel):
         if data["useImperialUnitsAsDefault"]
         else UnitsPrecip.MILLIMETERS
     )
-    windDirectionLabel: WindDirectionLabel = WindDirectionLabel.WIND_HIDDEN
+    windDirectionIndicator: WindDirectionIndicator = WindDirectionIndicator.ARROW
     windArrowPrecision: WindArrowPrecision = WindArrowPrecision.SECONDARY_INTERCARDINAL
     font: Font = Font.FREESANS
-    displayDailyPrecip: DisplayDailyPrecip = DisplayDailyPrecip.PRECIP_SMART
+    displayDailyPrecip: DisplayDailyPrecip = DisplayDailyPrecip.SMART
     displayHourlyIcons: bool = True
     displayAlerts: bool = True
     statusBarExtrasBatVoltage: bool = False

@@ -17,9 +17,9 @@
 
 #pragma once
 
+#include "defines.h"
 #include <cstdint>
 #include <Arduino.h>
-#include "defines.h"
 
 // DEFAULT CONFIGS
 

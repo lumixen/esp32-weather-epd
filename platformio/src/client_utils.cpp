@@ -237,7 +237,7 @@ int getAirPollution(WiFiClient &client, air_pollution_t &r)
   bool rxSuccess = false;
   DeserializationError jsonErr = {};
 
-#if AIR_QUALITY_API == AIR_QUALITY_API_OPEN_WEATHER_MAP
+#ifdef AIR_QUALITY_API_OPEN_WEATHER_MAP
   int64_t end = time(nullptr);
   // minus 1 is important here, otherwise we could get an extra hour of history
   int64_t start = end - ((3600 * NUM_AIR_POLLUTION) - 1);
@@ -249,7 +249,8 @@ int getAirPollution(WiFiClient &client, air_pollution_t &r)
   String sanitizedUri = OWM_ENDPOINT +
                         "/data/2.5/air_pollution/history?lat=" + LAT + "&lon=" + LON + "&start=" + startStr + "&end=" + endStr + "&appid={API key}";
   String host = OWM_ENDPOINT;
-#elif AIR_QUALITY_API == AIR_QUALITY_API_OPEN_METEO
+#endif
+#ifdef AIR_QUALITY_API_OPEN_METEO
   String uri = "/v1/air-quality?latitude=" + LAT + "&longitude=" + LON + "&hourly=pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ammonia,nitrogen_monoxide,ozone,pm10&past_days=1&forecast_days=1&timeformat=unixtime";
   String sanitizedUri = OM_AIR_QUALITY_ENDPOINT + uri;
   String host = OM_AIR_QUALITY_ENDPOINT;
@@ -270,16 +271,17 @@ int getAirPollution(WiFiClient &client, air_pollution_t &r)
     HTTPClient http;
     http.setConnectTimeout(HTTP_CLIENT_TCP_TIMEOUT); // default 5000ms
     http.setTimeout(HTTP_CLIENT_TCP_TIMEOUT);        // default 5000ms
-#if AIR_QUALITY_API == AIR_QUALITY_API_OPEN_METEO
+#ifdef AIR_QUALITY_API_OPEN_METEO
     http.useHTTP10(true);
 #endif
     http.begin(client, host, PORT, uri);
     httpResponse = http.GET();
     if (httpResponse == HTTP_CODE_OK)
     {
-#if AIR_QUALITY_API == AIR_QUALITY_API_OPEN_WEATHER_MAP
+#ifdef AIR_QUALITY_API_OPEN_WEATHER_MAP
       jsonErr = deserializeOWMAirQuality(http.getStream(), r);
-#elif AIR_QUALITY_API == AIR_QUALITY_API_OPEN_METEO
+#endif
+#ifdef AIR_QUALITY_API_OPEN_METEO
       jsonErr = deserializeOpenMeteoAirQuality(http.getStream(), r);
 #endif
       if (jsonErr)

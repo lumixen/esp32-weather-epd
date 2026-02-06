@@ -276,13 +276,14 @@ void setup()
   client.setInsecure();
 #elif HTTP_MODE == HTTPS_WITH_CERT_VERIF
   WiFiClientSecure client;
-#if WEATHER_API == WEATHER_API_OPEN_WEATHER_MAP
+#ifdef WEATHER_API_OPEN_WEATHER_MAP
   client.setCACert(cert_USERTrust_RSA_Certification_Authority);
-#elif WEATHER_API == WEATHER_API_OPEN_METEO
+#endif
+#ifdef WEATHER_API_OPEN_METEO
   client.setCACert(cert_ISRG_Root_X1);
 #endif
 #endif
-#if WEATHER_API == WEATHER_API_OPEN_WEATHER_MAP
+#ifdef WEATHER_API_OPEN_WEATHER_MAP
   int rxStatus = getOWMonecall(client, environment_data);
   if (rxStatus != HTTP_CODE_OK)
   {
@@ -297,8 +298,8 @@ void setup()
     powerOffDisplay();
     beginDeepSleep(startTime, &timeInfo);
   }
-
-#elif WEATHER_API == WEATHER_API_OPEN_METEO
+#endif
+#ifdef WEATHER_API_OPEN_METEO
   int rxStatus = getOMCall(client, environment_data);
   if (rxStatus != HTTP_CODE_OK)
   {
@@ -316,9 +317,10 @@ void setup()
 #endif
 
 #if HTTP_MODE == HTTPS_WITH_CERT_VERIF
-#if AIR_QUALITY_API == AIR_QUALITY_API_OPEN_WEATHER_MAP
+#ifdef AIR_QUALITY_API_OPEN_WEATHER_MAP
   client.setCACert(cert_USERTrust_RSA_Certification_Authority);
-#elif AIR_QUALITY_API == AIR_QUALITY_API_OPEN_METEO
+#endif
+#ifdef AIR_QUALITY_API_OPEN_METEO
   client.setCACert(cert_ISRG_Root_X1);
 #endif
 #endif
