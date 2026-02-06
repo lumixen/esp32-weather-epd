@@ -98,8 +98,8 @@ void drawError(const uint8_t *bitmap_196x196,
 void drawCurrentAirQuality(const air_pollution_t &air_pollution);
 void drawCurrentHumidity(const current_t &current);
 void drawCurrentMoonphase(const daily_t &today);
-void drawCurrentMoonrise(const current_t &today);
-void drawCurrentMoonset(const current_t &today);
+void drawCurrentMoonrise(const daily_t &today);
+void drawCurrentMoonset(const daily_t &today);
 void drawCurrentPressure(const current_t &current);
 void drawCurrentSunrise(const current_t &current);
 void drawCurrentSunset(const current_t &current);

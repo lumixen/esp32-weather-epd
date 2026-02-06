@@ -20,9 +20,9 @@ moon_state_t getMoonState(float latitude, float longitude)
     // 90 deg = 0.25 (First Quarter)
     // 180 deg = 0.5 (Full)
     // 270 deg = 0.75 (Third Quarter)
-    float moonPhase = moon.angleDeg / 360.0f;
+    float currentMoonPhase = moon.angleDeg / 360.0f;
 #if DEBUG_LEVEL >= 1
-    Serial.println("[debug] Moon phase: " + String(moonPhase, 4));
+    Serial.println("[debug] Moon phase: " + String(currentMoonPhase, 4));
 #endif
-    return moon_state_t{moonrise, moonset, moonPhase};
+    return moon_state_t{moonrise, moonset, currentMoonPhase};
 }
