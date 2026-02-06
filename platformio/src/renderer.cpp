@@ -693,26 +693,26 @@ void drawForecast(const daily_t *daily, tm timeInfo)
     drawString(x + 31 + 5, 98 + 69 / 2 + 38 - 6 + 12, loStr, LEFT);
 
 // daily forecast precipitation
-#ifndef DISPLAY_DAILY_PRECIP_ENABLED
+#ifndef DISPLAY_DAILY_PRECIP_DISABLED
     float dailyPrecip;
-#if defined(UNITS_PRECIP_POP)
+#if defined(UNITS_DAILY_PRECIP_POP)
     dailyPrecip = daily[i].pop;
     dataStr = String(static_cast<int>(dailyPrecip));
     unitStr = "%";
 #else
     dailyPrecip = daily[i].snow + daily[i].rain;
-#if defined(UNITS_PRECIP_MILLIMETERS)
+#if defined(UNITS_DAILY_PRECIP_MILLIMETERS)
     // Round up to nearest mm
     dailyPrecip = std::round(dailyPrecip);
     dataStr = String(static_cast<int>(dailyPrecip));
     unitStr = String(" ") + TXT_UNITS_PRECIP_MILLIMETERS;
-#elif defined(UNITS_PRECIP_CENTIMETERS)
+#elif defined(UNITS_DAILY_PRECIP_CENTIMETERS)
     // Round up to nearest 0.1 cm
     dailyPrecip = millimeters_to_centimeters(dailyPrecip);
     dailyPrecip = std::round(dailyPrecip * 10) / 10.0f;
     dataStr = String(dailyPrecip, 1);
     unitStr = String(" ") + TXT_UNITS_PRECIP_CENTIMETERS;
-#elif defined(UNITS_PRECIP_INCHES)
+#elif defined(UNITS_DAILY_PRECIP_INCHES)
     // Round up to nearest 0.1 inch
     dailyPrecip = millimeters_to_inches(dailyPrecip);
     dailyPrecip = std::round(dailyPrecip * 10) / 10.0f;
@@ -914,7 +914,7 @@ void drawOutlookGraph(const hourly_t *hourly, const daily_t *daily,
   float tempMin = celsius_to_fahrenheit(hourly[0].temp);
 #endif
   float tempMax = tempMin;
-#ifdef UNITS_PRECIP_POP
+#ifdef UNITS_HOURLY_PRECIP_POP
   float precipMax = hourly[0].pop;
 #else
   float precipMax = hourly[0].rain_1h + hourly[0].snow_1h;
@@ -934,7 +934,7 @@ void drawOutlookGraph(const hourly_t *hourly, const daily_t *daily,
 #endif
     tempMin = std::min(tempMin, newTemp);
     tempMax = std::max(tempMax, newTemp);
-#ifdef UNITS_PRECIP_POP
+#ifdef UNITS_HOURLY_PRECIP_POP
     precipMax = std::max<float>(precipMax, hourly[i].pop);
 #else
     precipMax = std::max<float>(
