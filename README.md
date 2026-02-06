@@ -33,7 +33,7 @@ Enclosure files and assembly instructions are available at [printables](https://
 ### Setup Guide
 
 1. **Connect the Hardware**
-   - Wire your Lolin D32 board to the e-paper panel according to the wiring schematic provided below.
+   - Wire your Lolin D32 board to the e-paper HAT driver according to the wiring schematic provided below.
 
 2. **Install Dependencies**
    - Make sure you have [PlatformIO](https://platformio.org/) installed in VS Code.
@@ -53,16 +53,16 @@ Wiring is specific for Lolin D32 board:
 
 <img width="459" height="525" alt="image" src="https://github.com/user-attachments/assets/278b804c-fa89-4595-b60a-8fa0e6571931" />
 
-| Signal         | Lolin D32 Pin | E-Paper Pin      | Description                |
-|----------------|--------------|------------------|----------------------------|
-| EPD Busy       | 4            | BUSY             | E-paper busy signal        |
-| EPD Chip Select| 5            | CS               | SPI chip select            |
-| EPD Reset      | 16           | RST              | E-paper reset              |
-| EPD Data/Command| 17          | DC               | Data/command select        |
-| EPD Clock      | 18           | SCK              | SPI clock                  |
-| EPD MISO       | 19           | MISO             | SPI MISO                   |
-| EPD MOSI       | 23           | MOSI             | SPI MOSI                   |
-| EPD PWR        | 2            | VCC/PWR          | E-paper power              |
+| E-Paper Pin    | Lolin D32 Pin |
+|----------------|--------------|
+| PWR            | GPIO2        |
+| BUSY           | GPIO4        |
+| RST            | GPIO16       |
+| DC             | GPIO17       |
+| CS             | GPIO5        |
+| CLK            | GPIO18       |
+| DIN            | GPIO23       |
+| VCC            | 3v3          |
 
 
 ### Configuration
