@@ -209,6 +209,7 @@ DeserializationError deserializeOpenMeteoCall(WiFiClient &json,
   r.current.feels_like = current["apparent_temperature"].as<float>();
   r.current.pressure = current["surface_pressure"].as<int>(); //
   r.current.humidity = current["relative_humidity_2m"].as<int>();
+  r.current.dew_point = current["dew_point_2m"].as<float>();
   r.current.clouds = current["cloud_cover"].as<int>();
   r.current.uvi = daily["uv_index_max"][0].as<float>();   //
   r.current.visibility = current["visibility"].as<int>(); //

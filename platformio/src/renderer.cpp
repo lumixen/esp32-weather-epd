@@ -822,14 +822,13 @@ void drawCurrentDewpoint(const current_t &current)
   if (!std::isnan(current.dew_point))
   {
 #ifdef UNITS_TEMP_KELVIN
-  dataStr = String(std::round(current.dew_point * 10) / 10.0f, 1);
+  dataStr = String(std::round(celsius_to_kelvin(current.dew_point) * 10) / 10.0f, 1) + "K";
 #endif
 #ifdef UNITS_TEMP_CELSIUS
-  dataStr = String(std::round(kelvin_to_celsius(current.dew_point) * 10) / 10.0f, 1);
+  dataStr = String(std::round(current.dew_point * 10) / 10.0f, 1) + "\260C";
 #endif
 #ifdef UNITS_TEMP_FAHRENHEIT
-  dataStr = String(static_cast<int>(
-            std::round(kelvin_to_fahrenheit(current.dew_point))));
+  dataStr = String(static_cast<int>(std::round(celsius_to_fahrenheit(current.dew_point)))) + "\260F";
 #endif
   }
   else

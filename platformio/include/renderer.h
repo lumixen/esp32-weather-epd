@@ -106,5 +106,6 @@ void drawCurrentSunset(const current_t &current);
 void drawCurrentUVI(const current_t &current);
 void drawCurrentVisibility(const current_t &current);
 void drawCurrentWind(const current_t &current);
+void drawCurrentDewpoint(const current_t &current);
 
 #endif
