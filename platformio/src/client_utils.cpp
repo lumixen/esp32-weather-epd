@@ -374,7 +374,6 @@ void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t w
 {
   WiFiClient mqttWifi;
   PubSubClient mqtt(mqttWifi);
-  mqtt.setBufferSize(512);
   mqtt.setServer(D_HOME_ASSISTANT_MQTT_SERVER, HOME_ASSISTANT_MQTT_PORT);
   Serial.println("Connecting to MQTT...");
   bool connected = mqtt.connect(D_HOME_ASSISTANT_MQTT_CLIENT_ID, D_HOME_ASSISTANT_MQTT_USERNAME, D_HOME_ASSISTANT_MQTT_PASSWORD);
