@@ -313,15 +313,10 @@ int getOMCall(WiFiClient &client, environment_data_t &r)
   DeserializationError jsonErr = {};
 
   String uri = "/v1/forecast?latitude=" + LAT + "&longitude=" + LON + "&" +
-               "current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,cloud_cover,visibility,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day&" +
+               "current=temperature_2m,relative_humidity_2m,dew_point_2m,apparent_temperature,weather_code,cloud_cover,visibility,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day&" +
                "hourly=temperature_2m,cloud_cover,wind_speed_10m,wind_gusts_10m,precipitation_probability,rain,snowfall,weather_code,is_day,soil_temperature_18cm&" +
                "daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,rain_sum,snowfall_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,shortwave_radiation_sum&" +
                "wind_speed_unit=ms&timezone=auto&timeformat=unixtime&forecast_days=5&forecast_hours=" + HOURLY_GRAPH_MAX;
-
-#if !DISPLAY_ALERTS
-  // exclude alerts
-  // uri += ",alerts";
-#endif
 
   // This string is printed to terminal to help with debugging.
   String sanitizedUri = OM_ENDPOINT + uri;

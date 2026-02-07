@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Dict
 from typing import Annotated
 from pydantic import BaseModel, Field, WithJsonSchema, model_validator
 
@@ -10,6 +11,7 @@ class DocEnum(Enum):
         if doc is not None:
             self.__doc__ = doc
         return self
+
 
 # ENUMS
 class EpdPanel(DocEnum):
@@ -23,6 +25,7 @@ class EpdPanel(DocEnum):
     )
     GENERIC_7C_F = "GENERIC_7C_F", "7.3in ACeP e-Paper (F) 800x480px 7-Colors"
     GENERIC_BW_V1 = "GENERIC_BW_V1", "7.5in e-Paper (v1) 640x384px Black/White"
+
 
 class EpdDriver(str, Enum):
     """E-Paper driver board"""
@@ -53,12 +56,12 @@ class UnitsSpeed(str, Enum):
 class UnitsPres(str, Enum):
     """Atmospheric pressure units"""
 
-    HECTOPASCAL = "hPa"
-    PASCAL = "Pa"
+    HECTOPASCALS = "hPa"
+    PASCALS = "Pa"
     MILLIMETERSOFMERCURY = "mmHg"
     INCHESOFMERCURY = "inHg"
-    MILLIBAR = "mbar"
-    ATMOSPHERE = "atm"
+    MILLIBARS = "mbar"
+    ATMOSPHERES = "atm"
     GRAMSPERSQUARECENTIMETER = "gsc"
     POUNDSPERSQUAREINCH = "psi"
 
@@ -109,6 +112,7 @@ class Locale(str, Enum):
     EN_GB = "en_GB"
     EN_US = "en_US"
     ET_EE = "et_EE"
+    ES_ES = "es_ES"
     FI_FI = "fi_FI"
     FR_FR = "fr_FR"
     IT_IT = "it_IT"
@@ -141,6 +145,11 @@ class Font(str, Enum):
     ROBOTO_SLAB = "Roboto Slab"
     UBUNTU = "Ubuntu"
     UBUNTU_MONO = "Ubuntu Mono"
+
+
+class MoonPhaseStyle(str, Enum):
+    PRIMARY = "primary"
+    ALTERNATIVE = "alternative"
 
 
 # END ENUMS
@@ -215,7 +224,7 @@ class ConfigSchema(BaseModel):
     unitsPres: UnitsPres = Field(
         default_factory=lambda data: UnitsPres.INCHESOFMERCURY
         if data["useImperialUnitsAsDefault"]
-        else UnitsPres.MILLIBAR
+        else UnitsPres.MILLIBARS
     )
     unitsDistance: UnitsDistance = Field(
         default_factory=lambda data: UnitsDistance.MILES
@@ -258,6 +267,21 @@ class ConfigSchema(BaseModel):
     wakeTime: int = 6
     hourlyGraphMax: int = 24
     homeAssistantMqtt: HomeAssistantMqttConfig | None = None
+    leftPanelLayout: Dict[str, int] = Field(
+        default_factory=lambda: {
+            "SUNRISE": 0,
+            "SUNSET": 1,
+            "MOONRISE": 2,
+            "MOONSET": 3,
+            "MOONPHASE": 4,
+            "HUMIDITY": 5,
+            "WIND": 6,
+            "PRESSURE": 7,
+            "AIR_QUALITY": 8,
+            "VISIBILITY": 9,
+        }
+    )
+    moonPhaseStyle: MoonPhaseStyle = MoonPhaseStyle.PRIMARY
 
     @model_validator(mode="after")
     def validate_apikey(self):
@@ -266,4 +290,39 @@ class ConfigSchema(BaseModel):
             or self.airQualityAPI == AirQualityAPI.OPEN_WEATHER_MAP
         ) and not self.owmApikey:
             raise ValueError("The API key is required on OpenWeatherMap")
+        return self
+
+    @model_validator(mode="after")
+    def validate_left_panel_layout(self):
+        allowed_left_panel_keys = {
+            "SUNRISE",
+            "SUNSET",
+            "WIND",
+            "HUMIDITY",
+            "UVI",
+            "PRESSURE",
+            "AIR_QUALITY",
+            "VISIBILITY",
+            "MOONRISE",
+            "MOONSET",
+            "MOONPHASE",
+            "DEWPOINT",
+        }
+        invalid_keys = [
+            k for k in self.leftPanelLayout.keys() if k not in allowed_left_panel_keys
+        ]
+        if invalid_keys:
+            raise ValueError(
+                f"Invalid keys in leftPanelLayout: {invalid_keys}. "
+                f"Allowed keys are: {sorted(allowed_left_panel_keys)}"
+            )
+        invalid_indices = [
+            (k, v)
+            for k, v in self.leftPanelLayout.items()
+            if not isinstance(v, int) or v < 0 or v > 9
+        ]
+        if invalid_indices:
+            raise ValueError(
+                f"Invalid indices in leftPanelLayout (must be integer between 0 and 9): {invalid_indices}"
+            )
         return self

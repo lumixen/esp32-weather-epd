@@ -1,6 +1,6 @@
 #include <time.h>
 #include <MoonRise.h>
-#include <moonPhase.h>
+#include <MoonPhase.hpp>
 
 #ifndef MOON_TOOLS_H
 #define MOON_TOOLS_H

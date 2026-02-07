@@ -117,6 +117,18 @@ sleepDuration: 30
 bedTime: 0
 wakeTime: 6
 hourlyGraphMax: 24
+moonPhaseStyle: alternative
+leftPanelPositions:
+  SUNRISE: 0
+  SUNSET: 1
+  MOONRISE: 2
+  MOONSET: 3
+  MOONPHASE: 4
+  HUMIDITY: 5
+  WIND: 6
+  PRESSURE: 7
+  AIR_QUALITY: 8
+  VISIBILITY: 9
 homeAssistantMqtt:
   enabled: true
   server: XXX.XXX.XXX.XXX
