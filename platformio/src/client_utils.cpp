@@ -318,11 +318,6 @@ int getOMCall(WiFiClient &client, environment_data_t &r)
                "daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,rain_sum,snowfall_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,shortwave_radiation_sum&" +
                "wind_speed_unit=ms&timezone=auto&timeformat=unixtime&forecast_days=5&forecast_hours=" + HOURLY_GRAPH_MAX;
 
-#if !DISPLAY_ALERTS
-  // exclude alerts
-  // uri += ",alerts";
-#endif
-
   // This string is printed to terminal to help with debugging.
   String sanitizedUri = OM_ENDPOINT + uri;
 

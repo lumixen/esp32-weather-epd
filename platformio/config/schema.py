@@ -267,7 +267,20 @@ class ConfigSchema(BaseModel):
     wakeTime: int = 6
     hourlyGraphMax: int = 24
     homeAssistantMqtt: HomeAssistantMqttConfig | None = None
-    leftPanelPositions: Dict[str, int] = {}
+    leftPanelLayout: Dict[str, int] = Field(
+        default_factory=lambda: {
+            "SUNRISE": 0,
+            "SUNSET": 1,
+            "MOONRISE": 2,
+            "MOONSET": 3,
+            "MOONPHASE": 4,
+            "HUMIDITY": 5,
+            "WIND": 6,
+            "PRESSURE": 7,
+            "AIR_QUALITY": 8,
+            "VISIBILITY": 9,
+        }
+    )
     moonPhaseStyle: MoonPhaseStyle = MoonPhaseStyle.PRIMARY
 
     @model_validator(mode="after")
@@ -280,7 +293,7 @@ class ConfigSchema(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_left_panel_positions(self):
+    def validate_left_panel_layout(self):
         allowed_left_panel_keys = {
             "SUNRISE",
             "SUNSET",
@@ -296,22 +309,20 @@ class ConfigSchema(BaseModel):
             "DEWPOINT",
         }
         invalid_keys = [
-            k
-            for k in self.leftPanelPositions.keys()
-            if k not in allowed_left_panel_keys
+            k for k in self.leftPanelLayout.keys() if k not in allowed_left_panel_keys
         ]
         if invalid_keys:
             raise ValueError(
-                f"Invalid keys in leftPanelPositions: {invalid_keys}. "
+                f"Invalid keys in leftPanelLayout: {invalid_keys}. "
                 f"Allowed keys are: {sorted(allowed_left_panel_keys)}"
             )
         invalid_indices = [
             (k, v)
-            for k, v in self.leftPanelPositions.items()
+            for k, v in self.leftPanelLayout.items()
             if not isinstance(v, int) or v < 0 or v > 9
         ]
         if invalid_indices:
             raise ValueError(
-                f"Invalid indices in leftPanelPositions (must be integer between 0 and 9): {invalid_indices}"
+                f"Invalid indices in leftPanelLayout (must be integer between 0 and 9): {invalid_indices}"
             )
         return self

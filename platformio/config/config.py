@@ -83,7 +83,7 @@ with open("./config.yml", "r", encoding="utf-8") as config_file:
     # Add configuration defines
     header_lines.append("// Configuration")
     for k, v in config:
-        if k == "leftPanelPositions":
+        if k == "leftPanelLayout":
             for name, idx in v.items():
                 header_lines.append(f"#define POS_{name.upper()} {idx}")
         elif hasattr(v, "name"):
