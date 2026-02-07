@@ -1,5 +1,7 @@
 #include "config.h"
 
+#pragma once
+
 #ifdef HOME_ASSISTANT_MQTT_ENABLED
 
 // Configuration (discovery) Topics
