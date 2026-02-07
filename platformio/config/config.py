@@ -13,6 +13,7 @@ except ImportError:
 from schema import ConfigSchema, defined_enums
 from pydantic import BaseModel
 from re import sub
+from datetime import datetime
 import os
 
 
@@ -57,6 +58,12 @@ header_lines = [
     "#pragma once",
     "",
 ]
+
+# Add build version with current date/time
+build_version = datetime.now().strftime("%Y.%m.%d %H:%M")
+header_lines.append("// Build Information")
+header_lines.append(f'#define D_BUILD_VERSION "{build_version}"')
+header_lines.append("")
 
 with open("./config.yml", "r", encoding="utf-8") as config_file:
     user_config = yaml.safe_load(config_file)

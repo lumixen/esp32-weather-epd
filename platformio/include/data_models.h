@@ -79,7 +79,7 @@ typedef struct hourly
 /*
  * Daily forecast weather data
  */
-typedef struct owm_daily
+typedef struct daily
 {
     int64_t dt;      // Time of the forecasted data, unix, UTC
     int64_t sunrise; // Sunrise time, Unix, UTC
