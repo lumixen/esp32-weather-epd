@@ -1,55 +1,63 @@
 #include "config.h"
 
 #ifdef HOME_ASSISTANT_MQTT_ENABLED
-// MQTT Device Discovery Payload
-static const char HOME_ASSISTANT_MQTT_DEVICE_DISCOVERY_PAYLOAD[] PROGMEM =
+
+// Configuration (discovery) Topics
+static const char HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_TOPIC[] PROGMEM = 
+  D_HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/sensor/" D_HOME_ASSISTANT_MQTT_CLIENT_ID "/battery_voltage/config";
+static const char HOME_ASSISTANT_MQTT_BATTERY_PERCENT_TOPIC[] PROGMEM = 
+  D_HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/sensor/" D_HOME_ASSISTANT_MQTT_CLIENT_ID "/battery_percent/config";
+static const char HOME_ASSISTANT_MQTT_WIFI_RSSI_TOPIC[] PROGMEM = 
+  D_HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/sensor/" D_HOME_ASSISTANT_MQTT_CLIENT_ID "/wifi_rssi/config";
+
+// State Topics (defined first so they can be referenced in payloads)
+#define MQTT_STATE_TOPIC_VOLTAGE D_HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/sensor/" D_HOME_ASSISTANT_MQTT_CLIENT_ID "/battery_voltage/state"
+#define MQTT_STATE_TOPIC_PERCENT D_HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/sensor/" D_HOME_ASSISTANT_MQTT_CLIENT_ID "/battery_percent/state"
+#define MQTT_STATE_TOPIC_RSSI D_HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/sensor/" D_HOME_ASSISTANT_MQTT_CLIENT_ID "/wifi_rssi/state"
+
+static const char HOME_ASSISTANT_MQTT_STATE_TOPIC_VOLTAGE[] PROGMEM = MQTT_STATE_TOPIC_VOLTAGE;
+static const char HOME_ASSISTANT_MQTT_STATE_TOPIC_PERCENT[] PROGMEM = MQTT_STATE_TOPIC_PERCENT;
+static const char HOME_ASSISTANT_MQTT_STATE_TOPIC_RSSI[] PROGMEM = MQTT_STATE_TOPIC_RSSI;
+
+// Device information (shared across all sensors)
+#define MQTT_DEVICE_INFO \
+  "\"device\":{" \
+    "\"ids\":\"" D_HOME_ASSISTANT_MQTT_CLIENT_ID "\"," \
+    "\"name\":\"" D_HOME_ASSISTANT_MQTT_DEVICE_NAME "\"," \
+    "\"mf\":\"lumixen\"," \
+    "\"mdl\":\"ESP32 Weather EPD\"," \
+    "\"sw\":\"" D_BUILD_VERSION "\"" \
+  "}"
+
+// Sensor Discovery Payloads (with full device information in each)
+static const char HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_PAYLOAD[] PROGMEM =
 "{"
-  "\"dev\":{"
-    "\"ids\":\"" D_HOME_ASSISTANT_MQTT_CLIENT_ID "\","
-    "\"name\":\"" D_HOME_ASSISTANT_MQTT_DEVICE_NAME "\","
-    "\"mf\":\"lumixen\","
-    "\"mdl\":\"ESP32 Weather EPD\""
-  "},"
-  "\"o\":{"
-    "\"name\":\"" D_HOME_ASSISTANT_MQTT_DEVICE_NAME "\","
-    "\"sw\":\"0.1\""
-  "},"
-  "\"cmps\":{"
-    "\"battery_voltage\":{"
-      "\"p\":\"sensor\","
-      "\"device_class\":\"voltage\","
-      "\"unit_of_measurement\":\"V\","
-      "\"unique_id\":\"" D_HOME_ASSISTANT_MQTT_CLIENT_ID "_battery_voltage\","
-      "\"state_topic\":\"esp32_weather_epd/" D_HOME_ASSISTANT_MQTT_CLIENT_ID "/battery/voltage\""
-    "},"
-    "\"battery_percent\":{"
-      "\"p\":\"sensor\","
-      "\"device_class\":\"battery\","
-      "\"unit_of_measurement\":\"%\","
-      "\"unique_id\":\"" D_HOME_ASSISTANT_MQTT_CLIENT_ID "_battery_percent\","
-      "\"state_topic\":\"esp32_weather_epd/" D_HOME_ASSISTANT_MQTT_CLIENT_ID "/battery/percent\""
-    "},"
-    "\"wifi_rssi\":{"
-      "\"p\":\"sensor\","
-      "\"device_class\":\"signal_strength\","
-      "\"unit_of_measurement\":\"dBm\","
-      "\"unique_id\":\"" D_HOME_ASSISTANT_MQTT_CLIENT_ID "_wifi_rssi\","
-      "\"state_topic\":\"esp32_weather_epd/" D_HOME_ASSISTANT_MQTT_CLIENT_ID "/wifi/rssi\""
-    "}"
-  "},"
-  "\"qos\":0"
+  "\"device_class\":\"voltage\","
+  "\"unit_of_measurement\":\"V\","
+  "\"unique_id\":\"" D_HOME_ASSISTANT_MQTT_CLIENT_ID "_battery_voltage\","
+  "\"name\":\"Battery Voltage\","
+  "\"state_topic\":\"" MQTT_STATE_TOPIC_VOLTAGE "\","
+  MQTT_DEVICE_INFO
 "}";
 
-// Discovery Topic
-static const char HOME_ASSISTANT_MQTT_DEVICE_DISCOVERY_TOPIC[] PROGMEM = 
-  D_HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/device/" D_HOME_ASSISTANT_MQTT_CLIENT_ID "/config";
+static const char HOME_ASSISTANT_MQTT_BATTERY_PERCENT_PAYLOAD[] PROGMEM =
+"{"
+  "\"device_class\":\"battery\","
+  "\"unit_of_measurement\":\"%\","
+  "\"unique_id\":\"" D_HOME_ASSISTANT_MQTT_CLIENT_ID "_battery_percent\","
+  "\"name\":\"Battery Level\","
+  "\"state_topic\":\"" MQTT_STATE_TOPIC_PERCENT "\","
+  MQTT_DEVICE_INFO
+"}";
 
-// State Topics
-static const char HOME_ASSISTANT_MQTT_STATE_TOPIC_VOLTAGE[] PROGMEM = 
- "esp32_weather_epd/" D_HOME_ASSISTANT_MQTT_CLIENT_ID "/battery/voltage";
-static const char HOME_ASSISTANT_MQTT_STATE_TOPIC_PERCENT[] PROGMEM = 
-  "esp32_weather_epd/" D_HOME_ASSISTANT_MQTT_CLIENT_ID "/battery/percent";
-static const char HOME_ASSISTANT_MQTT_STATE_TOPIC_RSSI[] PROGMEM = 
-  "esp32_weather_epd/" D_HOME_ASSISTANT_MQTT_CLIENT_ID "/wifi/rssi";
+static const char HOME_ASSISTANT_MQTT_WIFI_RSSI_PAYLOAD[] PROGMEM =
+"{"
+  "\"device_class\":\"signal_strength\","
+  "\"unit_of_measurement\":\"dBm\","
+  "\"unique_id\":\"" D_HOME_ASSISTANT_MQTT_CLIENT_ID "_wifi_rssi\","
+  "\"name\":\"WiFi Signal\","
+  "\"state_topic\":\"" MQTT_STATE_TOPIC_RSSI "\","
+  MQTT_DEVICE_INFO
+"}";
 
 #endif // HOME_ASSISTANT_MQTT_ENABLED
