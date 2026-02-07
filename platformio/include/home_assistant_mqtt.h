@@ -1,6 +1,6 @@
-#include "config.h"
-
 #pragma once
+
+#include "config.h"
 
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
 
