@@ -55,7 +55,7 @@ static const char HOME_ASSISTANT_MQTT_WIFI_RSSI_PAYLOAD[] PROGMEM =
   "\"device_class\":\"signal_strength\","
   "\"unit_of_measurement\":\"dBm\","
   "\"unique_id\":\"" D_HOME_ASSISTANT_MQTT_CLIENT_ID "_wifi_rssi\","
-  "\"name\":\"WiFi Signal\","
+  "\"name\":\"WiFi Signal Strength\","
   "\"state_topic\":\"" MQTT_STATE_TOPIC_RSSI "\","
   MQTT_DEVICE_INFO
 "}";
