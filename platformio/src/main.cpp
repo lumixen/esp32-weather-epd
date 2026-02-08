@@ -129,6 +129,25 @@ void enrichWithMoonData(environment_data_t &data) {
   data.daily[0].moon_phase = moonState.phase;
 }  // end enrichWithMoonData
 
+void handleNetworkError(const unsigned char *icon, const String &statusStr, const String &tmpStr,
+                        unsigned long startTime, tm *timeInfo, uint32_t batteryVoltage, uint8_t batteryPercent,
+                        uint8_t wifiRSSI, unsigned long networkStartTime) {
+#if HOME_ASSISTANT_MQTT_ENABLED
+  if (WiFi.status() == WL_CONNECTED) {
+    unsigned long networkActivityDuration = millis() - networkStartTime;
+    sendMQTTStatus(batteryVoltage, batteryPercent, wifiRSSI, networkActivityDuration);
+  }
+#endif
+
+  killWiFi();
+  initDisplay();
+  do {
+    drawError(icon, statusStr, tmpStr);
+  } while (display.nextPage());
+  powerOffDisplay();
+  beginDeepSleep(startTime, timeInfo);
+}
+
 /* Program entry point.
  */
 void setup() {
@@ -145,6 +164,7 @@ void setup() {
 
 #if BATTERY_MONITORING
   uint32_t batteryVoltage = readBatteryVoltage();
+  uint8_t batteryPercent = calcBatPercent(batteryVoltage, MIN_BATTERY_VOLTAGE, MAX_BATTERY_VOLTAGE);
   Serial.print(TXT_BATTERY_VOLTAGE);
   Serial.println(": " + String(batteryVoltage) + "mv");
 
@@ -190,6 +210,7 @@ void setup() {
   }
 #else
   uint32_t batteryVoltage = UINT32_MAX;
+  uint8_t batteryPercent = UINT8_MAX;
 #endif
 
   // All data should have been loaded from NVS. Close filesystem.
@@ -198,6 +219,9 @@ void setup() {
   String statusStr = {};
   String tmpStr = {};
   tm timeInfo = {};
+
+  // START TIMING FOR WIFI + TIME SYNC + API
+  unsigned long networkStartTime = millis();
 
   // START WIFI
   int wifiRSSI = 0;  // “Received Signal Strength Indicator"
@@ -225,22 +249,24 @@ void setup() {
   bool timeConfigured = waitForSNTPSync(&timeInfo);
   if (!timeConfigured) {
     Serial.println(TXT_TIME_SYNCHRONIZATION_FAILED);
-    killWiFi();
-    initDisplay();
-    do {
-      drawError(wi_time_4_196x196, TXT_TIME_SYNCHRONIZATION_FAILED);
-    } while (display.nextPage());
-    powerOffDisplay();
-    beginDeepSleep(startTime, &timeInfo);
+    handleNetworkError(wi_time_4_196x196, TXT_TIME_SYNCHRONIZATION_FAILED, "", startTime, &timeInfo, batteryVoltage,
+                       batteryPercent, wifiRSSI, networkStartTime);
+    // killWiFi();
+    // initDisplay();
+    // do {
+    //   drawError(wi_time_4_196x196, TXT_TIME_SYNCHRONIZATION_FAILED);
+    // } while (display.nextPage());
+    // powerOffDisplay();
+    // beginDeepSleep(startTime, &timeInfo);
   }
 
 // SEND MQTT STATUS
-#if BATTERY_MONITORING && HOME_ASSISTANT_MQTT_ENABLED
-  if (WiFi.status() == WL_CONNECTED) {
-    uint8_t batPercent = calcBatPercent(batteryVoltage, MIN_BATTERY_VOLTAGE, MAX_BATTERY_VOLTAGE);
-    sendMQTTStatus(batteryVoltage, batPercent, wifiRSSI);
-  }
-#endif  // BATTERY_MONITORING
+// #if BATTERY_MONITORING && HOME_ASSISTANT_MQTT_ENABLED
+//   if (WiFi.status() == WL_CONNECTED) {
+//     uint8_t batPercent = calcBatPercent(batteryVoltage, MIN_BATTERY_VOLTAGE, MAX_BATTERY_VOLTAGE);
+//     sendMQTTStatus(batteryVoltage, batPercent, wifiRSSI, networkStartTime);
+//   }
+// #endif
 
 // MAKE API REQUESTS
 #if HTTP_MODE == HTTP
@@ -260,29 +286,29 @@ void setup() {
 #ifdef WEATHER_API_OPEN_WEATHER_MAP
   int rxStatus = getOWMonecall(client, environment_data);
   if (rxStatus != HTTP_CODE_OK) {
-    killWiFi();
     statusStr = "One Call " + OWM_ONECALL_VERSION + " API";
     tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
-    initDisplay();
-    do {
-      drawError(wi_cloud_down_196x196, statusStr, tmpStr);
-    } while (display.nextPage());
-    powerOffDisplay();
-    beginDeepSleep(startTime, &timeInfo);
+    handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
+                       wifiRSSI, networkStartTime);
+
+    killWiFi();
+    // statusStr = "One Call " + OWM_ONECALL_VERSION + " API";
+    // tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
+    // initDisplay();
+    // do {
+    //   drawError(wi_cloud_down_196x196, statusStr, tmpStr);
+    // } while (display.nextPage());
+    // powerOffDisplay();
+    // beginDeepSleep(startTime, &timeInfo);
   }
 #endif
 #ifdef WEATHER_API_OPEN_METEO
   int rxStatus = getOMCall(client, environment_data);
   if (rxStatus != HTTP_CODE_OK) {
-    killWiFi();
     statusStr = "Open Meteo API";
     tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
-    initDisplay();
-    do {
-      drawError(wi_cloud_down_196x196, statusStr, tmpStr);
-    } while (display.nextPage());
-    powerOffDisplay();
-    beginDeepSleep(startTime, &timeInfo);
+    handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
+                       wifiRSSI, networkStartTime);
   }
 #endif
 
@@ -296,16 +322,17 @@ void setup() {
 #endif
   rxStatus = getAirPollution(client, air_pollution);
   if (rxStatus != HTTP_CODE_OK) {
-    killWiFi();
     statusStr = "Air Pollution API";
     tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
-    initDisplay();
-    do {
-      drawError(wi_cloud_down_196x196, statusStr, tmpStr);
-    } while (display.nextPage());
-    powerOffDisplay();
-    beginDeepSleep(startTime, &timeInfo);
+    handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
+                       wifiRSSI, networkStartTime);
   }
+  // SEND MQTT STATUS (success case)
+#if HOME_ASSISTANT_MQTT_ENABLED
+  if (WiFi.status() == WL_CONNECTED) {
+    sendMQTTStatus(batteryVoltage, batteryPercent, wifiRSSI, networkStartTime);
+  }
+#endif
 
   killWiFi();  // WiFi no longer needed
 

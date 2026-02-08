@@ -364,7 +364,8 @@ bool publishMQTTSensor(PubSubClient &mqtt, const char *sensorName, const String 
   }
 }
 
-void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t wifiRSSI) {
+void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t wifiRSSI,
+                    unsigned long networkActivityDuration) {
   WiFiClient mqttWifi;
   PubSubClient mqtt(mqttWifi);
   mqtt.setBufferSize(512);
@@ -375,6 +376,7 @@ void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t w
   if (connected) {
     Serial.println("MQTT connected. Now publishing discovery and status.");
 
+#if BATTERY_MONITORING
     // 1. Publish Battery Voltage
     char voltageStr[8];
     snprintf(voltageStr, sizeof(voltageStr), "%.3f", batteryVoltage / 1000.0);
@@ -388,6 +390,7 @@ void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t w
     publishMQTTSensor(mqtt, "battery percent", FPSTR(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_TOPIC),
                       FPSTR(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_PAYLOAD),
                       FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_PERCENT), percentStr);
+#endif
 
     // 3. Publish WiFi RSSI
     char rssiStr[5];

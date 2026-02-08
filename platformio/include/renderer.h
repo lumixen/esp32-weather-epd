@@ -14,9 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
-#ifndef __RENDERER_H__
-#define __RENDERER_H__
+#pragma once
 
 #include "defines.h"
 #include <vector>
@@ -88,5 +86,3 @@ void drawCurrentUVI(const current_t &current);
 void drawCurrentVisibility(const current_t &current);
 void drawCurrentWind(const current_t &current);
 void drawCurrentDewpoint(const current_t &current);
-
-#endif
