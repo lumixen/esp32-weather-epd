@@ -134,8 +134,7 @@ void handleNetworkError(const unsigned char *icon, const String &statusStr, cons
                         uint8_t wifiRSSI, unsigned long networkStartTime) {
 #if HOME_ASSISTANT_MQTT_ENABLED
   if (WiFi.status() == WL_CONNECTED) {
-    unsigned long networkActivityDuration = millis() - networkStartTime;
-    sendMQTTStatus(batteryVoltage, batteryPercent, wifiRSSI, networkActivityDuration);
+    sendMQTTStatus(batteryVoltage, batteryPercent, wifiRSSI, millis() - networkStartTime);
   }
 #endif
 
@@ -330,7 +329,7 @@ void setup() {
   // SEND MQTT STATUS (success case)
 #if HOME_ASSISTANT_MQTT_ENABLED
   if (WiFi.status() == WL_CONNECTED) {
-    sendMQTTStatus(batteryVoltage, batteryPercent, wifiRSSI, networkStartTime);
+    sendMQTTStatus(batteryVoltage, batteryPercent, wifiRSSI, millis() - networkStartTime);
   }
 #endif
 

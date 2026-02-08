@@ -380,14 +380,14 @@ void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t w
     // 1. Publish Battery Voltage
     char voltageStr[8];
     snprintf(voltageStr, sizeof(voltageStr), "%.3f", batteryVoltage / 1000.0);
-    publishMQTTSensor(mqtt, "battery voltage", FPSTR(HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_TOPIC),
+    publishMQTTSensor(mqtt, "Battery voltage", FPSTR(HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_TOPIC),
                       FPSTR(HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_PAYLOAD),
                       FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_VOLTAGE), voltageStr);
 
     // 2. Publish Battery Percent
     char percentStr[4];
     snprintf(percentStr, sizeof(percentStr), "%u", batteryPercentage);
-    publishMQTTSensor(mqtt, "battery percent", FPSTR(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_TOPIC),
+    publishMQTTSensor(mqtt, "Battery percent", FPSTR(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_TOPIC),
                       FPSTR(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_PAYLOAD),
                       FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_PERCENT), percentStr);
 #endif
@@ -399,6 +399,12 @@ void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t w
                       FPSTR(HOME_ASSISTANT_MQTT_WIFI_RSSI_PAYLOAD), FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_RSSI),
                       rssiStr);
 
+    // 4. Publish Network Activity Duration
+    char durationStr[12];
+    snprintf(durationStr, sizeof(durationStr), "%lu", networkActivityDuration);
+    publishMQTTSensor(mqtt, "Network activity duration", FPSTR(HOME_ASSISTANT_MQTT_NETWORK_ACTIVITY_DURATION_TOPIC),
+                      FPSTR(HOME_ASSISTANT_MQTT_NETWORK_ACTIVITY_DURATION_PAYLOAD),
+                      FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_NETWORK_ACTIVITY_DURATION), durationStr);
     mqtt.disconnect();
     Serial.println("MQTT publish complete.");
   } else {
