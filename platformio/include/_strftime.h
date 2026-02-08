@@ -14,14 +14,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
-#ifndef ___STRFTIME_H__
-#define ___STRFTIME_H__
+#pragma once
 
 #include <time.h>
 
 size_t _strftime(char *s, size_t maxsize, const char *format,
                  const struct tm *timeptr);
-
-#endif
 

@@ -17,8 +17,10 @@
 
 #include "config.h"
 
+// clang-format off
 #define STR(s) #s
 #define X_LOCALE_INC(code) STR(locales/locale_ ## code.inc)
 #define LOCALE_INC(code) X_LOCALE_INC(code)
+// clang-format on
 
 #include LOCALE_INC(LOCALE)

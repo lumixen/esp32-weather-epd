@@ -26,43 +26,38 @@
 #include <WiFi.h>
 #include "data_models.h"
 
-#define OWM_NUM_ALERTS 8         // OpenWeatherMaps does not specify a limit, but if you need more alerts you are probably doomed.
-#define NUM_AIR_POLLUTION 24 // Depending on AQI scale, hourly concentrations will need to be averaged over a period of 1h to 24h
+#define OWM_NUM_ALERTS \
+  8  // OpenWeatherMaps does not specify a limit, but if you need more alerts you are probably doomed.
+#define NUM_AIR_POLLUTION \
+  24  // Depending on AQI scale, hourly concentrations will need to be averaged over a period of 1h to 24h
 
 /*
  * Coordinates from the specified location (latitude, longitude)
  */
-typedef struct coord
-{
+typedef struct coord {
   float lat;
   float lon;
 } coord_t;
 
-typedef struct air_components
-{
-  float co[NUM_AIR_POLLUTION];    // Сoncentration of CO (Carbon monoxide), μg/m^3
-  float no[NUM_AIR_POLLUTION];    // Сoncentration of NO (Nitrogen monoxide), μg/m^3
-  float no2[NUM_AIR_POLLUTION];   // Сoncentration of NO2 (Nitrogen dioxide), μg/m^3
-  float o3[NUM_AIR_POLLUTION];    // Сoncentration of O3 (Ozone), μg/m^3
-  float so2[NUM_AIR_POLLUTION];   // Сoncentration of SO2 (Sulphur dioxide), μg/m^3
-  float pm2_5[NUM_AIR_POLLUTION]; // Сoncentration of PM2.5 (Fine particles matter), μg/m^3
-  float pm10[NUM_AIR_POLLUTION];  // Сoncentration of PM10 (Coarse particulate matter), μg/m^3
-  float nh3[NUM_AIR_POLLUTION];   // Сoncentration of NH3 (Ammonia), μg/m^3
+typedef struct air_components {
+  float co[NUM_AIR_POLLUTION];     // Сoncentration of CO (Carbon monoxide), μg/m^3
+  float no[NUM_AIR_POLLUTION];     // Сoncentration of NO (Nitrogen monoxide), μg/m^3
+  float no2[NUM_AIR_POLLUTION];    // Сoncentration of NO2 (Nitrogen dioxide), μg/m^3
+  float o3[NUM_AIR_POLLUTION];     // Сoncentration of O3 (Ozone), μg/m^3
+  float so2[NUM_AIR_POLLUTION];    // Сoncentration of SO2 (Sulphur dioxide), μg/m^3
+  float pm2_5[NUM_AIR_POLLUTION];  // Сoncentration of PM2.5 (Fine particles matter), μg/m^3
+  float pm10[NUM_AIR_POLLUTION];   // Сoncentration of PM10 (Coarse particulate matter), μg/m^3
+  float nh3[NUM_AIR_POLLUTION];    // Сoncentration of NH3 (Ammonia), μg/m^3
 } air_components_t;
 
-typedef struct air_pollution
-{
+typedef struct air_pollution {
   coord_t coord;
   air_components_t components;
-  int64_t dt[NUM_AIR_POLLUTION]; // Date and time, Unix, UTC;
+  int64_t dt[NUM_AIR_POLLUTION];  // Date and time, Unix, UTC;
 } air_pollution_t;
 
-DeserializationError deserializeOneCall(WiFiClient &json,
-                                        environment_data_t &r);
-DeserializationError deserializeOpenMeteoCall(WiFiClient &json,
-                                              environment_data_t &r);
-DeserializationError deserializeOWMAirQuality(WiFiClient &json,
-                                           air_pollution_t &r);
-DeserializationError deserializeOpenMeteoAirQuality(WiFiClient &json,
-                                           air_pollution_t &r);
+DeserializationError deserializeOneCall(WiFiClient &json, environment_data_t &r);
+DeserializationError deserializeOpenMeteoCall(WiFiClient &json, environment_data_t &r);
+DeserializationError deserializeOWMAirQuality(WiFiClient &json, air_pollution_t &r);
+DeserializationError deserializeOpenMeteoAirQuality(WiFiClient &json, air_pollution_t &r);
 #endif

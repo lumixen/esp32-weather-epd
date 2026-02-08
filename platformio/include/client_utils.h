@@ -14,9 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
-#ifndef __CLIENT_UTILS_H__
-#define __CLIENT_UTILS_H__
+#pragma once
 
 #include <Arduino.h>
 #include <WiFiClient.h>
@@ -37,6 +35,4 @@ int getAirPollution(WiFiClient &client, air_pollution_t &r);
 
 #ifdef HOME_ASSISTANT_MQTT_ENABLED
 void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t wifiRSSI);
-#endif
-
 #endif

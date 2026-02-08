@@ -53,8 +53,7 @@ static const uint16_t PORT = 443;
  *
  * Returns WiFi status.
  */
-wl_status_t startWiFi(int &wifiRSSI)
-{
+wl_status_t startWiFi(int &wifiRSSI) {
   WiFi.mode(WIFI_STA);
   Serial.printf("%s '%s'", TXT_CONNECTING_TO, WIFI_SSID);
 #if WIFI_SCAN
@@ -66,12 +65,9 @@ wl_status_t startWiFi(int &wifiRSSI)
   uint8_t bestBSSID[6];
   bool foundNetwork = false;
 
-  for (int i = 0; i < numNetworks; i++)
-  {
-    if (WiFi.SSID(i) == WIFI_SSID)
-    {
-      if (WiFi.RSSI(i) > bestRSSI)
-      {
+  for (int i = 0; i < numNetworks; i++) {
+    if (WiFi.SSID(i) == WIFI_SSID) {
+      if (WiFi.RSSI(i) > bestRSSI) {
         bestRSSI = WiFi.RSSI(i);
         memcpy(bestBSSID, WiFi.BSSID(i), 6);
         Serial.printf("\n  Found SSID '%s', BSSID %02X:%02X:%02X:%02X:%02X:%02X with RSSI %d dBm", WIFI_SSID,
@@ -80,12 +76,9 @@ wl_status_t startWiFi(int &wifiRSSI)
       }
     }
   }
-  if (foundNetwork)
-  {
+  if (foundNetwork) {
     WiFi.begin(WIFI_SSID, D_WIFI_PASSWORD, 0, bestBSSID);
-  }
-  else
-  {
+  } else {
     WiFi.begin(WIFI_SSID, D_WIFI_PASSWORD);
   }
 #else
@@ -96,50 +89,43 @@ wl_status_t startWiFi(int &wifiRSSI)
   unsigned long timeout = millis() + WIFI_TIMEOUT;
   wl_status_t connection_status = WiFi.status();
 
-  while ((connection_status != WL_CONNECTED) && (millis() < timeout))
-  {
+  while ((connection_status != WL_CONNECTED) && (millis() < timeout)) {
     Serial.print(".");
     delay(50);
     connection_status = WiFi.status();
   }
   Serial.println();
 
-  if (connection_status == WL_CONNECTED)
-  {
-    wifiRSSI = WiFi.RSSI(); // get WiFi signal strength now, because the WiFi
-                            // will be turned off to save power!
+  if (connection_status == WL_CONNECTED) {
+    wifiRSSI = WiFi.RSSI();  // get WiFi signal strength now, because the WiFi
+                             // will be turned off to save power!
     Serial.println("IP: " + WiFi.localIP().toString());
-  }
-  else
-  {
+  } else {
     Serial.printf("%s '%s'\n", TXT_COULD_NOT_CONNECT_TO, WIFI_SSID);
   }
   return connection_status;
-} // startWiFi
+}  // startWiFi
 
 /* Disconnect and power-off WiFi.
  */
-void killWiFi()
-{
+void killWiFi() {
   WiFi.disconnect();
   WiFi.mode(WIFI_OFF);
-} // killWiFi
+}  // killWiFi
 
 /* Prints the local time to serial monitor.
  *
  * Returns true if getting local time was a success, otherwise false.
  */
-bool printLocalTime(tm *timeInfo)
-{
+bool printLocalTime(tm *timeInfo) {
   int attempts = 0;
-  while (!getLocalTime(timeInfo) && attempts++ < 3)
-  {
+  while (!getLocalTime(timeInfo) && attempts++ < 3) {
     Serial.println(TXT_FAILED_TO_GET_TIME);
     return false;
   }
   Serial.println(timeInfo, "%A, %B %d, %Y %H:%M:%S");
   return true;
-} // printLocalTime
+}  // printLocalTime
 
 /* Waits for NTP server time sync, adjusted for the time zone specified in
  * config.cpp.
@@ -148,23 +134,20 @@ bool printLocalTime(tm *timeInfo)
  *
  * Note: Must be connected to WiFi to get time from NTP server.
  */
-bool waitForSNTPSync(tm *timeInfo)
-{
+bool waitForSNTPSync(tm *timeInfo) {
   // Wait for SNTP synchronization to complete
   unsigned long timeout = millis() + NTP_TIMEOUT;
-  if ((sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET) && (millis() < timeout))
-  {
+  if ((sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET) && (millis() < timeout)) {
     Serial.print(TXT_WAITING_FOR_SNTP);
-    delay(100); // ms
-    while ((sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET) && (millis() < timeout))
-    {
+    delay(100);  // ms
+    while ((sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET) && (millis() < timeout)) {
       Serial.print(".");
-      delay(100); // ms
+      delay(100);  // ms
     }
     Serial.println();
   }
   return printLocalTime(timeInfo);
-} // waitForSNTPSync
+}  // waitForSNTPSync
 
 /* Perform an HTTP GET request to OpenWeatherMap's "One Call" API
  * If data is received, it will be parsed and stored in the global variable
@@ -172,12 +155,12 @@ bool waitForSNTPSync(tm *timeInfo)
  *
  * Returns the HTTP Status Code.
  */
-int getOWMonecall(WiFiClient &client, environment_data_t &r)
-{
+int getOWMonecall(WiFiClient &client, environment_data_t &r) {
   int attempts = 0;
   bool rxSuccess = false;
   DeserializationError jsonErr = {};
-  String uri = "/data/" + OWM_ONECALL_VERSION + "/onecall?lat=" + LAT + "&lon=" + LON + "&lang=" + OWM_LANG + "&units=metric&exclude=minutely";
+  String uri = "/data/" + OWM_ONECALL_VERSION + "/onecall?lat=" + LAT + "&lon=" + LON + "&lang=" + OWM_LANG +
+               "&units=metric&exclude=minutely";
 #if !DISPLAY_ALERTS
   // exclude alerts
   uri += ",alerts";
@@ -192,25 +175,21 @@ int getOWMonecall(WiFiClient &client, environment_data_t &r)
   Serial.print(TXT_ATTEMPTING_HTTP_REQ);
   Serial.println(": " + sanitizedUri);
   int httpResponse = 0;
-  while (!rxSuccess && attempts < 3)
-  {
+  while (!rxSuccess && attempts < 3) {
     wl_status_t connection_status = WiFi.status();
-    if (connection_status != WL_CONNECTED)
-    {
+    if (connection_status != WL_CONNECTED) {
       // -512 offset distinguishes these errors from httpClient errors
       return -512 - static_cast<int>(connection_status);
     }
 
     HTTPClient http;
-    http.setConnectTimeout(HTTP_CLIENT_TCP_TIMEOUT); // default 5000ms
-    http.setTimeout(HTTP_CLIENT_TCP_TIMEOUT);        // default 5000ms
+    http.setConnectTimeout(HTTP_CLIENT_TCP_TIMEOUT);  // default 5000ms
+    http.setTimeout(HTTP_CLIENT_TCP_TIMEOUT);         // default 5000ms
     http.begin(client, OWM_ENDPOINT, PORT, uri);
     httpResponse = http.GET();
-    if (httpResponse == HTTP_CODE_OK)
-    {
+    if (httpResponse == HTTP_CODE_OK) {
       jsonErr = deserializeOneCall(http.getStream(), r);
-      if (jsonErr)
-      {
+      if (jsonErr) {
         // -256 offset distinguishes these errors from httpClient errors
         httpResponse = -256 - static_cast<int>(jsonErr.code());
       }
@@ -223,7 +202,7 @@ int getOWMonecall(WiFiClient &client, environment_data_t &r)
   }
 
   return httpResponse;
-} // getOWMonecall
+}  // getOWMonecall
 
 /* Perform an HTTP GET request to OpenWeatherMap's "Air Pollution" API
  * If data is received, it will be parsed and stored in the global variable
@@ -231,8 +210,7 @@ int getOWMonecall(WiFiClient &client, environment_data_t &r)
  *
  * Returns the HTTP Status Code.
  */
-int getAirPollution(WiFiClient &client, air_pollution_t &r)
-{
+int getAirPollution(WiFiClient &client, air_pollution_t &r) {
   int attempts = 0;
   bool rxSuccess = false;
   DeserializationError jsonErr = {};
@@ -245,13 +223,16 @@ int getAirPollution(WiFiClient &client, air_pollution_t &r)
   char startStr[22];
   sprintf(endStr, "%lld", end);
   sprintf(startStr, "%lld", start);
-  String uri = "/data/2.5/air_pollution/history?lat=" + LAT + "&lon=" + LON + "&start=" + startStr + "&end=" + endStr + "&appid=" + OWM_APIKEY;
-  String sanitizedUri = OWM_ENDPOINT +
-                        "/data/2.5/air_pollution/history?lat=" + LAT + "&lon=" + LON + "&start=" + startStr + "&end=" + endStr + "&appid={API key}";
+  String uri = "/data/2.5/air_pollution/history?lat=" + LAT + "&lon=" + LON + "&start=" + startStr + "&end=" + endStr +
+               "&appid=" + OWM_APIKEY;
+  String sanitizedUri = OWM_ENDPOINT + "/data/2.5/air_pollution/history?lat=" + LAT + "&lon=" + LON +
+                        "&start=" + startStr + "&end=" + endStr + "&appid={API key}";
   String host = OWM_ENDPOINT;
 #endif
 #ifdef AIR_QUALITY_API_OPEN_METEO
-  String uri = "/v1/air-quality?latitude=" + LAT + "&longitude=" + LON + "&hourly=pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ammonia,nitrogen_monoxide,ozone,pm10&past_days=1&forecast_days=1&timeformat=unixtime";
+  String uri = "/v1/air-quality?latitude=" + LAT + "&longitude=" + LON +
+               "&hourly=pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ammonia,nitrogen_monoxide,ozone,pm10&"
+               "past_days=1&forecast_days=1&timeformat=unixtime";
   String sanitizedUri = OM_AIR_QUALITY_ENDPOINT + uri;
   String host = OM_AIR_QUALITY_ENDPOINT;
 #endif
@@ -259,33 +240,29 @@ int getAirPollution(WiFiClient &client, air_pollution_t &r)
   Serial.print(TXT_ATTEMPTING_HTTP_REQ);
   Serial.println(": " + sanitizedUri);
   int httpResponse = 0;
-  while (!rxSuccess && attempts < 3)
-  {
+  while (!rxSuccess && attempts < 3) {
     wl_status_t connection_status = WiFi.status();
-    if (connection_status != WL_CONNECTED)
-    {
+    if (connection_status != WL_CONNECTED) {
       // -512 offset distinguishes these errors from httpClient errors
       return -512 - static_cast<int>(connection_status);
     }
 
     HTTPClient http;
-    http.setConnectTimeout(HTTP_CLIENT_TCP_TIMEOUT); // default 5000ms
-    http.setTimeout(HTTP_CLIENT_TCP_TIMEOUT);        // default 5000ms
+    http.setConnectTimeout(HTTP_CLIENT_TCP_TIMEOUT);  // default 5000ms
+    http.setTimeout(HTTP_CLIENT_TCP_TIMEOUT);         // default 5000ms
 #ifdef AIR_QUALITY_API_OPEN_METEO
     http.useHTTP10(true);
 #endif
     http.begin(client, host, PORT, uri);
     httpResponse = http.GET();
-    if (httpResponse == HTTP_CODE_OK)
-    {
+    if (httpResponse == HTTP_CODE_OK) {
 #ifdef AIR_QUALITY_API_OPEN_WEATHER_MAP
       jsonErr = deserializeOWMAirQuality(http.getStream(), r);
 #endif
 #ifdef AIR_QUALITY_API_OPEN_METEO
       jsonErr = deserializeOpenMeteoAirQuality(http.getStream(), r);
 #endif
-      if (jsonErr)
-      {
+      if (jsonErr) {
         // -256 offset to distinguishes these errors from httpClient errors
         httpResponse = -256 - static_cast<int>(jsonErr.code());
       }
@@ -298,7 +275,7 @@ int getAirPollution(WiFiClient &client, air_pollution_t &r)
   }
 
   return httpResponse;
-} // getAirPollution
+}  // getAirPollution
 
 /* Perform an HTTP GET request to OpenMeteo's API
  * If data is received, it will be parsed and stored in the global variable
@@ -306,17 +283,20 @@ int getAirPollution(WiFiClient &client, air_pollution_t &r)
  *
  * Returns the HTTP Status Code.
  */
-int getOMCall(WiFiClient &client, environment_data_t &r)
-{
+int getOMCall(WiFiClient &client, environment_data_t &r) {
   int attempts = 0;
   bool rxSuccess = false;
   DeserializationError jsonErr = {};
 
-  String uri = "/v1/forecast?latitude=" + LAT + "&longitude=" + LON + "&" +
-               "current=temperature_2m,relative_humidity_2m,dew_point_2m,apparent_temperature,weather_code,cloud_cover,visibility,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day&" +
-               "hourly=temperature_2m,cloud_cover,wind_speed_10m,wind_gusts_10m,precipitation_probability,rain,snowfall,weather_code,is_day,soil_temperature_18cm&" +
-               "daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,rain_sum,snowfall_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,shortwave_radiation_sum&" +
-               "wind_speed_unit=ms&timezone=auto&timeformat=unixtime&forecast_days=5&forecast_hours=" + HOURLY_GRAPH_MAX;
+  String uri =
+      "/v1/forecast?latitude=" + LAT + "&longitude=" + LON + "&" +
+      "current=temperature_2m,relative_humidity_2m,dew_point_2m,apparent_temperature,weather_code,cloud_cover,"
+      "visibility,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day&" +
+      "hourly=temperature_2m,cloud_cover,wind_speed_10m,wind_gusts_10m,precipitation_probability,rain,snowfall,weather_"
+      "code,is_day,soil_temperature_18cm&" +
+      "daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,rain_sum,snowfall_sum,"
+      "precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,shortwave_radiation_sum&" +
+      "wind_speed_unit=ms&timezone=auto&timeformat=unixtime&forecast_days=5&forecast_hours=" + HOURLY_GRAPH_MAX;
 
   // This string is printed to terminal to help with debugging.
   String sanitizedUri = OM_ENDPOINT + uri;
@@ -324,26 +304,22 @@ int getOMCall(WiFiClient &client, environment_data_t &r)
   Serial.print(TXT_ATTEMPTING_HTTP_REQ);
   Serial.println(": " + sanitizedUri);
   int httpResponse = 0;
-  while (!rxSuccess && attempts < 3)
-  {
+  while (!rxSuccess && attempts < 3) {
     wl_status_t connection_status = WiFi.status();
-    if (connection_status != WL_CONNECTED)
-    {
+    if (connection_status != WL_CONNECTED) {
       // -512 offset distinguishes these errors from httpClient errors
       return -512 - static_cast<int>(connection_status);
     }
 
     HTTPClient http;
-    http.setConnectTimeout(HTTP_CLIENT_TCP_TIMEOUT); // default 5000ms
-    http.setTimeout(HTTP_CLIENT_TCP_TIMEOUT);        // default 5000ms
+    http.setConnectTimeout(HTTP_CLIENT_TCP_TIMEOUT);  // default 5000ms
+    http.setTimeout(HTTP_CLIENT_TCP_TIMEOUT);         // default 5000ms
     http.useHTTP10(true);
     http.begin(client, OM_ENDPOINT, PORT, uri);
     httpResponse = http.GET();
-    if (httpResponse == HTTP_CODE_OK)
-    {
-      jsonErr = deserializeOpenMeteoCall(http.getStream(), r); // Convert String to const char*
-      if (jsonErr)
-      {
+    if (httpResponse == HTTP_CODE_OK) {
+      jsonErr = deserializeOpenMeteoCall(http.getStream(), r);  // Convert String to const char*
+      if (jsonErr) {
         // -256 offset distinguishes these errors from httpClient errors
         httpResponse = -256 - static_cast<int>(jsonErr.code());
       }
@@ -356,12 +332,11 @@ int getOMCall(WiFiClient &client, environment_data_t &r)
   }
 
   return httpResponse;
-} // getOMcall
+}  // getOMcall
 
 /* Prints debug information about heap usage.
  */
-void printHeapUsage()
-{
+void printHeapUsage() {
   Serial.println("[debug] Heap Size       : " + String(ESP.getHeapSize()) + " B");
   Serial.println("[debug] Available Heap  : " + String(ESP.getFreeHeap()) + " B");
   Serial.println("[debug] Min Free Heap   : " + String(ESP.getMinFreeHeap()) + " B");
@@ -373,76 +348,59 @@ void printHeapUsage()
 
 // Helper function to publish discovery and state for mqtt sensors.
 // Returns true if both publishes were successful, otherwise false.
-bool publishMQTTSensor(PubSubClient &mqtt, const char* sensorName, 
-                   const String &discoveryTopic, const String &discoveryPayload,
-                   const String &stateTopic, const char* stateValue)
-{
-  if (mqtt.publish(discoveryTopic.c_str(), discoveryPayload.c_str(), true))
-  {
-    if (mqtt.publish(stateTopic.c_str(), stateValue, true))
-    {
+bool publishMQTTSensor(PubSubClient &mqtt, const char *sensorName, const String &discoveryTopic,
+                       const String &discoveryPayload, const String &stateTopic, const char *stateValue) {
+  if (mqtt.publish(discoveryTopic.c_str(), discoveryPayload.c_str(), true)) {
+    if (mqtt.publish(stateTopic.c_str(), stateValue, true)) {
       Serial.printf("  Published %s\n", sensorName);
       return true;
-    }
-    else
-    {
+    } else {
       Serial.printf("  Warning: Failed to publish %s state\n", sensorName);
       return false;
     }
-  }
-  else
-  {
+  } else {
     Serial.printf("  Warning: Failed to publish %s discovery\n", sensorName);
     return false;
   }
 }
 
-void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t wifiRSSI)
-{
+void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t wifiRSSI) {
   WiFiClient mqttWifi;
   PubSubClient mqtt(mqttWifi);
   mqtt.setBufferSize(512);
   mqtt.setServer(D_HOME_ASSISTANT_MQTT_SERVER, HOME_ASSISTANT_MQTT_PORT);
   Serial.println("Connecting to MQTT...");
-  bool connected = mqtt.connect(D_HOME_ASSISTANT_MQTT_CLIENT_ID, D_HOME_ASSISTANT_MQTT_USERNAME, D_HOME_ASSISTANT_MQTT_PASSWORD);
-  if (connected)
-  {
+  bool connected =
+      mqtt.connect(D_HOME_ASSISTANT_MQTT_CLIENT_ID, D_HOME_ASSISTANT_MQTT_USERNAME, D_HOME_ASSISTANT_MQTT_PASSWORD);
+  if (connected) {
     Serial.println("MQTT connected. Now publishing discovery and status.");
-    
+
     // 1. Publish Battery Voltage
     char voltageStr[8];
     snprintf(voltageStr, sizeof(voltageStr), "%.3f", batteryVoltage / 1000.0);
-    publishMQTTSensor(mqtt, "battery voltage",
-                  FPSTR(HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_TOPIC),
-                  FPSTR(HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_PAYLOAD),
-                  FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_VOLTAGE),
-                  voltageStr);
+    publishMQTTSensor(mqtt, "battery voltage", FPSTR(HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_TOPIC),
+                      FPSTR(HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_PAYLOAD),
+                      FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_VOLTAGE), voltageStr);
 
     // 2. Publish Battery Percent
     char percentStr[4];
     snprintf(percentStr, sizeof(percentStr), "%u", batteryPercentage);
-    publishMQTTSensor(mqtt, "battery percent",
-                  FPSTR(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_TOPIC),
-                  FPSTR(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_PAYLOAD),
-                  FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_PERCENT),
-                  percentStr);
+    publishMQTTSensor(mqtt, "battery percent", FPSTR(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_TOPIC),
+                      FPSTR(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_PAYLOAD),
+                      FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_PERCENT), percentStr);
 
     // 3. Publish WiFi RSSI
     char rssiStr[5];
     snprintf(rssiStr, sizeof(rssiStr), "%d", wifiRSSI);
-    publishMQTTSensor(mqtt, "WiFi RSSI",
-                  FPSTR(HOME_ASSISTANT_MQTT_WIFI_RSSI_TOPIC),
-                  FPSTR(HOME_ASSISTANT_MQTT_WIFI_RSSI_PAYLOAD),
-                  FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_RSSI),
-                  rssiStr);
+    publishMQTTSensor(mqtt, "WiFi RSSI", FPSTR(HOME_ASSISTANT_MQTT_WIFI_RSSI_TOPIC),
+                      FPSTR(HOME_ASSISTANT_MQTT_WIFI_RSSI_PAYLOAD), FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_RSSI),
+                      rssiStr);
 
     mqtt.disconnect();
     Serial.println("MQTT publish complete.");
-  }
-  else
-  {
+  } else {
     Serial.println(mqtt.state());
     Serial.println("MQTT connection failed.");
   }
 }
-#endif // HOME_ASSISTANT_MQTT_ENABLED
+#endif  // HOME_ASSISTANT_MQTT_ENABLED

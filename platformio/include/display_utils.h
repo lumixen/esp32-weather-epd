@@ -14,9 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
-#ifndef __DISPLAY_UTILS_H__
-#define __DISPLAY_UTILS_H__
+#pragma once
 
 #include <vector>
 #include <time.h>
@@ -64,11 +62,9 @@ int getAQI(const air_pollution_t &p);
 const char *getAQIdesc(int aqi);
 const char *getWiFidesc(int rssi);
 const uint8_t *getWiFiBitmap16(int rssi);
-const uint8_t *getHourlyForecastBitmap32(const hourly_t &hourly,
-                                         const daily_t  &today);
+const uint8_t *getHourlyForecastBitmap32(const hourly_t &hourly, const daily_t &today);
 const uint8_t *getDailyForecastBitmap64(const daily_t &daily);
-const uint8_t *getCurrentConditionsBitmap196(const current_t &current,
-                                             const daily_t   &today);
+const uint8_t *getCurrentConditionsBitmap196(const current_t &current, const daily_t &today);
 const uint8_t *getAlertBitmap32(const owm_alerts_t &alert);
 const uint8_t *getAlertBitmap48(const owm_alerts_t &alert);
 enum alert_category getAlertCategory(const owm_alerts_t &alert);
@@ -79,6 +75,3 @@ const char *getWifiStatusPhrase(wl_status_t status);
 void printHeapUsage();
 const uint8_t *getMoonPhaseBitmap48(const daily_t &daily);
 const char *getMoonPhaseStr(const daily_t &daily);
-
-#endif
-
