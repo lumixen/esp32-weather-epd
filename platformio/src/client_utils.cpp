@@ -367,6 +367,7 @@ bool publishMQTTSensor(PubSubClient &mqtt, const char *sensorName, const String 
 void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t wifiRSSI,
                     unsigned long networkActivityDuration) {
   WiFiClient mqttWifi;
+  mqttWifi.setNoDelay(true);
   PubSubClient mqtt(mqttWifi);
   mqtt.setBufferSize(512);
   mqtt.setServer(D_HOME_ASSISTANT_MQTT_SERVER, HOME_ASSISTANT_MQTT_PORT);
@@ -406,6 +407,7 @@ void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t w
                       FPSTR(HOME_ASSISTANT_MQTT_NETWORK_ACTIVITY_DURATION_PAYLOAD),
                       FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_NETWORK_ACTIVITY_DURATION), durationStr);
     mqtt.disconnect();
+    delay(300);  // give the MQTT client time to send the outgoing packets before powering off WiFi
     Serial.println("MQTT publish complete.");
   } else {
     Serial.println(mqtt.state());
