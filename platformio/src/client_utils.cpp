@@ -370,6 +370,33 @@ void printHeapUsage()
 }
 
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
+
+// Helper function to publish discovery and state for mqtt sensors.
+// Returns true if both publishes were successful, otherwise false.
+bool publishMQTTSensor(PubSubClient &mqtt, const char* sensorName, 
+                   const String &discoveryTopic, const String &discoveryPayload,
+                   const String &stateTopic, const char* stateValue)
+{
+  if (mqtt.publish(discoveryTopic.c_str(), discoveryPayload.c_str(), true))
+  {
+    if (mqtt.publish(stateTopic.c_str(), stateValue, true))
+    {
+      Serial.printf("  Published %s\n", sensorName);
+      return true;
+    }
+    else
+    {
+      Serial.printf("  Warning: Failed to publish %s state\n", sensorName);
+      return false;
+    }
+  }
+  else
+  {
+    Serial.printf("  Warning: Failed to publish %s discovery\n", sensorName);
+    return false;
+  }
+}
+
 void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t wifiRSSI)
 {
   WiFiClient mqttWifi;
@@ -382,71 +409,32 @@ void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t w
   {
     Serial.println("MQTT connected. Now publishing discovery and status.");
     
-    // 1. Publish Battery Voltage discovery + state
-    String voltageDiscoveryTopic = FPSTR(HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_TOPIC);
-    String voltageDiscoveryPayload = FPSTR(HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_PAYLOAD);
-    if (mqtt.publish(voltageDiscoveryTopic.c_str(), voltageDiscoveryPayload.c_str(), true))
-    {
-      String voltageStateTopic = FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_VOLTAGE);
-      char voltageStr[8];
-      snprintf(voltageStr, sizeof(voltageStr), "%.3f", batteryVoltage / 1000.0);
-      if (mqtt.publish(voltageStateTopic.c_str(), voltageStr, true))
-      {
-        Serial.println("  Published battery voltage");
-      }
-      else
-      {
-        Serial.println("  Warning: Failed to publish battery voltage state");
-      }
-    }
-    else
-    {
-      Serial.println("  Warning: Failed to publish battery voltage discovery");
-    }
+    // 1. Publish Battery Voltage
+    char voltageStr[8];
+    snprintf(voltageStr, sizeof(voltageStr), "%.3f", batteryVoltage / 1000.0);
+    publishMQTTSensor(mqtt, "battery voltage",
+                  FPSTR(HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_TOPIC),
+                  FPSTR(HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_PAYLOAD),
+                  FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_VOLTAGE),
+                  voltageStr);
 
-    // 2. Publish Battery Percent discovery + state
-    String percentDiscoveryTopic = FPSTR(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_TOPIC);
-    String percentDiscoveryPayload = FPSTR(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_PAYLOAD);
-    if (mqtt.publish(percentDiscoveryTopic.c_str(), percentDiscoveryPayload.c_str(), true))
-    {
-      String percentStateTopic = FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_PERCENT);
-      char percentStr[4];
-      snprintf(percentStr, sizeof(percentStr), "%u", batteryPercentage);
-      if (mqtt.publish(percentStateTopic.c_str(), percentStr, true))
-      {
-        Serial.println("  Published battery percent");
-      }
-      else
-      {
-        Serial.println("  Warning: Failed to publish battery percent state");
-      }
-    }
-    else
-    {
-      Serial.println("  Warning: Failed to publish battery percent discovery");
-    }
+    // 2. Publish Battery Percent
+    char percentStr[4];
+    snprintf(percentStr, sizeof(percentStr), "%u", batteryPercentage);
+    publishMQTTSensor(mqtt, "battery percent",
+                  FPSTR(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_TOPIC),
+                  FPSTR(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_PAYLOAD),
+                  FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_PERCENT),
+                  percentStr);
 
-    // 3. Publish WiFi RSSI discovery + state
-    String rssiDiscoveryTopic = FPSTR(HOME_ASSISTANT_MQTT_WIFI_RSSI_TOPIC);
-    String rssiDiscoveryPayload = FPSTR(HOME_ASSISTANT_MQTT_WIFI_RSSI_PAYLOAD);
-    if (mqtt.publish(rssiDiscoveryTopic.c_str(), rssiDiscoveryPayload.c_str(), true))
-    {
-      String rssiStateTopic = FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_RSSI);
-      char rssiStr[5];
-      snprintf(rssiStr, sizeof(rssiStr), "%d", wifiRSSI);
-      if (mqtt.publish(rssiStateTopic.c_str(), rssiStr, true))
-      {
-        Serial.println("  Published WiFi RSSI");
-      }
-      else
-      {
-        Serial.println("  Warning: Failed to publish WiFi RSSI state");
-      }
-    }
-    else
-    {
-      Serial.println("  Warning: Failed to publish WiFi RSSI discovery");
-    }
+    // 3. Publish WiFi RSSI
+    char rssiStr[5];
+    snprintf(rssiStr, sizeof(rssiStr), "%d", wifiRSSI);
+    publishMQTTSensor(mqtt, "WiFi RSSI",
+                  FPSTR(HOME_ASSISTANT_MQTT_WIFI_RSSI_TOPIC),
+                  FPSTR(HOME_ASSISTANT_MQTT_WIFI_RSSI_PAYLOAD),
+                  FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_RSSI),
+                  rssiStr);
 
     mqtt.disconnect();
     Serial.println("MQTT publish complete.");
