@@ -29,9 +29,9 @@ VqvBeUm4hHqZZWPNIE7oDr7wBLiY0TbEUdLS86z+6Kfxr27raqfgQxJuHRrbwXCh
 )PUBKEY";
 
 // http://crt.sectigo.com/SectigoRSAOrganizationValidationSecureServerCA.crt
-// CN: Sectigo RSA Organization Validation Secure Server CA => name: Sectigo_RSA_Organization_Validation_Secure_Server_CA
-// not valid before: 2018-11-02 00:00:00+00:00
-// not valid after:  2030-12-31 23:59:59+00:00
+// CN: Sectigo RSA Organization Validation Secure Server CA => name:
+// Sectigo_RSA_Organization_Validation_Secure_Server_CA not valid before: 2018-11-02 00:00:00+00:00 not valid after:
+// 2030-12-31 23:59:59+00:00
 const char cert_Sectigo_RSA_Organization_Validation_Secure_Server_CA[] PROGMEM = R"CERT(
 -----BEGIN CERTIFICATE-----
 MIIGGTCCBAGgAwIBAgIQE31TnKp8MamkM3AZaIR6jTANBgkqhkiG9w0BAQwFADCB
@@ -209,4 +209,3 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 ////////////////////////////////////////////////////////////
 
 #endif
-

@@ -27,7 +27,7 @@ const char *WIFI_SSID = D_WIFI_SSID;
 //   -1   Connection Refused
 //   -11  Read Timeout
 //   -258 Deserialization Incomplete Input
-const unsigned HTTP_CLIENT_TCP_TIMEOUT = 10000; // ms
+const unsigned HTTP_CLIENT_TCP_TIMEOUT = 10000;  // ms
 
 // OPENWEATHERMAP API
 // OpenWeatherMap API key, https://openweathermap.org/
@@ -72,19 +72,19 @@ const String CITY_STRING = D_CITY;
 // Time format used when displaying sunrise/set times. (Max 11 characters)
 // For more information about formatting see
 // https://man7.org/linux/man-pages/man3/strftime.3.html
-const char *TIME_FORMAT = D_TIME_FORMAT; // 24-hour ex: 01:23   23:00
+const char *TIME_FORMAT = D_TIME_FORMAT;  // 24-hour ex: 01:23   23:00
 // Time format used when displaying axis labels. (Max 11 characters)
 // For more information about formatting see
 // https://man7.org/linux/man-pages/man3/strftime.3.html
 // const char *HOUR_FORMAT = "%l%P"; // 12-hour ex: 1am  11pm
-const char *HOUR_FORMAT = D_HOUR_FORMAT; // 24-hour ex: 01   23
+const char *HOUR_FORMAT = D_HOUR_FORMAT;  // 24-hour ex: 01   23
 // NTP_SERVER_1 is the primary time server, while NTP_SERVER_2 is a fallback.
 // pool.ntp.org will find the closest available NTP server to you.
 const char *NTP_SERVER_1 = "pool.ntp.org";
 const char *NTP_SERVER_2 = "time.nist.gov";
 // If you encounter the 'Failed To Fetch The Time' error, try increasing
 // NTP_TIMEOUT or select closer/lower latency time servers.
-const unsigned long NTP_TIMEOUT = 20000; // ms
+const unsigned long NTP_TIMEOUT = 20000;  // ms
 
 // BATTERY
 // To protect the battery upon LOW_BATTERY_VOLTAGE, the display will cease to
@@ -93,15 +93,15 @@ const unsigned long NTP_TIMEOUT = 20000; // ms
 // minutes). Once the battery voltage has fallen to CRIT_LOW_BATTERY_VOLTAGE,
 // the esp32 will hibernate and a manual press of the reset (RST) button to
 // begin operating again.
-const uint32_t WARN_BATTERY_VOLTAGE = 3535;                // (millivolts) ~20%
-const uint32_t LOW_BATTERY_VOLTAGE = 3462;                 // (millivolts) ~10%
-const uint32_t VERY_LOW_BATTERY_VOLTAGE = 3442;            // (millivolts)  ~8%
-const uint32_t CRIT_LOW_BATTERY_VOLTAGE = 3404;            // (millivolts)  ~5%
-const unsigned long LOW_BATTERY_SLEEP_INTERVAL = 30;       // (minutes)
-const unsigned long VERY_LOW_BATTERY_SLEEP_INTERVAL = 120; // (minutes)
+const uint32_t WARN_BATTERY_VOLTAGE = 3535;                 // (millivolts) ~20%
+const uint32_t LOW_BATTERY_VOLTAGE = 3462;                  // (millivolts) ~10%
+const uint32_t VERY_LOW_BATTERY_VOLTAGE = 3442;             // (millivolts)  ~8%
+const uint32_t CRIT_LOW_BATTERY_VOLTAGE = 3404;             // (millivolts)  ~5%
+const unsigned long LOW_BATTERY_SLEEP_INTERVAL = 30;        // (minutes)
+const unsigned long VERY_LOW_BATTERY_SLEEP_INTERVAL = 120;  // (minutes)
 // Battery voltage calculations are based on a typical 3.7v LiPo.
-const uint32_t MAX_BATTERY_VOLTAGE = 4200; // (millivolts)
-const uint32_t MIN_BATTERY_VOLTAGE = 3000; // (millivolts)
+const uint32_t MAX_BATTERY_VOLTAGE = 4200;  // (millivolts)
+const uint32_t MIN_BATTERY_VOLTAGE = 3000;  // (millivolts)
 
 // See config.h for the below options
 // E-PAPER PANEL

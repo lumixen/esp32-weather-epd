@@ -50,20 +50,17 @@ static air_pollution_t air_pollution;
 Preferences prefs;
 
 /* Toggle the built-in LED on or off. */
-void toggleBuiltinLED(bool state)
-{
+void toggleBuiltinLED(bool state) {
   pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, state ? LOW : HIGH); // Lolin D32 LED is active low
+  digitalWrite(LED_BUILTIN, state ? LOW : HIGH);  // Lolin D32 LED is active low
   return;
 }
 
 /* Put esp32 into ultra low-power deep sleep (<11μA).
  * Aligns wake time to the minute. Sleep times defined in config.cpp.
  */
-void beginDeepSleep(unsigned long startTime, tm *timeInfo)
-{
-  if (!getLocalTime(timeInfo))
-  {
+void beginDeepSleep(unsigned long startTime, tm *timeInfo) {
+  if (!getLocalTime(timeInfo)) {
     Serial.println(TXT_REFERENCING_OLDER_TIME_NOTICE);
   }
 
@@ -74,8 +71,7 @@ void beginDeepSleep(unsigned long startTime, tm *timeInfo)
   // additional time due to bedtime.
   // i.e. when curHour == 0, then timeInfo->tm_hour == WAKE_TIME
   int bedtimeHour = INT_MAX;
-  if (BED_TIME != WAKE_TIME)
-  {
+  if (BED_TIME != WAKE_TIME) {
     bedtimeHour = (BED_TIME - WAKE_TIME + 24) % 24;
   }
 
@@ -89,8 +85,9 @@ void beginDeepSleep(unsigned long startTime, tm *timeInfo)
 
   // align wake time to nearest multiple of SLEEP_DURATION
   int sleepMinutes = SLEEP_DURATION - offsetMinutes;
-  if (desiredSleepSeconds - offsetSeconds < 120 || offsetSeconds / (float)desiredSleepSeconds > 0.95f)
-  { // if we have a sleep time less than 2 minutes OR less 5% SLEEP_DURATION,
+  if (desiredSleepSeconds - offsetSeconds < 120 ||
+      offsetSeconds / (float) desiredSleepSeconds >
+          0.95f) {  // if we have a sleep time less than 2 minutes OR less 5% SLEEP_DURATION,
     // skip to next alignment
     sleepMinutes += SLEEP_DURATION;
   }
@@ -100,12 +97,9 @@ void beginDeepSleep(unsigned long startTime, tm *timeInfo)
   const int predictedWakeHour = ((curMinute + sleepMinutes) / 60) % 24;
 
   uint64_t sleepDuration;
-  if (predictedWakeHour < bedtimeHour)
-  {
+  if (predictedWakeHour < bedtimeHour) {
     sleepDuration = sleepMinutes * 60 - timeInfo->tm_sec;
-  }
-  else
-  {
+  } else {
     const int hoursUntilWake = 24 - curHour;
     sleepDuration = hoursUntilWake * 3600ULL - (timeInfo->tm_min * 60ULL + timeInfo->tm_sec);
   }
@@ -126,20 +120,18 @@ void beginDeepSleep(unsigned long startTime, tm *timeInfo)
   Serial.print(TXT_ENTERING_DEEP_SLEEP_FOR);
   Serial.println(" " + String(sleepDuration) + "s");
   esp_deep_sleep_start();
-} // end beginDeepSleep
+}  // end beginDeepSleep
 
-void enrichWithMoonData(environment_data_t &data)
-{
+void enrichWithMoonData(environment_data_t &data) {
   moon_state_t moonState = getMoonState(LAT.toDouble(), LON.toDouble());
   data.daily[0].moonrise = moonState.moonrise;
   data.daily[0].moonset = moonState.moonset;
   data.daily[0].moon_phase = moonState.phase;
-} // end enrichWithMoonData
+}  // end enrichWithMoonData
 
 /* Program entry point.
  */
-void setup()
-{
+void setup() {
   unsigned long startTime = millis();
   Serial.begin(115200);
   toggleBuiltinLED(true);
@@ -163,36 +155,28 @@ void setup()
   bool lowBat = prefs.getBool("lowBat", false);
 
   // low battery, deep sleep now
-  if (batteryVoltage <= LOW_BATTERY_VOLTAGE)
-  {
-    if (lowBat == false)
-    { // battery is now low for the first time
+  if (batteryVoltage <= LOW_BATTERY_VOLTAGE) {
+    if (lowBat == false) {  // battery is now low for the first time
       prefs.putBool("lowBat", true);
       prefs.end();
       initDisplay();
-      do
-      {
+      do {
         drawError(battery_alert_0deg_196x196, TXT_LOW_BATTERY);
       } while (display.nextPage());
       powerOffDisplay();
     }
 
-    if (batteryVoltage <= CRIT_LOW_BATTERY_VOLTAGE)
-    { // critically low battery
+    if (batteryVoltage <= CRIT_LOW_BATTERY_VOLTAGE) {  // critically low battery
       // don't set esp_sleep_enable_timer_wakeup();
       // We won't wake up again until someone manually presses the RST button.
       Serial.println(TXT_CRIT_LOW_BATTERY_VOLTAGE);
       Serial.println(TXT_HIBERNATING_INDEFINITELY_NOTICE);
-    }
-    else if (batteryVoltage <= VERY_LOW_BATTERY_VOLTAGE)
-    { // very low battery
+    } else if (batteryVoltage <= VERY_LOW_BATTERY_VOLTAGE) {  // very low battery
       esp_sleep_enable_timer_wakeup(VERY_LOW_BATTERY_SLEEP_INTERVAL * 60ULL * 1000000ULL);
       Serial.println(TXT_VERY_LOW_BATTERY_VOLTAGE);
       Serial.print(TXT_ENTERING_DEEP_SLEEP_FOR);
       Serial.println(" " + String(VERY_LOW_BATTERY_SLEEP_INTERVAL) + "min");
-    }
-    else
-    { // low battery
+    } else {  // low battery
       esp_sleep_enable_timer_wakeup(LOW_BATTERY_SLEEP_INTERVAL * 60ULL * 1000000ULL);
       Serial.println(TXT_LOW_BATTERY_VOLTAGE);
       Serial.print(TXT_ENTERING_DEEP_SLEEP_FOR);
@@ -201,8 +185,7 @@ void setup()
     esp_deep_sleep_start();
   }
   // battery is no longer low, reset variable in non-volatile storage
-  if (lowBat == true)
-  {
+  if (lowBat == true) {
     prefs.putBool("lowBat", false);
   }
 #else
@@ -217,25 +200,19 @@ void setup()
   tm timeInfo = {};
 
   // START WIFI
-  int wifiRSSI = 0; // “Received Signal Strength Indicator"
+  int wifiRSSI = 0;  // “Received Signal Strength Indicator"
   wl_status_t wifiStatus = startWiFi(wifiRSSI);
-  if (wifiStatus != WL_CONNECTED)
-  { // WiFi Connection Failed
+  if (wifiStatus != WL_CONNECTED) {  // WiFi Connection Failed
     killWiFi();
     initDisplay();
-    if (wifiStatus == WL_NO_SSID_AVAIL)
-    {
+    if (wifiStatus == WL_NO_SSID_AVAIL) {
       Serial.println(TXT_NETWORK_NOT_AVAILABLE);
-      do
-      {
+      do {
         drawError(wifi_x_196x196, TXT_NETWORK_NOT_AVAILABLE);
       } while (display.nextPage());
-    }
-    else
-    {
+    } else {
       Serial.println(TXT_WIFI_CONNECTION_FAILED);
-      do
-      {
+      do {
         drawError(wifi_x_196x196, TXT_WIFI_CONNECTION_FAILED);
       } while (display.nextPage());
     }
@@ -246,13 +223,11 @@ void setup()
   // TIME SYNCHRONIZATION
   configTzTime(D_TIMEZONE, NTP_SERVER_1, NTP_SERVER_2);
   bool timeConfigured = waitForSNTPSync(&timeInfo);
-  if (!timeConfigured)
-  {
+  if (!timeConfigured) {
     Serial.println(TXT_TIME_SYNCHRONIZATION_FAILED);
     killWiFi();
     initDisplay();
-    do
-    {
+    do {
       drawError(wi_time_4_196x196, TXT_TIME_SYNCHRONIZATION_FAILED);
     } while (display.nextPage());
     powerOffDisplay();
@@ -261,12 +236,11 @@ void setup()
 
 // SEND MQTT STATUS
 #if BATTERY_MONITORING && HOME_ASSISTANT_MQTT_ENABLED
-  if (WiFi.status() == WL_CONNECTED)
-  {
+  if (WiFi.status() == WL_CONNECTED) {
     uint8_t batPercent = calcBatPercent(batteryVoltage, MIN_BATTERY_VOLTAGE, MAX_BATTERY_VOLTAGE);
     sendMQTTStatus(batteryVoltage, batPercent, wifiRSSI);
   }
-#endif // BATTERY_MONITORING
+#endif  // BATTERY_MONITORING
 
 // MAKE API REQUESTS
 #if HTTP_MODE == HTTP
@@ -285,14 +259,12 @@ void setup()
 #endif
 #ifdef WEATHER_API_OPEN_WEATHER_MAP
   int rxStatus = getOWMonecall(client, environment_data);
-  if (rxStatus != HTTP_CODE_OK)
-  {
+  if (rxStatus != HTTP_CODE_OK) {
     killWiFi();
     statusStr = "One Call " + OWM_ONECALL_VERSION + " API";
     tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
     initDisplay();
-    do
-    {
+    do {
       drawError(wi_cloud_down_196x196, statusStr, tmpStr);
     } while (display.nextPage());
     powerOffDisplay();
@@ -301,14 +273,12 @@ void setup()
 #endif
 #ifdef WEATHER_API_OPEN_METEO
   int rxStatus = getOMCall(client, environment_data);
-  if (rxStatus != HTTP_CODE_OK)
-  {
+  if (rxStatus != HTTP_CODE_OK) {
     killWiFi();
     statusStr = "Open Meteo API";
     tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
     initDisplay();
-    do
-    {
+    do {
       drawError(wi_cloud_down_196x196, statusStr, tmpStr);
     } while (display.nextPage());
     powerOffDisplay();
@@ -325,21 +295,19 @@ void setup()
 #endif
 #endif
   rxStatus = getAirPollution(client, air_pollution);
-  if (rxStatus != HTTP_CODE_OK)
-  {
+  if (rxStatus != HTTP_CODE_OK) {
     killWiFi();
     statusStr = "Air Pollution API";
     tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
     initDisplay();
-    do
-    {
+    do {
       drawError(wi_cloud_down_196x196, statusStr, tmpStr);
     } while (display.nextPage());
     powerOffDisplay();
     beginDeepSleep(startTime, &timeInfo);
   }
 
-  killWiFi(); // WiFi no longer needed
+  killWiFi();  // WiFi no longer needed
 
   enrichWithMoonData(environment_data);
 
@@ -350,12 +318,8 @@ void setup()
 
   // RENDER FULL REFRESH
   initDisplay();
-  do
-  {
-    drawCurrentConditions(
-        environment_data.current,
-        environment_data.daily[0],
-        air_pollution);
+  do {
+    drawCurrentConditions(environment_data.current, environment_data.daily[0], air_pollution);
     Serial.println("Drawing current conditions");
     drawOutlookGraph(environment_data.hourly, environment_data.daily, timeInfo);
     Serial.println("Drawing outlook graph");
@@ -372,10 +336,8 @@ void setup()
 
   // DEEP SLEEP
   beginDeepSleep(startTime, &timeInfo);
-} // end setup
+}  // end setup
 
 /* This will never run
  */
-void loop()
-{
-} // end loop
+void loop() {}  // end loop

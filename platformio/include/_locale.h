@@ -14,9 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
-#ifndef ___LOCALE_H__
-#define ___LOCALE_H__
+#pragma once
 
 #include <vector>
 #include <Arduino.h>
@@ -285,6 +283,4 @@ extern const char *TXT_WL_CONNECTED;
 extern const char *TXT_WL_CONNECT_FAILED;
 extern const char *TXT_WL_CONNECTION_LOST;
 extern const char *TXT_WL_DISCONNECTED;
-
-#endif
 

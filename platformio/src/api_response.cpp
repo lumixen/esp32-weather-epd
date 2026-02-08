@@ -20,8 +20,7 @@
 #include "api_response.h"
 #include "config.h"
 
-DeserializationError deserializeOneCall(WiFiClient &json, environment_data_t &r)
-{
+DeserializationError deserializeOneCall(WiFiClient &json, environment_data_t &r) {
   int i;
 
   JsonDocument filter;
@@ -34,8 +33,7 @@ DeserializationError deserializeOneCall(WiFiClient &json, environment_data_t &r)
 #else
   // description can be very long so they are filtered out to save on memory
   // along with sender_name
-  for (int i = 0; i < OWM_NUM_ALERTS; ++i)
-  {
+  for (int i = 0; i < OWM_NUM_ALERTS; ++i) {
     filter["alerts"][i]["sender_name"] = false;
     filter["alerts"][i]["event"] = true;
     filter["alerts"][i]["start"] = true;
@@ -47,16 +45,14 @@ DeserializationError deserializeOneCall(WiFiClient &json, environment_data_t &r)
 
   JsonDocument doc;
 
-  DeserializationError error = deserializeJson(doc, json,
-                                               DeserializationOption::Filter(filter));
+  DeserializationError error = deserializeJson(doc, json, DeserializationOption::Filter(filter));
 #if DEBUG_LEVEL >= 1
   Serial.println("[debug] doc.overflowed() : " + String(doc.overflowed()));
 #endif
 #if DEBUG_LEVEL >= 2
   serializeJsonPretty(doc, Serial);
 #endif
-  if (error)
-  {
+  if (error) {
     return error;
   }
 
@@ -90,8 +86,7 @@ DeserializationError deserializeOneCall(WiFiClient &json, environment_data_t &r)
   r.current.is_day = current_weather["icon"].as<String>().endsWith("d");
 
   i = 0;
-  for (JsonObject hourly : doc["hourly"].as<JsonArray>())
-  {
+  for (JsonObject hourly : doc["hourly"].as<JsonArray>()) {
     r.hourly[i].dt = hourly["dt"].as<int64_t>();
     r.hourly[i].temp = hourly["temp"].as<float>();
     r.hourly[i].feels_like = hourly["feels_like"].as<float>();
@@ -114,16 +109,14 @@ DeserializationError deserializeOneCall(WiFiClient &json, environment_data_t &r)
     // OpenWeatherMap indicates sun is up with d otherwise n for night
     r.hourly[i].is_day = hourly_weather["icon"].as<String>().endsWith("d");
 
-    if (i == NUM_HOURLY - 1)
-    {
+    if (i == NUM_HOURLY - 1) {
       break;
     }
     ++i;
   }
 
   i = 0;
-  for (JsonObject daily : doc["daily"].as<JsonArray>())
-  {
+  for (JsonObject daily : doc["daily"].as<JsonArray>()) {
     r.daily[i].dt = daily["dt"].as<int64_t>();
     r.daily[i].sunrise = daily["sunrise"].as<int64_t>();
     r.daily[i].sunset = daily["sunset"].as<int64_t>();
@@ -151,8 +144,7 @@ DeserializationError deserializeOneCall(WiFiClient &json, environment_data_t &r)
     r.daily[i].weather.main = daily_weather["main"].as<const char *>();
     r.daily[i].weather.description = daily_weather["description"].as<const char *>();
 
-    if (i == NUM_DAILY - 1)
-    {
+    if (i == NUM_DAILY - 1) {
       break;
     }
     ++i;
@@ -160,8 +152,7 @@ DeserializationError deserializeOneCall(WiFiClient &json, environment_data_t &r)
 
 #if DISPLAY_ALERTS
   i = 0;
-  for (JsonObject alerts : doc["alerts"].as<JsonArray>())
-  {
+  for (JsonObject alerts : doc["alerts"].as<JsonArray>()) {
     owm_alerts_t new_alert = {};
     // new_alert.sender_name = alerts["sender_name"].as<const char *>();
     new_alert.event = alerts["event"].as<const char *>();
@@ -171,8 +162,7 @@ DeserializationError deserializeOneCall(WiFiClient &json, environment_data_t &r)
     new_alert.tags = alerts["tags"][0].as<const char *>();
     r.alerts.push_back(new_alert);
 
-    if (i == OWM_NUM_ALERTS - 1)
-    {
+    if (i == OWM_NUM_ALERTS - 1) {
       break;
     }
     ++i;
@@ -180,11 +170,9 @@ DeserializationError deserializeOneCall(WiFiClient &json, environment_data_t &r)
 #endif
 
   return error;
-} // end deserializeOneCall
+}  // end deserializeOneCall
 
-DeserializationError deserializeOpenMeteoCall(WiFiClient &json,
-                                              environment_data_t &r)
-{
+DeserializationError deserializeOpenMeteoCall(WiFiClient &json, environment_data_t &r) {
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, json);
 #if DEBUG_LEVEL >= 1
@@ -193,8 +181,7 @@ DeserializationError deserializeOpenMeteoCall(WiFiClient &json,
 #if DEBUG_LEVEL >= 2
   serializeJsonPretty(doc, Serial);
 #endif
-  if (error)
-  {
+  if (error) {
     return error;
   }
 
@@ -203,27 +190,26 @@ DeserializationError deserializeOpenMeteoCall(WiFiClient &json,
   JsonObject hourly = doc["hourly"];
 
   r.current.dt = current["time"].as<int64_t>();
-  r.current.sunrise = daily["sunrise"][0].as<int64_t>(); //
-  r.current.sunset = daily["sunset"][0].as<int64_t>();   //
+  r.current.sunrise = daily["sunrise"][0].as<int64_t>();  //
+  r.current.sunset = daily["sunset"][0].as<int64_t>();    //
   r.current.temp = current["temperature_2m"].as<float>();
   r.current.feels_like = current["apparent_temperature"].as<float>();
-  r.current.pressure = current["surface_pressure"].as<int>(); //
+  r.current.pressure = current["surface_pressure"].as<int>();  //
   r.current.humidity = current["relative_humidity_2m"].as<int>();
   r.current.dew_point = current["dew_point_2m"].as<float>();
   r.current.clouds = current["cloud_cover"].as<int>();
-  r.current.uvi = daily["uv_index_max"][0].as<float>();   //
-  r.current.visibility = current["visibility"].as<int>(); //
+  r.current.uvi = daily["uv_index_max"][0].as<float>();    //
+  r.current.visibility = current["visibility"].as<int>();  //
   r.current.wind_speed = current["wind_speed_10m"].as<float>();
   r.current.wind_gust = current["wind_gusts_10m"].as<float>();
-  r.current.wind_deg = current["wind_direction_10m"].as<int>(); // w
+  r.current.wind_deg = current["wind_direction_10m"].as<int>();  // w
   r.current.weather.id = current["weather_code"].as<int>();
   r.current.is_day = current["is_day"].as<bool>();
   r.current.soil_temperature_18cm = hourly["soil_temperature_18cm"][0].as<float>();
 
   int hours = doc["hourly"]["time"].size();
-  for (size_t i = 0; i < hours; i++)
-  {
-    r.hourly[i].dt = hourly["time"][i].as<int64_t>(); // dt means
+  for (size_t i = 0; i < hours; i++) {
+    r.hourly[i].dt = hourly["time"][i].as<int64_t>();  // dt means
     r.hourly[i].temp = hourly["temperature_2m"][i].as<float>();
     r.hourly[i].clouds = hourly["cloud_cover"][i].as<int>();
     r.hourly[i].wind_speed = hourly["wind_speed_10m"][i].as<float>();
@@ -234,15 +220,13 @@ DeserializationError deserializeOpenMeteoCall(WiFiClient &json,
     r.hourly[i].weather.id = hourly["weather_code"][i].as<int>();
     r.hourly[i].is_day = hourly["is_day"][i].as<bool>();
 
-    if (i == NUM_HOURLY - 1)
-    {
+    if (i == NUM_HOURLY - 1) {
       break;
     }
   }
 
   int days = doc["daily"]["time"].size();
-  for (size_t i = 0; i < days; i++)
-  {
+  for (size_t i = 0; i < days; i++) {
     r.daily[i].dt = daily["time"][i].as<int64_t>();
     r.daily[i].temp.min = daily["temperature_2m_min"][i].as<float>();
     r.daily[i].temp.max = daily["temperature_2m_max"][i].as<float>();
@@ -254,19 +238,16 @@ DeserializationError deserializeOpenMeteoCall(WiFiClient &json,
     r.daily[i].rain = daily["rain_sum"][i].as<float>();
     r.daily[i].snow = daily["snowfall_sum"][i].as<float>();
     r.daily[i].weather.id = daily["weather_code"][i].as<int>();
-    r.daily[i].shortwave_radiation_sum = daily["shortwave_radiation_sum"][i].as<float>(); //
+    r.daily[i].shortwave_radiation_sum = daily["shortwave_radiation_sum"][i].as<float>();  //
 
-    if (i == NUM_DAILY - 1)
-    {
+    if (i == NUM_DAILY - 1) {
       break;
     }
   }
   return error;
-} // end deserializeOpenMeteoCall
+}  // end deserializeOpenMeteoCall
 
-DeserializationError deserializeOWMAirQuality(WiFiClient &json,
-                                              air_pollution_t &r)
-{
+DeserializationError deserializeOWMAirQuality(WiFiClient &json, air_pollution_t &r) {
   int i = 0;
 
   JsonDocument doc;
@@ -278,16 +259,14 @@ DeserializationError deserializeOWMAirQuality(WiFiClient &json,
 #if DEBUG_LEVEL >= 2
   serializeJsonPretty(doc, Serial);
 #endif
-  if (error)
-  {
+  if (error) {
     return error;
   }
 
   r.coord.lat = doc["coord"]["lat"].as<float>();
   r.coord.lon = doc["coord"]["lon"].as<float>();
 
-  for (JsonObject list : doc["list"].as<JsonArray>())
-  {
+  for (JsonObject list : doc["list"].as<JsonArray>()) {
     JsonObject list_components = list["components"];
     r.components.co[i] = list_components["co"].as<float>();
     r.components.no[i] = list_components["no"].as<float>();
@@ -300,19 +279,16 @@ DeserializationError deserializeOWMAirQuality(WiFiClient &json,
 
     r.dt[i] = list["dt"].as<int64_t>();
 
-    if (i == NUM_AIR_POLLUTION - 1)
-    {
+    if (i == NUM_AIR_POLLUTION - 1) {
       break;
     }
     ++i;
   }
 
   return error;
-} // end deserializeOWMAirQuality
+}  // end deserializeOWMAirQuality
 
-DeserializationError deserializeOpenMeteoAirQuality(WiFiClient &json,
-                                                    air_pollution_t &r)
-{
+DeserializationError deserializeOpenMeteoAirQuality(WiFiClient &json, air_pollution_t &r) {
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, json);
 #if DEBUG_LEVEL >= 1
@@ -321,8 +297,7 @@ DeserializationError deserializeOpenMeteoAirQuality(WiFiClient &json,
 #if DEBUG_LEVEL >= 2
   serializeJsonPretty(doc, Serial);
 #endif
-  if (error)
-  {
+  if (error) {
     return error;
   }
 
@@ -335,15 +310,11 @@ DeserializationError deserializeOpenMeteoAirQuality(WiFiClient &json,
   // Find index of closest timestamp below 'now'
   int closest_idx = -1;
   int64_t now = time(nullptr);
-  for (int i = 0; i < count; i++)
-  {
+  for (int i = 0; i < count; i++) {
     int64_t ts = hourly["time"][i].as<int64_t>();
-    if (ts <= now)
-    {
+    if (ts <= now) {
       closest_idx = i;
-    }
-    else
-    {
+    } else {
       break;
     }
   }
@@ -355,8 +326,7 @@ DeserializationError deserializeOpenMeteoAirQuality(WiFiClient &json,
   int actual_count = closest_idx - start_idx + 1;
   if (actual_count > NUM_AIR_POLLUTION)
     actual_count = NUM_AIR_POLLUTION;
-  for (int i = 0; i < actual_count; i++)
-  {
+  for (int i = 0; i < actual_count; i++) {
     int idx = start_idx + i;
     r.dt[i] = hourly["time"][idx].as<int64_t>();
     r.components.pm2_5[i] = hourly["pm2_5"][idx].as<float>();
@@ -369,4 +339,4 @@ DeserializationError deserializeOpenMeteoAirQuality(WiFiClient &json,
     r.components.nh3[i] = hourly["ammonia"][idx].as<float>();
   }
   return error;
-} // end deserializeOpenMeteoAirQuality
+}  // end deserializeOpenMeteoAirQuality

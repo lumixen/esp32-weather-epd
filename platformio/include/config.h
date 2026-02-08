@@ -45,12 +45,12 @@
 //   The current certificate for api.openweathermap.org is valid until
 //   2026-04-10 23:59:59+00:00
 #ifndef HTTP_MODE
-  #define HTTP_MODE HTTPS_WITH_CERT_VERIF
+#define HTTP_MODE HTTPS_WITH_CERT_VERIF
 #endif
 
 // NON-VOLATILE STORAGE (NVS) NAMESPACE
 #ifndef NVS_NAMESPACE
-  #define NVS_NAMESPACE "weather_epd"
+#define NVS_NAMESPACE "weather_epd"
 #endif
 
 #define ACCENT_COLOR GxEPD_RED
