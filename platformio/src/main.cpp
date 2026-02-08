@@ -250,22 +250,7 @@ void setup() {
     Serial.println(TXT_TIME_SYNCHRONIZATION_FAILED);
     handleNetworkError(wi_time_4_196x196, TXT_TIME_SYNCHRONIZATION_FAILED, "", startTime, &timeInfo, batteryVoltage,
                        batteryPercent, wifiRSSI, networkStartTime);
-    // killWiFi();
-    // initDisplay();
-    // do {
-    //   drawError(wi_time_4_196x196, TXT_TIME_SYNCHRONIZATION_FAILED);
-    // } while (display.nextPage());
-    // powerOffDisplay();
-    // beginDeepSleep(startTime, &timeInfo);
   }
-
-// SEND MQTT STATUS
-// #if BATTERY_MONITORING && HOME_ASSISTANT_MQTT_ENABLED
-//   if (WiFi.status() == WL_CONNECTED) {
-//     uint8_t batPercent = calcBatPercent(batteryVoltage, MIN_BATTERY_VOLTAGE, MAX_BATTERY_VOLTAGE);
-//     sendMQTTStatus(batteryVoltage, batPercent, wifiRSSI, networkStartTime);
-//   }
-// #endif
 
 // MAKE API REQUESTS
 #if HTTP_MODE == HTTP
@@ -289,16 +274,6 @@ void setup() {
     tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
     handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
                        wifiRSSI, networkStartTime);
-
-    killWiFi();
-    // statusStr = "One Call " + OWM_ONECALL_VERSION + " API";
-    // tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
-    // initDisplay();
-    // do {
-    //   drawError(wi_cloud_down_196x196, statusStr, tmpStr);
-    // } while (display.nextPage());
-    // powerOffDisplay();
-    // beginDeepSleep(startTime, &timeInfo);
   }
 #endif
 #ifdef WEATHER_API_OPEN_METEO
