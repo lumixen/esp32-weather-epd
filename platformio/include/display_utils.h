@@ -14,9 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
-#ifndef __DISPLAY_UTILS_H__
-#define __DISPLAY_UTILS_H__
+#pragma once
 
 #include <vector>
 #include <time.h>
@@ -77,5 +75,3 @@ const char *getWifiStatusPhrase(wl_status_t status);
 void printHeapUsage();
 const uint8_t *getMoonPhaseBitmap48(const daily_t &daily);
 const char *getMoonPhaseStr(const daily_t &daily);
-
-#endif
