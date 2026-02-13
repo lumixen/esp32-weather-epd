@@ -248,8 +248,8 @@ void setup() {
   }
 
   // TIME SYNCHRONIZATION
-  // Sync only around midnight (00) and noon (12).
-  // If time is not valid (reset), force sync.
+  // Sync periodically based on configured interval (NTP_SYNC_INTERVAL_HOURS) and wake-up counter.
+  // If RTC time is not valid (e.g., after reset or power loss), force an immediate sync.
 
   setenv("TZ", D_TIMEZONE, 1);
   tzset();
