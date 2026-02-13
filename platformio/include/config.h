@@ -23,31 +23,6 @@
 
 // DEFAULT CONFIGS
 
-#define HTTP 0
-#define HTTPS_NO_CERT_VERIF 1
-#define HTTPS_WITH_CERT_VERIF 2
-// Hypertext Transfer Protocol (HTTP)
-// HTTP
-//   HTTP does not provide encryption or any security measures, making it highly
-//   vulnerable to eavesdropping and data tampering. Has the advantage of using
-//   less power.
-// HTTPS_NO_CERT_VERIF
-//   HTTPS without X.509 certificate verification provides encryption but lacks
-//   authentication and is susceptible to man-in-the-middle attacks.
-// HTTPS_WITH_CERT_VERIF
-//   HTTPS with X.509 certificate verification offers the highest level of
-//   security by providing encryption and verifying the identity of the server.
-//
-//   HTTPS with X.509 certificate verification comes with the draw back that
-//   eventually the certificates on the esp32 will expire, requiring you to
-//   update the certificates in cert.h and reflash this software.
-//   Running cert.py will generate an updated cert.h file.
-//   The current certificate for api.openweathermap.org is valid until
-//   2026-04-10 23:59:59+00:00
-#ifndef HTTP_MODE
-#define HTTP_MODE HTTPS_WITH_CERT_VERIF
-#endif
-
 // NON-VOLATILE STORAGE (NVS) NAMESPACE
 #ifndef NVS_NAMESPACE
 #define NVS_NAMESPACE "weather_epd"

@@ -36,10 +36,10 @@
 #include "renderer.h"
 #include "moon_tools.h"
 
-#if HTTP_MODE != HTTP
+#ifndef API_PROTOCOL_HTTP
 #include <WiFiClientSecure.h>
 #endif
-#if HTTP_MODE == HTTPS_WITH_CERT_VERIF
+#ifdef API_PROTOCOL_HTTPS_VERIFY
 #include "cert.h"
 #endif
 
@@ -48,6 +48,10 @@ static environment_data_t environment_data;
 static air_pollution_t air_pollution;
 
 Preferences prefs;
+
+// RTC_DATA_ATTR variables survive deep sleep resets, but not power cycles.
+// They are used to store data that must persist across deep sleep cycles, such as the wake-up counter.
+RTC_DATA_ATTR uint32_t wakeUpCounter = 0;
 
 /* Toggle the built-in LED on or off. */
 void toggleBuiltinLED(bool state) {
@@ -129,6 +133,24 @@ void enrichWithMoonData(environment_data_t &data) {
   data.daily[0].moon_phase = moonState.phase;
 }  // end enrichWithMoonData
 
+void handleNetworkError(const unsigned char *icon, const String &statusStr, const String &tmpStr,
+                        unsigned long startTime, tm *timeInfo, uint32_t batteryVoltage, uint8_t batteryPercent,
+                        int8_t wifiRSSI, unsigned long networkStartTime) {
+#if HOME_ASSISTANT_MQTT_ENABLED
+  if (WiFi.status() == WL_CONNECTED) {
+    sendMQTTStatus(batteryVoltage, batteryPercent, wifiRSSI, millis() - networkStartTime);
+  }
+#endif
+
+  killWiFi();
+  initDisplay();
+  do {
+    drawError(icon, statusStr, tmpStr);
+  } while (display.nextPage());
+  powerOffDisplay();
+  beginDeepSleep(startTime, timeInfo);
+}
+
 /* Program entry point.
  */
 void setup() {
@@ -145,6 +167,7 @@ void setup() {
 
 #if BATTERY_MONITORING
   uint32_t batteryVoltage = readBatteryVoltage();
+  uint8_t batteryPercent = calcBatPercent(batteryVoltage, MIN_BATTERY_VOLTAGE, MAX_BATTERY_VOLTAGE);
   Serial.print(TXT_BATTERY_VOLTAGE);
   Serial.println(": " + String(batteryVoltage) + "mv");
 
@@ -190,6 +213,7 @@ void setup() {
   }
 #else
   uint32_t batteryVoltage = UINT32_MAX;
+  uint8_t batteryPercent = UINT8_MAX;
 #endif
 
   // All data should have been loaded from NVS. Close filesystem.
@@ -199,8 +223,11 @@ void setup() {
   String tmpStr = {};
   tm timeInfo = {};
 
+  // START TIMING FOR WIFI + TIME SYNC + API
+  unsigned long networkStartTime = millis();
+
   // START WIFI
-  int wifiRSSI = 0;  // “Received Signal Strength Indicator"
+  int8_t wifiRSSI = 0;  // “Received Signal Strength Indicator"
   wl_status_t wifiStatus = startWiFi(wifiRSSI);
   if (wifiStatus != WL_CONNECTED) {  // WiFi Connection Failed
     killWiFi();
@@ -221,34 +248,51 @@ void setup() {
   }
 
   // TIME SYNCHRONIZATION
-  configTzTime(D_TIMEZONE, NTP_SERVER_1, NTP_SERVER_2);
-  bool timeConfigured = waitForSNTPSync(&timeInfo);
+  // Sync periodically based on configured interval (NTP_SYNC_INTERVAL_HOURS) and wake-up counter.
+  // If RTC time is not valid (e.g., after reset or power loss), force an immediate sync.
+  setenv("TZ", D_TIMEZONE, 1);
+  tzset();
+
+  bool timeConfigured = false;
+  getLocalTime(&timeInfo);  // Updates timeInfo with current RTC time
+
+  // Calculate how many cycles represent the sync interval
+  // Ensure we perform integer division, defaulting to at least 1 cycle if sleep duration > interval
+  unsigned int cyclesPerInterval = (NTP_SYNC_INTERVAL_HOURS * 60) / SLEEP_DURATION;
+  if (cyclesPerInterval < 1) {
+    cyclesPerInterval = 1;
+  }
+
+  bool driftIsHuge = (timeInfo.tm_year < (2020 - 1900));  // RTC lost power or uninitialized
+  bool timerTriggered = (wakeUpCounter >= cyclesPerInterval);
+
+  if (driftIsHuge || timerTriggered) {
+    Serial.println("Performing NTP Time Sync...");
+    configTzTime(D_TIMEZONE, NTP_SERVER_1, NTP_SERVER_2);
+    timeConfigured = waitForSNTPSync(&timeInfo);
+    if (timeConfigured) {
+      wakeUpCounter = 0;  // Reset counter after successful sync
+    }
+  } else {
+    Serial.println("Using internal RTC time. (Wake #" + String(wakeUpCounter) + "/" + String(cyclesPerInterval) + ")");
+    timeConfigured = true;
+  }
+
+  wakeUpCounter++;
+
   if (!timeConfigured) {
     Serial.println(TXT_TIME_SYNCHRONIZATION_FAILED);
-    killWiFi();
-    initDisplay();
-    do {
-      drawError(wi_time_4_196x196, TXT_TIME_SYNCHRONIZATION_FAILED);
-    } while (display.nextPage());
-    powerOffDisplay();
-    beginDeepSleep(startTime, &timeInfo);
+    handleNetworkError(wi_time_4_196x196, TXT_TIME_SYNCHRONIZATION_FAILED, "", startTime, &timeInfo, batteryVoltage,
+                       batteryPercent, wifiRSSI, networkStartTime);
   }
-
-// SEND MQTT STATUS
-#if BATTERY_MONITORING && HOME_ASSISTANT_MQTT_ENABLED
-  if (WiFi.status() == WL_CONNECTED) {
-    uint8_t batPercent = calcBatPercent(batteryVoltage, MIN_BATTERY_VOLTAGE, MAX_BATTERY_VOLTAGE);
-    sendMQTTStatus(batteryVoltage, batPercent, wifiRSSI);
-  }
-#endif  // BATTERY_MONITORING
 
 // MAKE API REQUESTS
-#if HTTP_MODE == HTTP
+#if defined(API_PROTOCOL_HTTP)
   WiFiClient client;
-#elif HTTP_MODE == HTTPS_NO_CERT_VERIF
+#elif defined(API_PROTOCOL_HTTPS_NO_VERIFY)
   WiFiClientSecure client;
   client.setInsecure();
-#elif HTTP_MODE == HTTPS_WITH_CERT_VERIF
+#elif defined(API_PROTOCOL_HTTPS_VERIFY)
   WiFiClientSecure client;
 #ifdef WEATHER_API_OPEN_WEATHER_MAP
   client.setCACert(cert_USERTrust_RSA_Certification_Authority);
@@ -260,33 +304,23 @@ void setup() {
 #ifdef WEATHER_API_OPEN_WEATHER_MAP
   int rxStatus = getOWMonecall(client, environment_data);
   if (rxStatus != HTTP_CODE_OK) {
-    killWiFi();
     statusStr = "One Call " + OWM_ONECALL_VERSION + " API";
     tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
-    initDisplay();
-    do {
-      drawError(wi_cloud_down_196x196, statusStr, tmpStr);
-    } while (display.nextPage());
-    powerOffDisplay();
-    beginDeepSleep(startTime, &timeInfo);
+    handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
+                       wifiRSSI, networkStartTime);
   }
 #endif
 #ifdef WEATHER_API_OPEN_METEO
   int rxStatus = getOMCall(client, environment_data);
   if (rxStatus != HTTP_CODE_OK) {
-    killWiFi();
     statusStr = "Open Meteo API";
     tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
-    initDisplay();
-    do {
-      drawError(wi_cloud_down_196x196, statusStr, tmpStr);
-    } while (display.nextPage());
-    powerOffDisplay();
-    beginDeepSleep(startTime, &timeInfo);
+    handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
+                       wifiRSSI, networkStartTime);
   }
 #endif
 
-#if HTTP_MODE == HTTPS_WITH_CERT_VERIF
+#if defined(API_PROTOCOL_HTTPS_VERIFY)
 #ifdef AIR_QUALITY_API_OPEN_WEATHER_MAP
   client.setCACert(cert_USERTrust_RSA_Certification_Authority);
 #endif
@@ -296,16 +330,17 @@ void setup() {
 #endif
   rxStatus = getAirPollution(client, air_pollution);
   if (rxStatus != HTTP_CODE_OK) {
-    killWiFi();
     statusStr = "Air Pollution API";
     tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
-    initDisplay();
-    do {
-      drawError(wi_cloud_down_196x196, statusStr, tmpStr);
-    } while (display.nextPage());
-    powerOffDisplay();
-    beginDeepSleep(startTime, &timeInfo);
+    handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
+                       wifiRSSI, networkStartTime);
   }
+  // SEND MQTT STATUS (success case)
+#if HOME_ASSISTANT_MQTT_ENABLED
+  if (WiFi.status() == WL_CONNECTED) {
+    sendMQTTStatus(batteryVoltage, batteryPercent, wifiRSSI, millis() - networkStartTime);
+  }
+#endif
 
   killWiFi();  // WiFi no longer needed
 

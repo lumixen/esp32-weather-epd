@@ -41,7 +41,7 @@
 #include "renderer.h"
 #include "home_assistant_mqtt.h"
 
-#if HTTP_MODE == HTTP
+#ifdef API_PROTOCOL_HTTP
 static const uint16_t PORT = 80;
 #else
 static const uint16_t PORT = 443;
@@ -53,7 +53,7 @@ static const uint16_t PORT = 443;
  *
  * Returns WiFi status.
  */
-wl_status_t startWiFi(int &wifiRSSI) {
+wl_status_t startWiFi(int8_t &wifiRSSI) {
   WiFi.mode(WIFI_STA);
   Serial.printf("%s '%s'", TXT_CONNECTING_TO, WIFI_SSID);
 #if WIFI_SCAN
@@ -278,8 +278,7 @@ int getAirPollution(WiFiClient &client, air_pollution_t &r) {
 }  // getAirPollution
 
 /* Perform an HTTP GET request to OpenMeteo's API
- * If data is received, it will be parsed and stored in the global variable
- * om_call.
+ * If data is received, it will be parsed and stored in the global environment_data variable
  *
  * Returns the HTTP Status Code.
  */
@@ -364,7 +363,8 @@ bool publishMQTTSensor(PubSubClient &mqtt, const char *sensorName, const String 
   }
 }
 
-void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t wifiRSSI) {
+void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t wifiRSSI,
+                    unsigned long networkActivityDuration) {
   WiFiClient mqttWifi;
   PubSubClient mqtt(mqttWifi);
   mqtt.setBufferSize(512);
@@ -375,19 +375,21 @@ void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t w
   if (connected) {
     Serial.println("MQTT connected. Now publishing discovery and status.");
 
+#if BATTERY_MONITORING
     // 1. Publish Battery Voltage
     char voltageStr[8];
     snprintf(voltageStr, sizeof(voltageStr), "%.3f", batteryVoltage / 1000.0);
-    publishMQTTSensor(mqtt, "battery voltage", FPSTR(HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_TOPIC),
+    publishMQTTSensor(mqtt, "Battery voltage", FPSTR(HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_TOPIC),
                       FPSTR(HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_PAYLOAD),
                       FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_VOLTAGE), voltageStr);
 
     // 2. Publish Battery Percent
     char percentStr[4];
     snprintf(percentStr, sizeof(percentStr), "%u", batteryPercentage);
-    publishMQTTSensor(mqtt, "battery percent", FPSTR(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_TOPIC),
+    publishMQTTSensor(mqtt, "Battery percent", FPSTR(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_TOPIC),
                       FPSTR(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_PAYLOAD),
                       FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_PERCENT), percentStr);
+#endif
 
     // 3. Publish WiFi RSSI
     char rssiStr[5];
@@ -396,7 +398,14 @@ void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t w
                       FPSTR(HOME_ASSISTANT_MQTT_WIFI_RSSI_PAYLOAD), FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_RSSI),
                       rssiStr);
 
+    // 4. Publish Network Activity Duration
+    char durationStr[12];
+    snprintf(durationStr, sizeof(durationStr), "%lu", networkActivityDuration);
+    publishMQTTSensor(mqtt, "Network activity duration", FPSTR(HOME_ASSISTANT_MQTT_NETWORK_ACTIVITY_DURATION_TOPIC),
+                      FPSTR(HOME_ASSISTANT_MQTT_NETWORK_ACTIVITY_DURATION_PAYLOAD),
+                      FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_NETWORK_ACTIVITY_DURATION), durationStr);
     mqtt.disconnect();
+    delay(300);  // give the MQTT client time to send the outgoing packets before powering off WiFi
     Serial.println("MQTT publish complete.");
   } else {
     Serial.println(mqtt.state());
