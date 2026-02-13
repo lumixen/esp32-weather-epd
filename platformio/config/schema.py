@@ -56,8 +56,8 @@ class ApiProtocol(str, Enum):
     """API protocol for API requests"""
 
     HTTP = "HTTP"
-    HTTPS_VERIFY = "HTTPS with certificate verification"
-    HTTPS_NO_VERIFY = "HTTPS without certificate verification"
+    HTTPS_NO_VERIFY = "HTTPS_NO_VERIFY"
+    HTTPS_VERIFY = "HTTPS_VERIFY"
 
 
 class UnitsTemp(str, Enum):
