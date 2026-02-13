@@ -49,8 +49,8 @@ static air_pollution_t air_pollution;
 
 Preferences prefs;
 
-// RTC_DATA_ATTR variables survive deep sleep
-RTC_DATA_ATTR time_t lastSyncTime = 0;
+// RTC_DATA_ATTR variables survive deep sleep resets, but not power cycles.
+// They are used to store data that must persist across deep sleep cycles, such as the wake-up counter.
 RTC_DATA_ATTR uint32_t wakeUpCounter = 0;
 
 /* Toggle the built-in LED on or off. */
@@ -255,8 +255,6 @@ void setup() {
   tzset();
 
   bool timeConfigured = false;
-  time_t now;
-  time(&now);
   getLocalTime(&timeInfo);  // Updates timeInfo with current RTC time
 
   // Calculate how many cycles represent the sync interval
@@ -274,7 +272,6 @@ void setup() {
     configTzTime(D_TIMEZONE, NTP_SERVER_1, NTP_SERVER_2);
     timeConfigured = waitForSNTPSync(&timeInfo);
     if (timeConfigured) {
-      time(&lastSyncTime);
       wakeUpCounter = 0;  // Reset counter after successful sync
     }
   } else {
