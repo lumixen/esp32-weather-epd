@@ -53,7 +53,7 @@ static const uint16_t PORT = 443;
  *
  * Returns WiFi status.
  */
-wl_status_t startWiFi(int &wifiRSSI) {
+wl_status_t startWiFi(int8_t &wifiRSSI) {
   WiFi.mode(WIFI_STA);
   Serial.printf("%s '%s'", TXT_CONNECTING_TO, WIFI_SSID);
 #if WIFI_SCAN

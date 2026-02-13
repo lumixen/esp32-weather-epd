@@ -135,7 +135,7 @@ void enrichWithMoonData(environment_data_t &data) {
 
 void handleNetworkError(const unsigned char *icon, const String &statusStr, const String &tmpStr,
                         unsigned long startTime, tm *timeInfo, uint32_t batteryVoltage, uint8_t batteryPercent,
-                        uint8_t wifiRSSI, unsigned long networkStartTime) {
+                        int8_t wifiRSSI, unsigned long networkStartTime) {
 #if HOME_ASSISTANT_MQTT_ENABLED
   if (WiFi.status() == WL_CONNECTED) {
     sendMQTTStatus(batteryVoltage, batteryPercent, wifiRSSI, millis() - networkStartTime);
@@ -227,7 +227,7 @@ void setup() {
   unsigned long networkStartTime = millis();
 
   // START WIFI
-  int wifiRSSI = 0;  // “Received Signal Strength Indicator"
+  int8_t wifiRSSI = 0;  // “Received Signal Strength Indicator"
   wl_status_t wifiStatus = startWiFi(wifiRSSI);
   if (wifiStatus != WL_CONNECTED) {  // WiFi Connection Failed
     killWiFi();
@@ -250,7 +250,6 @@ void setup() {
   // TIME SYNCHRONIZATION
   // Sync periodically based on configured interval (NTP_SYNC_INTERVAL_HOURS) and wake-up counter.
   // If RTC time is not valid (e.g., after reset or power loss), force an immediate sync.
-
   setenv("TZ", D_TIMEZONE, 1);
   tzset();
 
@@ -279,7 +278,6 @@ void setup() {
     timeConfigured = true;
   }
 
-  // Increment counter for next time
   wakeUpCounter++;
 
   if (!timeConfigured) {
