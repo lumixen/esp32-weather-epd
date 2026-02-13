@@ -41,7 +41,7 @@
 #include "renderer.h"
 #include "home_assistant_mqtt.h"
 
-#if HTTP_MODE == HTTP
+#ifdef API_PROTOCOL_HTTP
 static const uint16_t PORT = 80;
 #else
 static const uint16_t PORT = 443;
@@ -278,8 +278,7 @@ int getAirPollution(WiFiClient &client, air_pollution_t &r) {
 }  // getAirPollution
 
 /* Perform an HTTP GET request to OpenMeteo's API
- * If data is received, it will be parsed and stored in the global variable
- * om_call.
+ * If data is received, it will be parsed and stored in the global environment_data variable
  *
  * Returns the HTTP Status Code.
  */
@@ -367,7 +366,6 @@ bool publishMQTTSensor(PubSubClient &mqtt, const char *sensorName, const String 
 void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t wifiRSSI,
                     unsigned long networkActivityDuration) {
   WiFiClient mqttWifi;
-  mqttWifi.setNoDelay(true);
   PubSubClient mqtt(mqttWifi);
   mqtt.setBufferSize(512);
   mqtt.setServer(D_HOME_ASSISTANT_MQTT_SERVER, HOME_ASSISTANT_MQTT_PORT);

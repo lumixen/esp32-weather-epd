@@ -36,10 +36,10 @@
 #include "renderer.h"
 #include "moon_tools.h"
 
-#if HTTP_MODE != HTTP
+#ifndef API_PROTOCOL_HTTP
 #include <WiFiClientSecure.h>
 #endif
-#if HTTP_MODE == HTTPS_WITH_CERT_VERIF
+#ifdef API_PROTOCOL_HTTPS_VERIFY
 #include "cert.h"
 #endif
 
@@ -48,6 +48,10 @@ static environment_data_t environment_data;
 static air_pollution_t air_pollution;
 
 Preferences prefs;
+
+// RTC_DATA_ATTR variables survive deep sleep
+RTC_DATA_ATTR time_t lastSyncTime = 0;
+RTC_DATA_ATTR uint32_t wakeUpCounter = 0;
 
 /* Toggle the built-in LED on or off. */
 void toggleBuiltinLED(bool state) {
@@ -244,8 +248,43 @@ void setup() {
   }
 
   // TIME SYNCHRONIZATION
-  configTzTime(D_TIMEZONE, NTP_SERVER_1, NTP_SERVER_2);
-  bool timeConfigured = waitForSNTPSync(&timeInfo);
+  // Sync only around midnight (00) and noon (12).
+  // If time is not valid (reset), force sync.
+
+  setenv("TZ", D_TIMEZONE, 1);
+  tzset();
+
+  bool timeConfigured = false;
+  time_t now;
+  time(&now);
+  getLocalTime(&timeInfo);  // Updates timeInfo with current RTC time
+
+  // Calculate how many cycles represent the sync interval
+  // Ensure we perform integer division, defaulting to at least 1 cycle if sleep duration > interval
+  unsigned int cyclesPerInterval = (NTP_SYNC_INTERVAL_HOURS * 60) / SLEEP_DURATION;
+  if (cyclesPerInterval < 1) {
+    cyclesPerInterval = 1;
+  }
+
+  bool driftIsHuge = (timeInfo.tm_year < (2020 - 1900));  // RTC lost power or uninitialized
+  bool timerTriggered = (wakeUpCounter >= cyclesPerInterval);
+
+  if (driftIsHuge || timerTriggered) {
+    Serial.println("Performing NTP Time Sync...");
+    configTzTime(D_TIMEZONE, NTP_SERVER_1, NTP_SERVER_2);
+    timeConfigured = waitForSNTPSync(&timeInfo);
+    if (timeConfigured) {
+      time(&lastSyncTime);
+      wakeUpCounter = 0;  // Reset counter after successful sync
+    }
+  } else {
+    Serial.println("Using internal RTC time. (Wake #" + String(wakeUpCounter) + "/" + String(cyclesPerInterval) + ")");
+    timeConfigured = true;
+  }
+
+  // Increment counter for next time
+  wakeUpCounter++;
+
   if (!timeConfigured) {
     Serial.println(TXT_TIME_SYNCHRONIZATION_FAILED);
     handleNetworkError(wi_time_4_196x196, TXT_TIME_SYNCHRONIZATION_FAILED, "", startTime, &timeInfo, batteryVoltage,
@@ -253,12 +292,12 @@ void setup() {
   }
 
 // MAKE API REQUESTS
-#if HTTP_MODE == HTTP
+#if defined(API_PROTOCOL_HTTP)
   WiFiClient client;
-#elif HTTP_MODE == HTTPS_NO_CERT_VERIF
+#elif defined(API_PROTOCOL_HTTPS_NO_VERIFY)
   WiFiClientSecure client;
   client.setInsecure();
-#elif HTTP_MODE == HTTPS_WITH_CERT_VERIF
+#elif defined(API_PROTOCOL_HTTPS_VERIFY)
   WiFiClientSecure client;
 #ifdef WEATHER_API_OPEN_WEATHER_MAP
   client.setCACert(cert_USERTrust_RSA_Certification_Authority);
@@ -286,7 +325,7 @@ void setup() {
   }
 #endif
 
-#if HTTP_MODE == HTTPS_WITH_CERT_VERIF
+#if defined(API_PROTOCOL_HTTPS_VERIFY)
 #ifdef AIR_QUALITY_API_OPEN_WEATHER_MAP
   client.setCACert(cert_USERTrust_RSA_Certification_Authority);
 #endif
