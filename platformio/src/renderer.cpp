@@ -236,10 +236,11 @@ void initDisplay() {
 /* Power-off e-paper display
  */
 void powerOffDisplay() {
+  // turns powerOff() and sets controller to deep sleep for
+  // minimum power use
+  display.hibernate();
   // Disable the ext0 wakeup source
   esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_EXT0);
-  display.hibernate();  // turns powerOff() and sets controller to deep sleep for
-                        // minimum power use
   digitalWrite(PIN_EPD_PWR, LOW);
   return;
 }  // end initDisplay
