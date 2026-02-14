@@ -14,9 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
-#ifndef __API_RESPONSE_H__
-#define __API_RESPONSE_H__
+#pragma once
 
 #include <cstdint>
 #include <vector>
@@ -60,4 +58,3 @@ DeserializationError deserializeOneCall(WiFiClient &json, environment_data_t &r)
 DeserializationError deserializeOpenMeteoCall(WiFiClient &json, environment_data_t &r);
 DeserializationError deserializeOWMAirQuality(WiFiClient &json, air_pollution_t &r);
 DeserializationError deserializeOpenMeteoAirQuality(WiFiClient &json, air_pollution_t &r);
-#endif

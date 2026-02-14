@@ -82,7 +82,12 @@ wl_status_t startWiFi(int8_t &wifiRSSI) {
     WiFi.begin(WIFI_SSID, D_WIFI_PASSWORD);
   }
 #else
-  WiFi.begin(WIFI_SSID, D_WIFI_PASSWORD);
+#ifdef WIFI_BSSID
+  const uint8_t bssid[] = WIFI_BSSID;
+  WiFi.begin(WIFI_SSID, D_WIFI_PASSWORD, 0, bssid);
+#else
+  WiFi.begin(WIFI_SSID, D_WIFI_PASSWORD, 0);
+#endif
 #endif
 
   // timeout if WiFi does not connect in WIFI_TIMEOUT ms from now

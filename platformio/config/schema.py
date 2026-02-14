@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Dict
+from typing import Dict, Optional
 from typing import Annotated
 from pydantic import BaseModel, Field, WithJsonSchema, model_validator
 
@@ -207,6 +207,23 @@ def enum_schema(enum: Enum):
     )
 
 
+class Wifi(BaseModel):
+    SSID: str
+    password: str
+    timeout: int = 10000
+    scan: bool = False
+    bssid: Optional[str] = None
+
+    @model_validator(mode="after")
+    def validate_scan_and_bssid(self):
+        if self.scan and self.bssid is not None:
+            raise ValueError(
+                "wifi.scan and wifi.bssid cannot be enabled simultaneously. "
+                "Either use scan to find the best network or specify a BSSID."
+            )
+        return self
+
+
 class PinsConfig(BaseModel):
     batAdc: int = 35
     epdBusy: int = 14
@@ -276,10 +293,7 @@ class ConfigSchema(BaseModel):
     batteryMonitoring: bool = True
     debugLevel: int = 0  # TODO: From 0 to 2
     pin: PinsConfig = Field(default_factory=PinsConfig)
-    wifiSSID: str
-    wifiPassword: str
-    wifiTimeout: int = 10000
-    wifiScan: bool = False
+    wifi: Wifi = Field(default_factory=Wifi)
     owmApikey: str | None = None
     owmOnecallVersion: str = "3.0"
     latitude: str

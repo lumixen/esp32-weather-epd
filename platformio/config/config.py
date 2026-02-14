@@ -50,6 +50,19 @@ def format_cpp_define(key, value):
         return f"#define {key} {value}"
 
 
+def format_bssid(bssid_str):
+    """Convert BSSID string (e.g., '4A:8F:5A:21:EB:72') to C++ uint8_t array format."""
+    # Remove common separators and convert to uppercase
+    cleaned = bssid_str.replace(":", "").replace("-", "").upper()
+
+    # Split into pairs of hex digits
+    hex_pairs = [cleaned[i : i + 2] for i in range(0, len(cleaned), 2)]
+
+    # Format as C++ array initializer
+    formatted = ", ".join([f"0x{pair}" for pair in hex_pairs])
+    return f"{{{formatted}}}"
+
+
 # Generate header file
 header_lines = [
     "// Auto-generated configuration header",
@@ -110,9 +123,18 @@ with open("./config.yml", "r", encoding="utf-8") as config_file:
             # Convert Pydantic models to dict
             header_lines.append(f"// {k} configuration")
             for nested_k, nested_v in v.model_dump().items():
+                # Skip Optional fields that have None value
+                if nested_v is None:
+                    continue
                 config_key = upper_snake(k)
                 nested_key = upper_snake(nested_k)
-                if isinstance(nested_v, str):
+                # Special handling for BSSID
+                if nested_k == "bssid":
+                    bssid_array = format_bssid(nested_v)
+                    header_lines.append(
+                        f"#define {config_key}_{nested_key} {bssid_array}"
+                    )
+                elif isinstance(nested_v, str):
                     # Check if nested value is an enum-like string
                     macro_key = f"{config_key}_{nested_key}"
                     header_lines.append(format_cpp_define(macro_key, nested_v))

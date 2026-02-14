@@ -18,7 +18,6 @@
 #pragma once
 
 #include "defines.h"
-#include <cstdint>
 #include <Arduino.h>
 
 // DEFAULT CONFIGS
