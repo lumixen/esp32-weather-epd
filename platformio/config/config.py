@@ -51,7 +51,7 @@ def format_cpp_define(key, value):
 
 
 def format_bssid(bssid_str):
-    """Convert BSSID string (e.g., '4A:8F:5A:21:EB:72') to C++ uint8_t array format."""
+    """Convert BSSID string to C++ uint8_t array format."""
     # Remove common separators and convert to uppercase
     cleaned = bssid_str.replace(":", "").replace("-", "").upper()
 
