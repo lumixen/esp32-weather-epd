@@ -62,6 +62,27 @@ GxEPD2_BW<GxEPD2_750, GxEPD2_750::HEIGHT> display(GxEPD2_750(PIN_EPD_CS, PIN_EPD
 #define ACCENT_COLOR GxEPD_BLACK
 #endif
 
+// Callback function for light sleep while epaper driver is busy.
+void beginLightSleep(const void *) {
+// Configure BUSY pin as wakeup source (wake on LOW - display not busy)
+#if DEBUG_LEVEL >= 1
+  Serial.print("[debug] Entering light sleep at ");
+  Serial.print(millis() / 1000.0);
+  Serial.println(" seconds");
+  Serial.flush();  // Ensure all serial output is sent before sleeping
+#endif
+  if (esp_sleep_enable_ext0_wakeup((gpio_num_t) PIN_EPD_BUSY, !BUSY_LEVEL) == ESP_OK) {
+    esp_light_sleep_start();
+  } else {
+    Serial.println("[error] Failed to configure wakeup source for light sleep");
+  }
+#if DEBUG_LEVEL >= 1
+  Serial.print("[debug] Woke up from light sleep at ");
+  Serial.print(millis() / 1000.0);
+  Serial.println(" seconds");
+#endif
+}
+
 /* Returns the string width in pixels
  */
 uint16_t getStringWidth(const String &text) {
@@ -205,9 +226,9 @@ void initDisplay() {
   display.setTextSize(1);
   display.setTextColor(GxEPD_BLACK);
   display.setTextWrap(false);
-  // display.fillScreen(GxEPD_WHITE);
   display.setFullWindow();
-  display.firstPage();  // use paged drawing mode, sets fillScreen(GxEPD_WHITE)
+  display.firstPage();
+  display.epd2.setBusyCallback(beginLightSleep);  // Set busy callback for light sleep during rendering
   return;
 }  // end initDisplay
 
