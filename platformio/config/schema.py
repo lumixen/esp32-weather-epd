@@ -209,7 +209,7 @@ def enum_schema(enum: Enum):
 
 
 class Wifi(BaseModel):
-    SSID: str
+    ssid: str
     password: str
     timeout: int = 10000
     scan: bool = False
