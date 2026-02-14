@@ -86,7 +86,7 @@ wl_status_t startWiFi(int8_t &wifiRSSI) {
   const uint8_t bssid[] = WIFI_BSSID;
   WiFi.begin(WIFI_SSID, D_WIFI_PASSWORD, 0, bssid);
 #else
-  WiFi.begin(WIFI_SSID, D_WIFI_PASSWORD, 0);
+  WiFi.begin(WIFI_SSID, D_WIFI_PASSWORD);
 #endif
 #endif
 
