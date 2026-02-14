@@ -267,7 +267,6 @@ void setup() {
   bool timerTriggered = (wakeUpCounter >= cyclesPerInterval);
 
   if (driftIsHuge || timerTriggered) {
-    Serial.println("Performing NTP Time Sync...");
     configTzTime(D_TIMEZONE, NTP_SERVER_1, NTP_SERVER_2);
     timeConfigured = waitForSNTPSync(&timeInfo);
     if (timeConfigured) {
