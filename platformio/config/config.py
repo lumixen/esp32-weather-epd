@@ -39,7 +39,7 @@ def format_cpp_define(key, value):
         escaped = escape_c_string(value)
         return f'#define D_{key} "{escaped}"'
     elif isinstance(value, bool):
-        return f"#define {key} {'true' if value else 'false'}"
+        return f"#define {key} {1 if value else 0}"
     elif isinstance(value, int):
         return f"#define {key} {value}"
     elif isinstance(value, float):
