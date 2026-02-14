@@ -1,4 +1,5 @@
 from enum import Enum
+import re
 from typing import Dict, Optional
 from typing import Annotated
 from pydantic import BaseModel, Field, WithJsonSchema, model_validator
@@ -221,6 +222,19 @@ class Wifi(BaseModel):
                 "wifi.scan and wifi.bssid cannot be enabled simultaneously. "
                 "Either use scan to find the best network or specify a BSSID."
             )
+        return self
+
+    @model_validator(mode="after")
+    def validate_bssid_format(self):
+        if self.bssid is not None:
+            # Match MAC address in format XX:XX:XX:XX:XX:XX only
+            mac_pattern = r"^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$"
+            if not re.match(mac_pattern, self.bssid):
+                raise ValueError(
+                    f"Invalid BSSID format: '{self.bssid}'. "
+                    "Expected format: XX:XX:XX:XX:XX:XX "
+                    "(where X is a hexadecimal digit)"
+                )
         return self
 
 
