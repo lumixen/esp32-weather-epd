@@ -39,7 +39,7 @@ def format_cpp_define(key, value):
         escaped = escape_c_string(value)
         return f'#define D_{key} "{escaped}"'
     elif isinstance(value, bool):
-        return f"#define {key} {'true' if value else 'false'}"
+        return f"#define {key} {1 if value else 0}"
     elif isinstance(value, int):
         return f"#define {key} {value}"
     elif isinstance(value, float):
@@ -48,6 +48,19 @@ def format_cpp_define(key, value):
         return f'#define D_{key} ""'
     else:
         return f"#define {key} {value}"
+
+
+def format_bssid(bssid_str):
+    """Convert BSSID string to C++ uint8_t array format."""
+    # Remove colon separators and convert to uppercase
+    cleaned = bssid_str.replace(":", "").upper()
+
+    # Split into pairs of hex digits
+    hex_pairs = [cleaned[i : i + 2] for i in range(0, len(cleaned), 2)]
+
+    # Format as C++ array initializer
+    formatted = ", ".join([f"0x{pair}" for pair in hex_pairs])
+    return f"{{{formatted}}}"
 
 
 # Generate header file
@@ -110,9 +123,18 @@ with open("./config.yml", "r", encoding="utf-8") as config_file:
             # Convert Pydantic models to dict
             header_lines.append(f"// {k} configuration")
             for nested_k, nested_v in v.model_dump().items():
+                # Skip Optional fields that have None value
+                if nested_v is None:
+                    continue
                 config_key = upper_snake(k)
                 nested_key = upper_snake(nested_k)
-                if isinstance(nested_v, str):
+                # Special handling for BSSID
+                if nested_k == "bssid":
+                    bssid_array = format_bssid(nested_v)
+                    header_lines.append(
+                        f"#define {config_key}_{nested_key} {bssid_array}"
+                    )
+                elif isinstance(nested_v, str):
                     # Check if nested value is an enum-like string
                     macro_key = f"{config_key}_{nested_key}"
                     header_lines.append(format_cpp_define(macro_key, nested_v))
