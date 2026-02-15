@@ -1172,11 +1172,18 @@ void drawCurrentVisibility(const current_t &current) {
       int yTick = static_cast<int>(yPos0 + (i * yInterval));
       display.setFont(&FONT_8pt8b);
       // Temperature
-      dataStr = String(tempBoundMax - (i * yTempMajorTicks));
-#if defined(UNITS_TEMP_CELSIUS) || defined(UNITS_TEMP_FAHRENHEIT)
+      int tempVal = tempBoundMax - (i * yTempMajorTicks);
+      dataStr = String(tempVal);
+#if defined(UNITS_TEMP_CELSIUS)
       dataStr += "\260";
+      uint16_t tempColor = tempVal < 0 ? ACCENT_COLOR : GxEPD_BLACK;
+#elif defined(UNITS_TEMP_FAHRENHEIT)
+    dataStr += "\260";
+    uint16_t tempColor = tempVal < 32 ? ACCENT_COLOR : GxEPD_BLACK;
+#else
+    uint16_t tempColor = GxEPD_BLACK;
 #endif
-      drawString(xPos0 - 8, yTick + 4, dataStr, RIGHT, ACCENT_COLOR);
+      drawString(xPos0 - 8, yTick + 4, dataStr, RIGHT, tempColor);
 
       if (precipBoundMax > 0) {  // don't labels if precip is 0
 #ifdef UNITS_HOURLY_PRECIP_POP
@@ -1184,7 +1191,7 @@ void drawCurrentVisibility(const current_t &current) {
         dataStr = String(100 - (i * 20));
         String precipUnit = "%";
 #else
-                               // Precipitation volume
+      // Precipitation volume
       float precipTick = precipBoundMax - (i * yPrecipMajorTickValue);
       precipTick = std::round(precipTick * precipRoundingMultiplier) / precipRoundingMultiplier;
       dataStr = String(precipTick, yPrecipMajorTickDecimals);
@@ -1243,9 +1250,10 @@ void drawCurrentVisibility(const current_t &current) {
         y0_t = y_t[i - 1];
         y1_t = y_t[i];
         // graph temperature
-        display.drawLine(x0_t, y0_t, x1_t, y1_t, ACCENT_COLOR);
-        display.drawLine(x0_t, y0_t + 1, x1_t, y1_t + 1, ACCENT_COLOR);
-        display.drawLine(x0_t - 1, y0_t, x1_t - 1, y1_t, ACCENT_COLOR);
+        uint16_t color = hourly[i].temp < 0 ? ACCENT_COLOR : GxEPD_BLACK;
+        display.drawLine(x0_t, y0_t, x1_t, y1_t, color);
+        display.drawLine(x0_t, y0_t + 1, x1_t, y1_t + 1, color);
+        display.drawLine(x0_t - 1, y0_t, x1_t - 1, y1_t, color);
 
         // draw hourly bitmap
 #if DISPLAY_HOURLY_ICONS
