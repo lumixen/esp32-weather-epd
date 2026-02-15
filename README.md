@@ -102,7 +102,7 @@ statusBarExtrasBatVoltage: true
 statusBarExtrasWifiRSSI: false
 debugLevel: 0
 wifi:
-  SSID: SSID
+  ssid: SSID
   password: PASSWORD
   scan: false
   bssid: "XX:XX:XX:XX:XX:XX" # Optional, only when scan is false
