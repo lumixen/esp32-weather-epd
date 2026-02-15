@@ -208,12 +208,49 @@ def enum_schema(enum: Enum):
     )
 
 
+class StaticIpConfig(BaseModel):
+    ip: str
+    gateway: str
+    subnet: str
+    dns1: Optional[str] = None
+    dns2: Optional[str] = None
+
+    @model_validator(mode="after")
+    def validate_ip_addresses(self):
+        ip_pattern = r"^(\d{1,3}\.){3}\d{1,3}$"
+
+        # Check dns2 requires dns1
+        if self.dns2 is not None and self.dns1 is None:
+            raise ValueError("dns2 can only be provided if dns1 is also provided")
+
+        fields_to_validate = {
+            "ip": self.ip,
+            "gateway": self.gateway,
+            "subnet": self.subnet,
+        }
+
+        if self.dns1 is not None:
+            fields_to_validate["dns1"] = self.dns1
+        if self.dns2 is not None:
+            fields_to_validate["dns2"] = self.dns2
+
+        for field_name, field_value in fields_to_validate.items():
+            if not re.match(ip_pattern, field_value):
+                raise ValueError(
+                    f"Invalid {field_name} format: '{field_value}'. "
+                    "Expected format: XXX.XXX.XXX.XXX"
+                )
+
+        return self
+
+
 class Wifi(BaseModel):
     ssid: str
     password: str
     timeout: int = 10000
     scan: bool = False
     bssid: Optional[str] = None
+    staticIp: Optional[StaticIpConfig] = None
 
     @model_validator(mode="after")
     def validate_scan_and_bssid(self):

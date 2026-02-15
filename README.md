@@ -104,8 +104,15 @@ debugLevel: 0
 wifi:
   ssid: SSID
   password: PASSWORD
-  scan: false
-  bssid: "XX:XX:XX:XX:XX:XX" # Optional, only when scan is false
+  # Optional
+  # timeout: 10000
+  # scan: false
+  # bssid: "XX:XX:XX:XX:XX:XX"
+  # staticIp:
+  #   ip: XXX.XXX.XXX.XXX
+  #   gateway: XXX.XXX.XXX.XXX
+  #   subnet: XXX.XXX.XXX.XXX
+  #   dns1: XXX.XXX.XXX.XXX
 owmApikey:
 owmOnecallVersion: ""
 latitude: "64"

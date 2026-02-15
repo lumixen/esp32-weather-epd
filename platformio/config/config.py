@@ -63,6 +63,34 @@ def format_bssid(bssid_str):
     return f"{{{formatted}}}"
 
 
+def process_nested_config(data, prefix=""):
+    """Recursively process nested configuration dictionaries."""
+    lines = []
+
+    for key, value in data.items():
+        # Skip None values
+        if value is None:
+            continue
+
+        # Build the macro key
+        key_upper = upper_snake(key)
+        macro_key = f"{prefix}_{key_upper}" if prefix else key_upper
+
+        # Handle nested dictionaries (nested BaseModel objects)
+        if isinstance(value, dict):
+            lines.append(f"// {key} sub-configuration")
+            lines.extend(process_nested_config(value, macro_key))
+        # Special handling for BSSID
+        elif key == "bssid":
+            bssid_array = format_bssid(value)
+            lines.append(f"#define {macro_key} {bssid_array}")
+        # Handle all other values
+        else:
+            lines.append(format_cpp_define(macro_key, value))
+
+    return lines
+
+
 # Generate header file
 header_lines = [
     "// Auto-generated configuration header",
@@ -115,32 +143,15 @@ with open("./config.yml", "r", encoding="utf-8") as config_file:
                 header_lines.append(f'#define FONT_HEADER "{font_files[v]}"')
             else:
                 # For enums, use config key as prefix and enum value as suffix
-                # Don't convert enum value since it's already in correct format
                 config_key = upper_snake(k)
-                enum_value = v.name  # Use as-is, already uppercase with underscores
+                enum_value = v.name
                 header_lines.append(f"#define {config_key}_{enum_value}")
         elif isinstance(v, BaseModel):
-            # Convert Pydantic models to dict
+            # Convert Pydantic models to dict and process recursively
             header_lines.append(f"// {k} configuration")
-            for nested_k, nested_v in v.model_dump().items():
-                # Skip Optional fields that have None value
-                if nested_v is None:
-                    continue
-                config_key = upper_snake(k)
-                nested_key = upper_snake(nested_k)
-                # Special handling for BSSID
-                if nested_k == "bssid":
-                    bssid_array = format_bssid(nested_v)
-                    header_lines.append(
-                        f"#define {config_key}_{nested_key} {bssid_array}"
-                    )
-                elif isinstance(nested_v, str):
-                    # Check if nested value is an enum-like string
-                    macro_key = f"{config_key}_{nested_key}"
-                    header_lines.append(format_cpp_define(macro_key, nested_v))
-                else:
-                    macro_key = f"{config_key}_{nested_key}"
-                    header_lines.append(format_cpp_define(macro_key, nested_v))
+            config_key = upper_snake(k)
+            nested_lines = process_nested_config(v.model_dump(), config_key)
+            header_lines.extend(nested_lines)
             header_lines.append("")
         else:
             header_lines.append(format_cpp_define(upper_snake(k), v))

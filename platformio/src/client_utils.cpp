@@ -54,8 +54,50 @@ static const uint16_t PORT = 443;
  * Returns WiFi status.
  */
 wl_status_t startWiFi(int8_t &wifiRSSI) {
+  // Set hostname with MAC address suffix
+  String macAddress = WiFi.macAddress();
+  macAddress.replace(":", "");
+  macAddress.toLowerCase();
+  String macSuffix = macAddress.substring(macAddress.length() - 6);
+  String hostname = "esp32_weather_display_" + macSuffix;
+  WiFi.setHostname(hostname.c_str());
+
   WiFi.mode(WIFI_STA);
   Serial.printf("%s '%s'", TXT_CONNECTING_TO, WIFI_SSID);
+
+#ifdef D_WIFI_STATIC_IP_IP
+  // Configure static IP before connecting
+  IPAddress local_IP;
+  IPAddress gateway;
+  IPAddress subnet;
+#ifdef D_WIFI_STATIC_IP_DNS1
+  IPAddress primaryDNS;
+#ifdef D_WIFI_STATIC_IP_DNS2
+  IPAddress secondaryDNS;
+#endif
+#endif
+
+  local_IP.fromString(D_WIFI_STATIC_IP_IP);
+  gateway.fromString(D_WIFI_STATIC_IP_GATEWAY);
+  subnet.fromString(D_WIFI_STATIC_IP_SUBNET);
+
+#ifdef D_WIFI_STATIC_IP_DNS1
+  primaryDNS.fromString(D_WIFI_STATIC_IP_DNS1);
+#ifdef D_WIFI_STATIC_IP_DNS2
+  secondaryDNS.fromString(D_WIFI_STATIC_IP_DNS2);
+  if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) {
+#else
+  if (!WiFi.config(local_IP, gateway, subnet, primaryDNS)) {
+#endif
+#else
+  if (!WiFi.config(local_IP, gateway, subnet)) {
+#endif
+    Serial.println("Failed to configure static IP");
+  } else {
+    Serial.printf("Static IP configured: %s\n", local_IP.toString().c_str());
+  }
+#endif
+
 #if WIFI_SCAN
   // Scan for networks, if there are multiple with the same SSID, connect to the one
   // with the best RSSI.
