@@ -1176,10 +1176,10 @@ void drawCurrentVisibility(const current_t &current) {
       dataStr = String(tempVal);
 #if defined(UNITS_TEMP_CELSIUS)
       dataStr += "\260";
-      uint16_t tempColor = tempVal < 0 ? COLORS_OUTLOOK_TEMPERATURE_BELOW_ZERO : COLORS_OUTLOOK_TEMPERATURE_ABOVE_ZERO;
+      uint16_t tempColor = tempVal < 0 ? COLORS_OUTLOOK_TEMPERATURE_BELOW_FREEZING : COLORS_OUTLOOK_TEMPERATURE_ABOVE_FREEZING;
 #elif defined(UNITS_TEMP_FAHRENHEIT)
     dataStr += "\260";
-    uint16_t tempColor = tempVal < 32 ? COLORS_OUTLOOK_TEMPERATURE_BELOW_ZERO : COLORS_OUTLOOK_TEMPERATURE_ABOVE_ZERO;
+    uint16_t tempColor = tempVal < 32 ? COLORS_OUTLOOK_TEMPERATURE_BELOW_FREEZING : COLORS_OUTLOOK_TEMPERATURE_ABOVE_FREEZING;
 #else
     uint16_t tempColor = GxEPD_BLACK;
 #endif
@@ -1250,7 +1250,7 @@ void drawCurrentVisibility(const current_t &current) {
         y0_t = y_t[i - 1];
         y1_t = y_t[i];
         // graph temperature
-        uint16_t color = hourly[i].temp < 0 ? COLORS_OUTLOOK_TEMPERATURE_BELOW_ZERO : COLORS_OUTLOOK_TEMPERATURE_ABOVE_ZERO;
+        uint16_t color = hourly[i].temp < 0 ? COLORS_OUTLOOK_TEMPERATURE_BELOW_FREEZING : COLORS_OUTLOOK_TEMPERATURE_ABOVE_FREEZING;
         display.drawLine(x0_t, y0_t, x1_t, y1_t, color);
         display.drawLine(x0_t, y0_t + 1, x1_t, y1_t + 1, color);
         display.drawLine(x0_t - 1, y0_t, x1_t - 1, y1_t, color);

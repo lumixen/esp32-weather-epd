@@ -316,8 +316,8 @@ class Color(str, Enum):
 
 
 class Colors(BaseModel):
-    outlookTemperatureBelowZero: Color = Color.BLACK
-    outlookTemperatureAboveZero: Color = Color.BLACK
+    outlookTemperatureBelowFreezing: Color = Color.BLACK
+    outlookTemperatureAboveFreezing: Color = Color.BLACK
 
 
 class ConfigSchema(BaseModel):
