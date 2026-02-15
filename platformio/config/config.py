@@ -62,19 +62,20 @@ def format_bssid(bssid_str):
     formatted = ", ".join([f"0x{pair}" for pair in hex_pairs])
     return f"{{{formatted}}}"
 
+
 def process_nested_config(data, prefix=""):
     """Recursively process nested configuration dictionaries."""
     lines = []
-    
+
     for key, value in data.items():
         # Skip None values
         if value is None:
             continue
-        
+
         # Build the macro key
         key_upper = upper_snake(key)
         macro_key = f"{prefix}_{key_upper}" if prefix else key_upper
-        
+
         # Handle nested dictionaries (nested BaseModel objects)
         if isinstance(value, dict):
             lines.append(f"// {key} sub-configuration")
@@ -86,7 +87,7 @@ def process_nested_config(data, prefix=""):
         # Handle all other values
         else:
             lines.append(format_cpp_define(macro_key, value))
-    
+
     return lines
 
 
@@ -127,7 +128,7 @@ with open("./config.yml", "r", encoding="utf-8") as config_file:
         "Ubuntu Mono": "fonts/UbuntuMono_R.h",
     }
 
-        # Add configuration defines
+    # Add configuration defines
     header_lines.append("// Configuration")
     for k, v in config:
         if k == "leftPanelLayout":

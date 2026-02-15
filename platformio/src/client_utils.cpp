@@ -70,9 +70,11 @@ wl_status_t startWiFi(int8_t &wifiRSSI) {
   IPAddress local_IP;
   IPAddress gateway;
   IPAddress subnet;
+#ifdef D_WIFI_STATIC_IP_DNS1
   IPAddress primaryDNS;
 #ifdef D_WIFI_STATIC_IP_DNS2
   IPAddress secondaryDNS;
+#endif
 #endif
 
   local_IP.fromString(D_WIFI_STATIC_IP_IP);
