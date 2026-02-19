@@ -138,7 +138,7 @@ void handleNetworkError(const unsigned char *icon, const String &statusStr, cons
                         int8_t wifiRSSI, unsigned long networkStartTime) {
 #if HOME_ASSISTANT_MQTT_ENABLED
   if (WiFi.status() == WL_CONNECTED) {
-    sendMQTTStatus(batteryVoltage, batteryPercent, wifiRSSI, millis() - networkStartTime);
+    sendMQTTStatus(batteryVoltage, batteryPercent, wifiRSSI, 0);
   }
 #endif
 
@@ -285,6 +285,7 @@ void setup() {
                        batteryPercent, wifiRSSI, networkStartTime);
   }
 
+  unsigned long apiRequestsStartTime = millis();
 // MAKE API REQUESTS
 #if defined(API_PROTOCOL_HTTP)
   WiFiClient client;
@@ -332,12 +333,12 @@ void setup() {
     statusStr = "Air Pollution API";
     tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
     handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
-                       wifiRSSI, networkStartTime);
+                       wifiRSSI, millis() - apiRequestsStartTime);
   }
   // SEND MQTT STATUS (success case)
 #if HOME_ASSISTANT_MQTT_ENABLED
   if (WiFi.status() == WL_CONNECTED) {
-    sendMQTTStatus(batteryVoltage, batteryPercent, wifiRSSI, millis() - networkStartTime);
+    sendMQTTStatus(batteryVoltage, batteryPercent, wifiRSSI, millis() - apiRequestsStartTime);
   }
 #endif
 
