@@ -318,6 +318,14 @@ class Color(str, Enum):
 class Colors(BaseModel):
     outlookTemperatureBelowFreezing: Color = Color.BLACK
     outlookTemperatureAboveFreezing: Color = Color.BLACK
+    outlookConditionsIconAccent: Color = Color.BLACK
+    city: Color = Color.BLACK
+    date: Color = Color.BLACK
+    alert: Color = Color.BLACK
+    errorIcon: Color = Color.BLACK
+    statusBarBatteryWarning: Color = Color.BLACK
+    statusBarWeakWifi: Color = Color.BLACK
+    statusBarMessage: Color = Color.BLACK
 
 
 class ConfigSchema(BaseModel):

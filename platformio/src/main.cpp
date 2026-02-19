@@ -342,6 +342,8 @@ void setup() {
 #endif
 
   killWiFi();  // WiFi no longer needed
+  long networkDuration = millis() - networkStartTime;
+  Serial.println("Network operations took " + String(networkDuration) + " ms");
 
   enrichWithMoonData(environment_data);
 

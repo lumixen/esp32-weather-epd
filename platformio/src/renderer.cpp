@@ -58,10 +58,6 @@ GxEPD2_7C<GxEPD2_730c_GDEY073D46, GxEPD2_730c_GDEY073D46::HEIGHT / 4> display(
 GxEPD2_BW<GxEPD2_750, GxEPD2_750::HEIGHT> display(GxEPD2_750(PIN_EPD_CS, PIN_EPD_DC, PIN_EPD_RST, PIN_EPD_BUSY));
 #endif
 
-#ifndef ACCENT_COLOR
-#define ACCENT_COLOR GxEPD_BLACK
-#endif
-
 // Callback function for light sleep while epaper driver is busy.
 void beginLightSleep(const void *) {
 #if DEBUG_LEVEL >= 1
@@ -967,7 +963,7 @@ void drawCurrentVisibility(const current_t &current) {
       max_w -= 48;
 
       owm_alerts_t &cur_alert = alerts[alert_indices[0]];
-      display.drawInvertedBitmap(196, 8, getAlertBitmap48(cur_alert), 48, 48, ACCENT_COLOR);
+      display.drawInvertedBitmap(196, 8, getAlertBitmap48(cur_alert), 48, 48, COLORS_ALERT);
       // must be called after getAlertBitmap
       toTitleCase(cur_alert.event);
 
@@ -991,7 +987,7 @@ void drawCurrentVisibility(const current_t &current) {
       for (int i = 0; i < 2; ++i) {
         owm_alerts_t &cur_alert = alerts[alert_indices[i]];
 
-        display.drawInvertedBitmap(196, (i * 32), getAlertBitmap32(cur_alert), 32, 32, ACCENT_COLOR);
+        display.drawInvertedBitmap(196, (i * 32), getAlertBitmap32(cur_alert), 32, 32, COLORS_ALERT);
         // must be called after getAlertBitmap
         toTitleCase(cur_alert.event);
 
@@ -1011,9 +1007,9 @@ void drawCurrentVisibility(const current_t &current) {
   void drawLocationDate(const String &city, const String &date) {
     // location, date
     display.setFont(&FONT_16pt8b);
-    drawString(DISP_WIDTH - 6, 25, city, RIGHT, ACCENT_COLOR);
+    drawString(DISP_WIDTH - 6, 25, city, RIGHT, COLORS_CITY);
     display.setFont(&FONT_12pt8b);
-    drawString(DISP_WIDTH - 6, 32 + 4 + 17, date, RIGHT);
+    drawString(DISP_WIDTH - 6, 32 + 4 + 17, date, RIGHT, COLORS_DATE);
     return;
   }  // end drawLocationDate
 
@@ -1176,10 +1172,12 @@ void drawCurrentVisibility(const current_t &current) {
       dataStr = String(tempVal);
 #if defined(UNITS_TEMP_CELSIUS)
       dataStr += "\260";
-      uint16_t tempColor = tempVal < 0 ? COLORS_OUTLOOK_TEMPERATURE_BELOW_FREEZING : COLORS_OUTLOOK_TEMPERATURE_ABOVE_FREEZING;
+      uint16_t tempColor =
+          tempVal < 0 ? COLORS_OUTLOOK_TEMPERATURE_BELOW_FREEZING : COLORS_OUTLOOK_TEMPERATURE_ABOVE_FREEZING;
 #elif defined(UNITS_TEMP_FAHRENHEIT)
     dataStr += "\260";
-    uint16_t tempColor = tempVal < 32 ? COLORS_OUTLOOK_TEMPERATURE_BELOW_FREEZING : COLORS_OUTLOOK_TEMPERATURE_ABOVE_FREEZING;
+    uint16_t tempColor =
+        tempVal < 32 ? COLORS_OUTLOOK_TEMPERATURE_BELOW_FREEZING : COLORS_OUTLOOK_TEMPERATURE_ABOVE_FREEZING;
 #else
     uint16_t tempColor = GxEPD_BLACK;
 #endif
@@ -1250,7 +1248,8 @@ void drawCurrentVisibility(const current_t &current) {
         y0_t = y_t[i - 1];
         y1_t = y_t[i];
         // graph temperature
-        uint16_t color = hourly[i].temp < 0 ? COLORS_OUTLOOK_TEMPERATURE_BELOW_FREEZING : COLORS_OUTLOOK_TEMPERATURE_ABOVE_FREEZING;
+        uint16_t color =
+            hourly[i].temp < 0 ? COLORS_OUTLOOK_TEMPERATURE_BELOW_FREEZING : COLORS_OUTLOOK_TEMPERATURE_ABOVE_FREEZING;
         display.drawLine(x0_t, y0_t, x1_t, y1_t, color);
         display.drawLine(x0_t, y0_t + 1, x1_t, y1_t + 1, color);
         display.drawLine(x0_t - 1, y0_t, x1_t - 1, y1_t, color);
@@ -1286,7 +1285,11 @@ void drawCurrentVisibility(const current_t &current) {
             y_b = std::min(y_t[idx], y_b);
           }
           const uint8_t *bitmap = getHourlyForecastBitmap32(hourly[i], daily[day_idx]);
-          display.drawInvertedBitmap(xTick - 16, y_b - 32, bitmap, 32, 32, GxEPD_BLACK);
+          const uint16_t hourIconAccentColor =
+              getConditionsAccent(hourly[i].weather.id) == conditions_accent::WORTH_ACCENTING
+                  ? COLORS_OUTLOOK_CONDITIONS_ICON_ACCENT
+                  : GxEPD_BLACK;
+          display.drawInvertedBitmap(xTick - 16, y_b - 32, bitmap, 32, 32, hourIconAccentColor);
         }
 #endif
       }
@@ -1361,7 +1364,7 @@ void drawCurrentVisibility(const current_t &current) {
     uint8_t batPercent = calcBatPercent(batVoltage, MIN_BATTERY_VOLTAGE, MAX_BATTERY_VOLTAGE);
 #if defined(EPD_PANEL_GENERIC_3C_B) || defined(EPD_PANEL_DKE_3C_86BF) || defined(EPD_PANEL_GENERIC_7C_F)
     if (batVoltage < WARN_BATTERY_VOLTAGE) {
-      dataColor = ACCENT_COLOR;
+      dataColor = COLORS_STATUS_BAR_BATTERY_WARNING;
     }
 #endif
     dataStr = String(batPercent) + "%";
@@ -1376,7 +1379,7 @@ void drawCurrentVisibility(const current_t &current) {
 
     // WiFi
     dataStr = String(getWiFidesc(rssi));
-    dataColor = rssi >= -70 ? GxEPD_BLACK : ACCENT_COLOR;
+    dataColor = rssi >= -70 ? GxEPD_BLACK : COLORS_STATUS_BAR_WEAK_WIFI;
 #if STATUS_BAR_EXTRAS_WIFI_RSSI
     if (rssi != 0) {
       dataStr += " (" + String(rssi) + "dBm)";
@@ -1395,11 +1398,10 @@ void drawCurrentVisibility(const current_t &current) {
     pos -= sp;
 
     // status
-    dataColor = ACCENT_COLOR;
     if (!statusStr.isEmpty()) {
-      drawString(pos, DISP_HEIGHT - 1 - 4, statusStr, RIGHT, dataColor);
+      drawString(pos, DISP_HEIGHT - 1 - 4, statusStr, RIGHT, COLORS_STATUS_BAR_MESSAGE);
       pos -= getStringWidth(statusStr) + 24;
-      display.drawInvertedBitmap(pos, DISP_HEIGHT - 1 - 20, error_icon_24x24, 24, 24, dataColor);
+      display.drawInvertedBitmap(pos, DISP_HEIGHT - 1 - 20, error_icon_24x24, 24, 24, COLORS_STATUS_BAR_MESSAGE);
     }
 
     return;
@@ -1420,6 +1422,6 @@ void drawCurrentVisibility(const current_t &current) {
       drawMultiLnString(DISP_WIDTH / 2, DISP_HEIGHT / 2 + 196 / 2 + 21, errMsgLn1, CENTER, DISP_WIDTH - 200, 2, 55);
     }
     display.drawInvertedBitmap(DISP_WIDTH / 2 - 196 / 2, DISP_HEIGHT / 2 - 196 / 2 - 21, bitmap_196x196, 196, 196,
-                               ACCENT_COLOR);
+                               COLORS_ERROR_ICON);
     return;
   }  // end drawError

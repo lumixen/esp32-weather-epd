@@ -445,12 +445,12 @@ void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t w
                       FPSTR(HOME_ASSISTANT_MQTT_WIFI_RSSI_PAYLOAD), FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_RSSI),
                       rssiStr);
 
-    // 4. Publish Network Activity Duration
+    // 4. Publish API Activity Duration
     char durationStr[12];
     snprintf(durationStr, sizeof(durationStr), "%lu", networkActivityDuration);
-    publishMQTTSensor(mqtt, "Network activity duration", FPSTR(HOME_ASSISTANT_MQTT_NETWORK_ACTIVITY_DURATION_TOPIC),
-                      FPSTR(HOME_ASSISTANT_MQTT_NETWORK_ACTIVITY_DURATION_PAYLOAD),
-                      FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_NETWORK_ACTIVITY_DURATION), durationStr);
+    publishMQTTSensor(mqtt, "API activity duration", FPSTR(HOME_ASSISTANT_MQTT_API_ACTIVITY_DURATION_TOPIC),
+                      FPSTR(HOME_ASSISTANT_MQTT_API_ACTIVITY_DURATION_PAYLOAD),
+                      FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_API_ACTIVITY_DURATION), durationStr);
     mqtt.disconnect();
     delay(300);  // give the MQTT client time to send the outgoing packets before powering off WiFi
     Serial.println("MQTT publish complete.");
