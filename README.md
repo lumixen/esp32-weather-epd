@@ -40,7 +40,7 @@ Enclosure files and assembly instructions are available at [printables](https://
 
 3. **Configure the Software**
    - Create a `config.yml` file in the `platformio` folder.
-   - Copy and edit the example configuration to match your hardware and preferences (WiFi credentials, location, panel type, etc.).
+   - Copy and edit the [example configuration](#configuration) to match your hardware and preferences (WiFi credentials, location, panel type, etc.).
 
 4. **Compile and Upload**
    - Open the project in VS Code.
