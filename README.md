@@ -1,10 +1,10 @@
 ## Highlights
 
-- Optimized for the Lolin D32 board.
-- Uses [Open-Meteo](https://open-meteo.com/) as the primary weather API.
+- [Open-Meteo](https://open-meteo.com/) as the primary weather API.
+- Set up for Lolin D32 board.
 - Configuration is managed via a non-versioned YAML file.
-- Supports the DKE DEPG0750RWF86BF e-paper display.
-- Home Assistant integration through MQTT.
+- Supports the DKE DEPG0750RWF86BF 3-color e-paper display.
+- Home Assistant integration through MQTT with auto-discovery.
 
 ### ESP32 E-Paper Weather Display
 
@@ -265,3 +265,8 @@ A mapping of panel items to their display order (0-9). Allowed keys: SUNRISE, SU
 ### Home Assistant integration through MQTT
 
 The device supports Home Assistant integration via MQTT for monitoring. When enabled, the device publishes sensor data and device information using Home Assistant's MQTT discovery protocol.
+Available sensors:
+ - Battery Level (%)
+ - Battery Voltage
+ - API Activity Duration
+ - WIFI Signal Strength
