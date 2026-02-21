@@ -394,28 +394,88 @@ void printHeapUsage() {
 
 // Helper function to publish discovery and state for mqtt sensors.
 // Returns true if both publishes were successful, otherwise false.
-bool publishMQTTSensor(PubSubClient &mqtt, const char *sensorName, const String &discoveryTopic,
-                       const String &discoveryPayload, const String &stateTopic, const char *stateValue) {
-  if (mqtt.publish(discoveryTopic.c_str(), discoveryPayload.c_str(), true)) {
-    if (mqtt.publish(stateTopic.c_str(), stateValue, true)) {
-      Serial.printf("  Published %s\n", sensorName);
-      return true;
+// IMPORTANT: This function takes ownership of the char* pointers passed to it
+// and frees them (free()) before returning.
+bool publishMQTTSensor(PubSubClient &mqtt, const char *sensorName, char *discoveryTopic, char *discoveryPayload,
+                       char *stateTopic, const char *stateValue) {
+  bool success = false;
+
+  // Ensure we actually got valid pointers
+  if (discoveryTopic && discoveryPayload && stateTopic) {
+    if (mqtt.publish(discoveryTopic, discoveryPayload, true)) {
+      if (mqtt.publish(stateTopic, stateValue, true)) {
+        Serial.printf("  Published %s\n", sensorName);
+        success = true;
+      } else {
+        Serial.printf("  Warning: Failed to publish %s state\n", sensorName);
+      }
     } else {
-      Serial.printf("  Warning: Failed to publish %s state\n", sensorName);
-      return false;
+      Serial.printf("  Warning: Failed to publish %s discovery\n", sensorName);
     }
   } else {
-    Serial.printf("  Warning: Failed to publish %s discovery\n", sensorName);
-    return false;
+    Serial.printf("  Error: Memory allocation failed for %s\n", sensorName);
   }
+
+  // Free the memory allocated in formatMQTTString
+  if (discoveryTopic)
+    free(discoveryTopic);
+  if (discoveryPayload)
+    free(discoveryPayload);
+  if (stateTopic)
+    free(stateTopic);
+
+  return success;
 }
 
-String formatMQTTString(const char *progmemTemplate, const String &clientId) {
-  // Read from PROGMEM into a String object
-  String result = FPSTR(progmemTemplate);
-  // Replace placeholder
-  result.replace("${clientId}", clientId);
-  return result;
+// Allocates memory on the heap, formats the string, and returns a pointer.
+// The caller (publishMQTTSensor) must free this memory.
+char *formatMQTTString(const char *progmemTemplate, const char *clientId) {
+  // 1. Calculate required length
+  // We scan the PROGMEM string once to count length
+  size_t templateLen = strlen_P(progmemTemplate);
+  size_t clientLen = strlen(clientId);
+
+  // Allocate space: template + (4 * clientId) to be safe for multiple replacements
+  // +1 for null terminator.
+  size_t allocSize = templateLen + (clientLen * 4) + 1;
+
+  char *buffer = (char *) malloc(allocSize);
+
+  if (!buffer) {
+    Serial.println("OOM: formatMQTTString failed");
+    return nullptr;
+  }
+
+  size_t currentLen = 0;
+  char c;
+  const char *ptr = progmemTemplate;
+  const char *placeholder = "${clientId}";
+  int placeholderLen = 11;  // strlen("${clientId}")
+
+  while ((c = pgm_read_byte(ptr))) {
+    // Check for placeholder match
+    if (c == '$' && strncmp_P(ptr, placeholder, placeholderLen) == 0) {
+      if (currentLen + clientLen < allocSize) {
+        // Copy the replacement
+        memcpy(buffer + currentLen, clientId, clientLen);
+        currentLen += clientLen;
+        ptr += placeholderLen;  // Skip placeholder in template
+      } else {
+        // Buffer overflow prevented
+        break;
+      }
+    } else {
+      if (currentLen < allocSize - 1) {
+        buffer[currentLen++] = c;
+        ptr++;
+      } else {
+        // Buffer overflow prevented
+        break;
+      }
+    }
+  }
+  buffer[currentLen] = '\0';
+  return buffer;
 }
 
 void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t wifiRSSI,
@@ -426,6 +486,7 @@ void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t w
   macAddress.toLowerCase();
   String macSuffix = macAddress.substring(macAddress.length() - 6);
   String clientIdStr = "esp32_weather_display_" + macSuffix;
+  const char *clientId = clientIdStr.c_str();
 
   WiFiClient mqttWifi;
   PubSubClient mqtt(mqttWifi);
@@ -433,9 +494,9 @@ void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t w
   mqtt.setServer(D_HOME_ASSISTANT_MQTT_SERVER, HOME_ASSISTANT_MQTT_PORT);
 
   Serial.print("Connecting to MQTT with ID: ");
-  Serial.println(clientIdStr);
+  Serial.println(clientId);
 
-  bool connected = mqtt.connect(clientIdStr.c_str(), D_HOME_ASSISTANT_MQTT_USERNAME, D_HOME_ASSISTANT_MQTT_PASSWORD);
+  bool connected = mqtt.connect(clientId, D_HOME_ASSISTANT_MQTT_USERNAME, D_HOME_ASSISTANT_MQTT_PASSWORD);
   if (connected) {
     Serial.println("MQTT connected. Now publishing discovery and status.");
 
@@ -444,35 +505,35 @@ void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t w
     char voltageStr[8];
     snprintf(voltageStr, sizeof(voltageStr), "%.3f", batteryVoltage / 1000.0);
 
-    publishMQTTSensor(mqtt, "Battery voltage", formatMQTTString(HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_TOPIC, clientIdStr),
-                      formatMQTTString(HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_PAYLOAD, clientIdStr),
-                      formatMQTTString(MQTT_STATE_TOPIC_VOLTAGE, clientIdStr), voltageStr);
+    publishMQTTSensor(mqtt, "Battery voltage", formatMQTTString(HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_TOPIC, clientId),
+                      formatMQTTString(HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_PAYLOAD, clientId),
+                      formatMQTTString(MQTT_STATE_TOPIC_VOLTAGE, clientId), voltageStr);
 
     // 2. Publish Battery Percent
     char percentStr[4];
     snprintf(percentStr, sizeof(percentStr), "%u", batteryPercentage);
 
-    publishMQTTSensor(mqtt, "Battery percent", formatMQTTString(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_TOPIC, clientIdStr),
-                      formatMQTTString(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_PAYLOAD, clientIdStr),
-                      formatMQTTString(MQTT_STATE_TOPIC_PERCENT, clientIdStr), percentStr);
+    publishMQTTSensor(mqtt, "Battery percent", formatMQTTString(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_TOPIC, clientId),
+                      formatMQTTString(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_PAYLOAD, clientId),
+                      formatMQTTString(MQTT_STATE_TOPIC_PERCENT, clientId), percentStr);
 #endif
 
     // 3. Publish WiFi RSSI
     char rssiStr[5];
     snprintf(rssiStr, sizeof(rssiStr), "%d", wifiRSSI);
 
-    publishMQTTSensor(mqtt, "WiFi RSSI", formatMQTTString(HOME_ASSISTANT_MQTT_WIFI_RSSI_TOPIC, clientIdStr),
-                      formatMQTTString(HOME_ASSISTANT_MQTT_WIFI_RSSI_PAYLOAD, clientIdStr),
-                      formatMQTTString(MQTT_STATE_TOPIC_RSSI, clientIdStr), rssiStr);
+    publishMQTTSensor(mqtt, "WiFi RSSI", formatMQTTString(HOME_ASSISTANT_MQTT_WIFI_RSSI_TOPIC, clientId),
+                      formatMQTTString(HOME_ASSISTANT_MQTT_WIFI_RSSI_PAYLOAD, clientId),
+                      formatMQTTString(MQTT_STATE_TOPIC_RSSI, clientId), rssiStr);
 
     // 4. Publish API Activity Duration
     char durationStr[12];
     snprintf(durationStr, sizeof(durationStr), "%lu", apiActivityDuration);
 
     publishMQTTSensor(mqtt, "API activity duration",
-                      formatMQTTString(HOME_ASSISTANT_MQTT_API_ACTIVITY_DURATION_TOPIC, clientIdStr),
-                      formatMQTTString(HOME_ASSISTANT_MQTT_API_ACTIVITY_DURATION_PAYLOAD, clientIdStr),
-                      formatMQTTString(MQTT_STATE_TOPIC_API_ACTIVITY_DURATION, clientIdStr), durationStr);
+                      formatMQTTString(HOME_ASSISTANT_MQTT_API_ACTIVITY_DURATION_TOPIC, clientId),
+                      formatMQTTString(HOME_ASSISTANT_MQTT_API_ACTIVITY_DURATION_PAYLOAD, clientId),
+                      formatMQTTString(MQTT_STATE_TOPIC_API_ACTIVITY_DURATION, clientId), durationStr);
 
     mqtt.disconnect();
     delay(300);  // give the MQTT client time to send the outgoing packets before powering off WiFi
