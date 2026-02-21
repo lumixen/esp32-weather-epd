@@ -135,7 +135,7 @@ void enrichWithMoonData(environment_data_t &data) {
 
 void handleNetworkError(const unsigned char *icon, const String &statusStr, const String &tmpStr,
                         unsigned long startTime, tm *timeInfo, uint32_t batteryVoltage, uint8_t batteryPercent,
-                        int8_t wifiRSSI, unsigned long networkStartTime) {
+                        int8_t wifiRSSI) {
 #if HOME_ASSISTANT_MQTT_ENABLED
   if (WiFi.status() == WL_CONNECTED) {
     sendMQTTStatus(batteryVoltage, batteryPercent, wifiRSSI, 0);
@@ -282,7 +282,7 @@ void setup() {
   if (!timeConfigured) {
     Serial.println(TXT_TIME_SYNCHRONIZATION_FAILED);
     handleNetworkError(wi_time_4_196x196, TXT_TIME_SYNCHRONIZATION_FAILED, "", startTime, &timeInfo, batteryVoltage,
-                       batteryPercent, wifiRSSI, networkStartTime);
+                       batteryPercent, wifiRSSI);
   }
 
   unsigned long apiRequestsStartTime = millis();
@@ -307,7 +307,7 @@ void setup() {
     statusStr = "One Call " + OWM_ONECALL_VERSION + " API";
     tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
     handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
-                       wifiRSSI, networkStartTime);
+                       wifiRSSI);
   }
 #endif
 #ifdef WEATHER_API_OPEN_METEO
@@ -316,7 +316,7 @@ void setup() {
     statusStr = "Open Meteo API";
     tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
     handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
-                       wifiRSSI, networkStartTime);
+                       wifiRSSI);
   }
 #endif
 
@@ -333,7 +333,7 @@ void setup() {
     statusStr = "Air Pollution API";
     tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
     handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
-                       wifiRSSI, millis() - apiRequestsStartTime);
+                       wifiRSSI);
   }
   // SEND MQTT STATUS (success case)
 #if HOME_ASSISTANT_MQTT_ENABLED

@@ -1170,14 +1170,10 @@ void drawCurrentVisibility(const current_t &current) {
       // Temperature
       int tempVal = tempBoundMax - (i * yTempMajorTicks);
       dataStr = String(tempVal);
-#if defined(UNITS_TEMP_CELSIUS)
+#if defined(UNITS_TEMP_CELSIUS) || defined(UNITS_TEMP_FAHRENHEIT)
       dataStr += "\260";
-      uint16_t tempColor =
-          tempVal < 0 ? COLORS_OUTLOOK_TEMPERATURE_BELOW_FREEZING : COLORS_OUTLOOK_TEMPERATURE_ABOVE_FREEZING;
-#elif defined(UNITS_TEMP_FAHRENHEIT)
-    dataStr += "\260";
-    uint16_t tempColor =
-        tempVal < 32 ? COLORS_OUTLOOK_TEMPERATURE_BELOW_FREEZING : COLORS_OUTLOOK_TEMPERATURE_ABOVE_FREEZING;
+      uint16_t tempColor = tempVal < COLORS_OUTLOOK_THRESHOLD_TEMPERATURE ? COLORS_OUTLOOK_TEMPERATURE_BELOW_THRESHOLD
+                                                                          : COLORS_OUTLOOK_TEMPERATURE_ABOVE_THRESHOLD;
 #else
     uint16_t tempColor = GxEPD_BLACK;
 #endif
@@ -1247,12 +1243,41 @@ void drawCurrentVisibility(const current_t &current) {
         x1_t = x_t[i];
         y0_t = y_t[i - 1];
         y1_t = y_t[i];
-        // graph temperature
-        uint16_t color =
-            hourly[i].temp < 0 ? COLORS_OUTLOOK_TEMPERATURE_BELOW_FREEZING : COLORS_OUTLOOK_TEMPERATURE_ABOVE_FREEZING;
-        display.drawLine(x0_t, y0_t, x1_t, y1_t, color);
-        display.drawLine(x0_t, y0_t + 1, x1_t, y1_t + 1, color);
-        display.drawLine(x0_t - 1, y0_t, x1_t - 1, y1_t, color);
+
+        // determine colors
+        uint16_t previousColor = hourly[i - 1].temp < COLORS_OUTLOOK_THRESHOLD_TEMPERATURE
+                                     ? COLORS_OUTLOOK_TEMPERATURE_BELOW_THRESHOLD
+                                     : COLORS_OUTLOOK_TEMPERATURE_ABOVE_THRESHOLD;
+        uint16_t currentColor = hourly[i].temp < COLORS_OUTLOOK_THRESHOLD_TEMPERATURE
+                                    ? COLORS_OUTLOOK_TEMPERATURE_BELOW_THRESHOLD
+                                    : COLORS_OUTLOOK_TEMPERATURE_ABOVE_THRESHOLD;
+
+        if (previousColor == currentColor) {
+          // No crossing, draw single line
+          display.drawLine(x0_t, y0_t, x1_t, y1_t, currentColor);
+          display.drawLine(x0_t, y0_t + 1, x1_t, y1_t + 1, currentColor);
+          display.drawLine(x0_t - 1, y0_t, x1_t - 1, y1_t, currentColor);
+        } else {
+          // Threshold crossing detected. Calculate intersection point.
+          // y = mx + b -> We need x where temp is threshold.
+          float t0 = hourly[i - 1].temp;
+          float t1 = hourly[i].temp;
+          float ratio =
+              (COLORS_OUTLOOK_THRESHOLD_TEMPERATURE - t0) / (t1 - t0);  // ratio of distance from t0 to threshold
+
+          int x_cross = x0_t + (x1_t - x0_t) * ratio;
+          int y_cross = y0_t + (y1_t - y0_t) * ratio;
+
+          // Draw first segment (from i-1 to crossing)
+          display.drawLine(x0_t, y0_t, x_cross, y_cross, previousColor);
+          display.drawLine(x0_t, y0_t + 1, x_cross, y_cross + 1, previousColor);
+          display.drawLine(x0_t - 1, y0_t, x_cross - 1, y_cross, previousColor);
+
+          // Draw second segment (from crossing to i)
+          display.drawLine(x_cross, y_cross, x1_t, y1_t, currentColor);
+          display.drawLine(x_cross, y_cross + 1, x1_t, y1_t + 1, currentColor);
+          display.drawLine(x_cross - 1, y_cross, x1_t - 1, y1_t, currentColor);
+        }
 
         // draw hourly bitmap
 #if DISPLAY_HOURLY_ICONS
