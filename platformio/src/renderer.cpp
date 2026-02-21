@@ -58,10 +58,6 @@ GxEPD2_7C<GxEPD2_730c_GDEY073D46, GxEPD2_730c_GDEY073D46::HEIGHT / 4> display(
 GxEPD2_BW<GxEPD2_750, GxEPD2_750::HEIGHT> display(GxEPD2_750(PIN_EPD_CS, PIN_EPD_DC, PIN_EPD_RST, PIN_EPD_BUSY));
 #endif
 
-#ifndef ACCENT_COLOR
-#define ACCENT_COLOR GxEPD_BLACK
-#endif
-
 // Callback function for light sleep while epaper driver is busy.
 void beginLightSleep(const void *) {
 #if DEBUG_LEVEL >= 1
@@ -967,7 +963,7 @@ void drawCurrentVisibility(const current_t &current) {
       max_w -= 48;
 
       owm_alerts_t &cur_alert = alerts[alert_indices[0]];
-      display.drawInvertedBitmap(196, 8, getAlertBitmap48(cur_alert), 48, 48, ACCENT_COLOR);
+      display.drawInvertedBitmap(196, 8, getAlertBitmap48(cur_alert), 48, 48, COLORS_ALERT);
       // must be called after getAlertBitmap
       toTitleCase(cur_alert.event);
 
@@ -991,7 +987,7 @@ void drawCurrentVisibility(const current_t &current) {
       for (int i = 0; i < 2; ++i) {
         owm_alerts_t &cur_alert = alerts[alert_indices[i]];
 
-        display.drawInvertedBitmap(196, (i * 32), getAlertBitmap32(cur_alert), 32, 32, ACCENT_COLOR);
+        display.drawInvertedBitmap(196, (i * 32), getAlertBitmap32(cur_alert), 32, 32, COLORS_ALERT);
         // must be called after getAlertBitmap
         toTitleCase(cur_alert.event);
 
@@ -1011,9 +1007,9 @@ void drawCurrentVisibility(const current_t &current) {
   void drawLocationDate(const String &city, const String &date) {
     // location, date
     display.setFont(&FONT_16pt8b);
-    drawString(DISP_WIDTH - 6, 25, city, RIGHT, ACCENT_COLOR);
+    drawString(DISP_WIDTH - 6, 25, city, RIGHT, COLORS_CITY);
     display.setFont(&FONT_12pt8b);
-    drawString(DISP_WIDTH - 6, 32 + 4 + 17, date, RIGHT);
+    drawString(DISP_WIDTH - 6, 32 + 4 + 17, date, RIGHT, COLORS_DATE);
     return;
   }  // end drawLocationDate
 
@@ -1172,11 +1168,16 @@ void drawCurrentVisibility(const current_t &current) {
       int yTick = static_cast<int>(yPos0 + (i * yInterval));
       display.setFont(&FONT_8pt8b);
       // Temperature
-      dataStr = String(tempBoundMax - (i * yTempMajorTicks));
+      int tempVal = tempBoundMax - (i * yTempMajorTicks);
+      dataStr = String(tempVal);
 #if defined(UNITS_TEMP_CELSIUS) || defined(UNITS_TEMP_FAHRENHEIT)
       dataStr += "\260";
+      uint16_t tempColor = tempVal < COLORS_OUTLOOK_THRESHOLD_TEMPERATURE ? COLORS_OUTLOOK_TEMPERATURE_BELOW_THRESHOLD
+                                                                          : COLORS_OUTLOOK_TEMPERATURE_ABOVE_THRESHOLD;
+#else
+    uint16_t tempColor = GxEPD_BLACK;
 #endif
-      drawString(xPos0 - 8, yTick + 4, dataStr, RIGHT, ACCENT_COLOR);
+      drawString(xPos0 - 8, yTick + 4, dataStr, RIGHT, tempColor);
 
       if (precipBoundMax > 0) {  // don't labels if precip is 0
 #ifdef UNITS_HOURLY_PRECIP_POP
@@ -1184,7 +1185,7 @@ void drawCurrentVisibility(const current_t &current) {
         dataStr = String(100 - (i * 20));
         String precipUnit = "%";
 #else
-                               // Precipitation volume
+      // Precipitation volume
       float precipTick = precipBoundMax - (i * yPrecipMajorTickValue);
       precipTick = std::round(precipTick * precipRoundingMultiplier) / precipRoundingMultiplier;
       dataStr = String(precipTick, yPrecipMajorTickDecimals);
@@ -1242,10 +1243,41 @@ void drawCurrentVisibility(const current_t &current) {
         x1_t = x_t[i];
         y0_t = y_t[i - 1];
         y1_t = y_t[i];
-        // graph temperature
-        display.drawLine(x0_t, y0_t, x1_t, y1_t, ACCENT_COLOR);
-        display.drawLine(x0_t, y0_t + 1, x1_t, y1_t + 1, ACCENT_COLOR);
-        display.drawLine(x0_t - 1, y0_t, x1_t - 1, y1_t, ACCENT_COLOR);
+
+        // determine colors
+        uint16_t previousColor = hourly[i - 1].temp < COLORS_OUTLOOK_THRESHOLD_TEMPERATURE
+                                     ? COLORS_OUTLOOK_TEMPERATURE_BELOW_THRESHOLD
+                                     : COLORS_OUTLOOK_TEMPERATURE_ABOVE_THRESHOLD;
+        uint16_t currentColor = hourly[i].temp < COLORS_OUTLOOK_THRESHOLD_TEMPERATURE
+                                    ? COLORS_OUTLOOK_TEMPERATURE_BELOW_THRESHOLD
+                                    : COLORS_OUTLOOK_TEMPERATURE_ABOVE_THRESHOLD;
+
+        if (previousColor == currentColor) {
+          // No crossing, draw single line
+          display.drawLine(x0_t, y0_t, x1_t, y1_t, currentColor);
+          display.drawLine(x0_t, y0_t + 1, x1_t, y1_t + 1, currentColor);
+          display.drawLine(x0_t - 1, y0_t, x1_t - 1, y1_t, currentColor);
+        } else {
+          // Threshold crossing detected. Calculate intersection point.
+          // y = mx + b -> We need x where temp is threshold.
+          float t0 = hourly[i - 1].temp;
+          float t1 = hourly[i].temp;
+          float ratio =
+              (COLORS_OUTLOOK_THRESHOLD_TEMPERATURE - t0) / (t1 - t0);  // ratio of distance from t0 to threshold
+
+          int x_cross = x0_t + (x1_t - x0_t) * ratio;
+          int y_cross = y0_t + (y1_t - y0_t) * ratio;
+
+          // Draw first segment (from i-1 to crossing)
+          display.drawLine(x0_t, y0_t, x_cross, y_cross, previousColor);
+          display.drawLine(x0_t, y0_t + 1, x_cross, y_cross + 1, previousColor);
+          display.drawLine(x0_t - 1, y0_t, x_cross - 1, y_cross, previousColor);
+
+          // Draw second segment (from crossing to i)
+          display.drawLine(x_cross, y_cross, x1_t, y1_t, currentColor);
+          display.drawLine(x_cross, y_cross + 1, x1_t, y1_t + 1, currentColor);
+          display.drawLine(x_cross - 1, y_cross, x1_t - 1, y1_t, currentColor);
+        }
 
         // draw hourly bitmap
 #if DISPLAY_HOURLY_ICONS
@@ -1278,7 +1310,11 @@ void drawCurrentVisibility(const current_t &current) {
             y_b = std::min(y_t[idx], y_b);
           }
           const uint8_t *bitmap = getHourlyForecastBitmap32(hourly[i], daily[day_idx]);
-          display.drawInvertedBitmap(xTick - 16, y_b - 32, bitmap, 32, 32, GxEPD_BLACK);
+          const uint16_t hourIconAccentColor =
+              getConditionsAccent(hourly[i].weather.id) == conditions_accent::WORTH_ACCENTING
+                  ? COLORS_OUTLOOK_CONDITIONS_ICON_ACCENT
+                  : GxEPD_BLACK;
+          display.drawInvertedBitmap(xTick - 16, y_b - 32, bitmap, 32, 32, hourIconAccentColor);
         }
 #endif
       }
@@ -1353,7 +1389,7 @@ void drawCurrentVisibility(const current_t &current) {
     uint8_t batPercent = calcBatPercent(batVoltage, MIN_BATTERY_VOLTAGE, MAX_BATTERY_VOLTAGE);
 #if defined(EPD_PANEL_GENERIC_3C_B) || defined(EPD_PANEL_DKE_3C_86BF) || defined(EPD_PANEL_GENERIC_7C_F)
     if (batVoltage < WARN_BATTERY_VOLTAGE) {
-      dataColor = ACCENT_COLOR;
+      dataColor = COLORS_STATUS_BAR_BATTERY_WARNING;
     }
 #endif
     dataStr = String(batPercent) + "%";
@@ -1368,7 +1404,7 @@ void drawCurrentVisibility(const current_t &current) {
 
     // WiFi
     dataStr = String(getWiFidesc(rssi));
-    dataColor = rssi >= -70 ? GxEPD_BLACK : ACCENT_COLOR;
+    dataColor = rssi >= -70 ? GxEPD_BLACK : COLORS_STATUS_BAR_WEAK_WIFI;
 #if STATUS_BAR_EXTRAS_WIFI_RSSI
     if (rssi != 0) {
       dataStr += " (" + String(rssi) + "dBm)";
@@ -1387,11 +1423,10 @@ void drawCurrentVisibility(const current_t &current) {
     pos -= sp;
 
     // status
-    dataColor = ACCENT_COLOR;
     if (!statusStr.isEmpty()) {
-      drawString(pos, DISP_HEIGHT - 1 - 4, statusStr, RIGHT, dataColor);
+      drawString(pos, DISP_HEIGHT - 1 - 4, statusStr, RIGHT, COLORS_STATUS_BAR_MESSAGE);
       pos -= getStringWidth(statusStr) + 24;
-      display.drawInvertedBitmap(pos, DISP_HEIGHT - 1 - 20, error_icon_24x24, 24, 24, dataColor);
+      display.drawInvertedBitmap(pos, DISP_HEIGHT - 1 - 20, error_icon_24x24, 24, 24, COLORS_STATUS_BAR_MESSAGE);
     }
 
     return;
@@ -1412,6 +1447,6 @@ void drawCurrentVisibility(const current_t &current) {
       drawMultiLnString(DISP_WIDTH / 2, DISP_HEIGHT / 2 + 196 / 2 + 21, errMsgLn1, CENTER, DISP_WIDTH - 200, 2, 55);
     }
     display.drawInvertedBitmap(DISP_WIDTH / 2 - 196 / 2, DISP_HEIGHT / 2 - 196 / 2 - 21, bitmap_196x196, 196, 196,
-                               ACCENT_COLOR);
+                               COLORS_ERROR_ICON);
     return;
   }  // end drawError

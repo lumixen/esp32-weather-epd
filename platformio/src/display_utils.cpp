@@ -612,6 +612,12 @@ template<int BitmapSize> const uint8_t *getConditionsBitmap(int id, bool day, bo
       return getBitmap(wi_na, BitmapSize);
   }
 }  // end getConditionsBitmap
+
+const conditions_accent getConditionsAccent(int id) {
+  // Just stub
+  return conditions_accent::NOT_WORTH_ACCENTING;
+}
+
 #endif
 #ifdef WEATHER_API_OPEN_METEO
 /* Takes the current weather and today's daily weather forcast (from
@@ -794,6 +800,31 @@ template<int BitmapSize> const uint8_t *getConditionsBitmap(int id, bool day, bo
       return getBitmap(wi_na, BitmapSize);
   }
 }  // end getConditionsBitmap
+
+const conditions_accent getConditionsAccent(int id) {
+  switch (id) {
+    case 61: // Rain: Slight, moderate and heavy intensity
+    case 63: // Rain: Slight, moderate and heavy intensity
+    case 65: // Rain: Slight, moderate and heavy intensity
+    case 66: // Freezing Rain: Light and heavy intensity
+    case 67: // Freezing Rain: Light and heavy intensity
+    case 71: // Snow fall: Slight, moderate, and heavy intensity
+    case 73: // Snow fall: Slight, moderate, and heavy intensity
+    case 75: // Snow fall: Slight, moderate, and heavy intensity
+    case 77: // Snow grains
+    case 80: // Rain showers: Slight, moderate, and violent
+    case 81: // Rain showers: Slight, moderate, and violent
+    case 82: // Rain showers: Slight, moderate, and violent
+    case 85: // Snow showers slight and heavy
+    case 86: // Snow showers slight and heavy
+    case 95: // Thunderstorm: Slight or moderate
+    case 96: // Thunderstorm with slight and heavy hail
+    case 99: // Thunderstorm with slight and heavy hail
+      return conditions_accent::WORTH_ACCENTING;
+    default:
+      return conditions_accent::NOT_WORTH_ACCENTING;
+  }
+}
 #endif
 
 /* Takes the hourly weather forecast and

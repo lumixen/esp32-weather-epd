@@ -1,10 +1,10 @@
 ## Highlights
 
-- Optimized for the Lolin D32 board.
-- Uses [Open-Meteo](https://open-meteo.com/) as the primary weather API.
+- [Open-Meteo](https://open-meteo.com/) as the primary weather API.
+- Set up for Lolin D32 board.
 - Configuration is managed via a non-versioned YAML file.
-- Supports the DKE DEPG0750RWF86BF e-paper display.
-- Home Assistant integration through MQTT.
+- Supports the DKE DEPG0750RWF86BF 3-color e-paper display.
+- Home Assistant integration through MQTT with auto-discovery.
 
 ### ESP32 E-Paper Weather Display
 
@@ -40,7 +40,7 @@ Enclosure files and assembly instructions are available at [printables](https://
 
 3. **Configure the Software**
    - Create a `config.yml` file in the `platformio` folder.
-   - Copy and edit the example configuration to match your hardware and preferences (WiFi credentials, location, panel type, etc.).
+   - Copy and edit the [example configuration](#configuration) to match your hardware and preferences (WiFi credentials, location, panel type, etc.).
 
 4. **Compile and Upload**
    - Open the project in VS Code.
@@ -148,8 +148,26 @@ homeAssistantMqtt:
   clientId: esp32-weather-epd
   deviceName: Device Name
   discoveryPrefix: homeassistant
+colors:
+  outlookTemperatureBelowFreezing: red
+  outlookTemperatureAboveFreezing: black
+  outlookConditionsIconAccent: red
+  city: black
+  date: red
+  alert: red
+  errorIcon: red
+  statusBarBatteryWarning: red
+  statusBarWeakWifi: red
+  statusBarMessage: red
 ```
+
+The full list of actual available options can be found in [schema.py](platformio/config/schema.py).
 
 ### Home Assistant integration through MQTT
 
 The device supports Home Assistant integration via MQTT for monitoring. When enabled, the device publishes sensor data and device information using Home Assistant's MQTT discovery protocol.
+Available sensors:
+ - Battery Level (%)
+ - Battery Voltage
+ - API Activity Duration
+ - WIFI Signal Strength

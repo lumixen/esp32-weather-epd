@@ -273,6 +273,13 @@ class Wifi(BaseModel):
                     "(where X is a hexadecimal digit)"
                 )
         return self
+    
+    def bssid_to_config_value(self):
+        # Convert BSSID string to C++ uint8_t array format
+        cleaned = self.bssid.replace(":", "").upper()
+        hex_pairs = [cleaned[i : i + 2] for i in range(0, len(cleaned), 2)]
+        formatted = ", ".join([f"0x{pair}" for pair in hex_pairs])
+        return f"{{{formatted}}}"
 
 
 class PinsConfig(BaseModel):
@@ -296,6 +303,30 @@ class HomeAssistantMqttConfig(BaseModel):
     clientId: str = "esp32-weather-epd"
     deviceName: str = "Weather EPD"
     discoveryPrefix: str = "homeassistant"
+
+
+class Color(str, Enum):
+    BLACK = "black"
+    RED = "red"
+
+    def to_config_value(self):
+        if self == Color.BLACK:
+            return "GxEPD_BLACK"
+        return "GxEPD_RED"
+
+
+class Colors(BaseModel):
+    outlookThresholdTemperature: int = 0
+    outlookTemperatureBelowThreshold: Color = Color.BLACK
+    outlookTemperatureAboveThreshold: Color = Color.BLACK
+    outlookConditionsIconAccent: Color = Color.BLACK
+    city: Color = Color.BLACK
+    date: Color = Color.BLACK
+    alert: Color = Color.BLACK
+    errorIcon: Color = Color.BLACK
+    statusBarBatteryWarning: Color = Color.BLACK
+    statusBarWeakWifi: Color = Color.BLACK
+    statusBarMessage: Color = Color.BLACK
 
 
 class ConfigSchema(BaseModel):
@@ -375,6 +406,7 @@ class ConfigSchema(BaseModel):
         }
     )
     moonPhaseStyle: MoonPhaseStyle = MoonPhaseStyle.PRIMARY
+    colors: Colors = Field(default_factory=Colors)
 
     @model_validator(mode="after")
     def validate_apikey(self):
