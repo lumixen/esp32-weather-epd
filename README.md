@@ -145,7 +145,6 @@ homeAssistantMqtt:
   port: 1883
   username: USERNAME
   password: PASSWORD
-  clientId: esp32-weather-epd
   deviceName: Device Name
   discoveryPrefix: homeassistant
 colors:

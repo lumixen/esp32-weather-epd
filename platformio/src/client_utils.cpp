@@ -410,15 +410,32 @@ bool publishMQTTSensor(PubSubClient &mqtt, const char *sensorName, const String 
   }
 }
 
+String formatMQTTString(const char *progmemTemplate, const String &clientId) {
+  // Read from PROGMEM into a String object
+  String result = FPSTR(progmemTemplate);
+  // Replace placeholder
+  result.replace("${clientId}", clientId);
+  return result;
+}
+
 void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t wifiRSSI,
                     unsigned long apiActivityDuration) {
+  // Generate dynamic client ID based on MAC
+  String macAddress = WiFi.macAddress();
+  macAddress.replace(":", "");
+  macAddress.toLowerCase();
+  String macSuffix = macAddress.substring(macAddress.length() - 6);
+  String clientIdStr = "esp32_weather_display_" + macSuffix;
+
   WiFiClient mqttWifi;
   PubSubClient mqtt(mqttWifi);
-  mqtt.setBufferSize(512);
+  mqtt.setBufferSize(768);
   mqtt.setServer(D_HOME_ASSISTANT_MQTT_SERVER, HOME_ASSISTANT_MQTT_PORT);
-  Serial.println("Connecting to MQTT...");
-  bool connected =
-      mqtt.connect(D_HOME_ASSISTANT_MQTT_CLIENT_ID, D_HOME_ASSISTANT_MQTT_USERNAME, D_HOME_ASSISTANT_MQTT_PASSWORD);
+
+  Serial.print("Connecting to MQTT with ID: ");
+  Serial.println(clientIdStr);
+
+  bool connected = mqtt.connect(clientIdStr.c_str(), D_HOME_ASSISTANT_MQTT_USERNAME, D_HOME_ASSISTANT_MQTT_PASSWORD);
   if (connected) {
     Serial.println("MQTT connected. Now publishing discovery and status.");
 
@@ -426,31 +443,37 @@ void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t w
     // 1. Publish Battery Voltage
     char voltageStr[8];
     snprintf(voltageStr, sizeof(voltageStr), "%.3f", batteryVoltage / 1000.0);
-    publishMQTTSensor(mqtt, "Battery voltage", FPSTR(HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_TOPIC),
-                      FPSTR(HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_PAYLOAD),
-                      FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_VOLTAGE), voltageStr);
+
+    publishMQTTSensor(mqtt, "Battery voltage", formatMQTTString(HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_TOPIC, clientIdStr),
+                      formatMQTTString(HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_PAYLOAD, clientIdStr),
+                      formatMQTTString(MQTT_STATE_TOPIC_VOLTAGE, clientIdStr), voltageStr);
 
     // 2. Publish Battery Percent
     char percentStr[4];
     snprintf(percentStr, sizeof(percentStr), "%u", batteryPercentage);
-    publishMQTTSensor(mqtt, "Battery percent", FPSTR(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_TOPIC),
-                      FPSTR(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_PAYLOAD),
-                      FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_PERCENT), percentStr);
+
+    publishMQTTSensor(mqtt, "Battery percent", formatMQTTString(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_TOPIC, clientIdStr),
+                      formatMQTTString(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_PAYLOAD, clientIdStr),
+                      formatMQTTString(MQTT_STATE_TOPIC_PERCENT, clientIdStr), percentStr);
 #endif
 
     // 3. Publish WiFi RSSI
     char rssiStr[5];
     snprintf(rssiStr, sizeof(rssiStr), "%d", wifiRSSI);
-    publishMQTTSensor(mqtt, "WiFi RSSI", FPSTR(HOME_ASSISTANT_MQTT_WIFI_RSSI_TOPIC),
-                      FPSTR(HOME_ASSISTANT_MQTT_WIFI_RSSI_PAYLOAD), FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_RSSI),
-                      rssiStr);
+
+    publishMQTTSensor(mqtt, "WiFi RSSI", formatMQTTString(HOME_ASSISTANT_MQTT_WIFI_RSSI_TOPIC, clientIdStr),
+                      formatMQTTString(HOME_ASSISTANT_MQTT_WIFI_RSSI_PAYLOAD, clientIdStr),
+                      formatMQTTString(MQTT_STATE_TOPIC_RSSI, clientIdStr), rssiStr);
 
     // 4. Publish API Activity Duration
     char durationStr[12];
     snprintf(durationStr, sizeof(durationStr), "%lu", apiActivityDuration);
-    publishMQTTSensor(mqtt, "API activity duration", FPSTR(HOME_ASSISTANT_MQTT_API_ACTIVITY_DURATION_TOPIC),
-                      FPSTR(HOME_ASSISTANT_MQTT_API_ACTIVITY_DURATION_PAYLOAD),
-                      FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_API_ACTIVITY_DURATION), durationStr);
+
+    publishMQTTSensor(mqtt, "API activity duration",
+                      formatMQTTString(HOME_ASSISTANT_MQTT_API_ACTIVITY_DURATION_TOPIC, clientIdStr),
+                      formatMQTTString(HOME_ASSISTANT_MQTT_API_ACTIVITY_DURATION_PAYLOAD, clientIdStr),
+                      formatMQTTString(MQTT_STATE_TOPIC_API_ACTIVITY_DURATION, clientIdStr), durationStr);
+
     mqtt.disconnect();
     delay(300);  // give the MQTT client time to send the outgoing packets before powering off WiFi
     Serial.println("MQTT publish complete.");
