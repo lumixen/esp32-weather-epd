@@ -462,6 +462,7 @@ char *formatMQTTString(const char *progmemTemplate, const char *clientId) {
         ptr += placeholderLen;  // Skip placeholder in template
       } else {
         // Buffer overflow prevented
+        Serial.println("Warning: formatMQTTString buffer overflow, output truncated");
         break;
       }
     } else {
@@ -470,6 +471,7 @@ char *formatMQTTString(const char *progmemTemplate, const char *clientId) {
         ptr++;
       } else {
         // Buffer overflow prevented
+        Serial.println("Warning: formatMQTTString buffer overflow, output truncated");
         break;
       }
     }
