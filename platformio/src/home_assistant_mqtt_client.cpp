@@ -137,5 +137,7 @@ void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t w
     haMqttClient.loopStop();
   }
   Serial.println("MQTT total time: " + String((millis() - startTime) / 1000.0, 3) + "s");
+  vSemaphoreDelete(haMqttConnectSemaphore);
+  haMqttConnectSemaphore = NULL;
 }
 #endif  // HOME_ASSISTANT_MQTT_ENABLED
