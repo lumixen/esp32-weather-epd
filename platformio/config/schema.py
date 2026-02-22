@@ -300,7 +300,6 @@ class HomeAssistantMqttConfig(BaseModel):
     port: int = 1883
     username: str = ""
     password: str = ""
-    clientId: str = "esp32-weather-epd"
     deviceName: str = "Weather EPD"
     discoveryPrefix: str = "homeassistant"
 

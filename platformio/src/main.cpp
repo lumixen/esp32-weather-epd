@@ -22,10 +22,6 @@
 #include <time.h>
 #include <WiFi.h>
 #include <Wire.h>
-#if HOME_ASSISTANT_MQTT_ENABLED
-#include <PubSubClient.h>
-#include <pgmspace.h>
-#endif
 
 #include "_locale.h"
 #include "api_response.h"
@@ -35,6 +31,9 @@
 #include "icons/icons_196x196.h"
 #include "renderer.h"
 #include "moon_tools.h"
+#if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
+#include "home_assistant_mqtt_client.h"
+#endif
 
 #ifndef API_PROTOCOL_HTTP
 #include <WiFiClientSecure.h>
@@ -136,7 +135,7 @@ void enrichWithMoonData(environment_data_t &data) {
 void handleNetworkError(const unsigned char *icon, const String &statusStr, const String &tmpStr,
                         unsigned long startTime, tm *timeInfo, uint32_t batteryVoltage, uint8_t batteryPercent,
                         int8_t wifiRSSI) {
-#if HOME_ASSISTANT_MQTT_ENABLED
+#if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
   if (WiFi.status() == WL_CONNECTED) {
     sendMQTTStatus(batteryVoltage, batteryPercent, wifiRSSI, 0);
   }
@@ -285,7 +284,9 @@ void setup() {
                        batteryPercent, wifiRSSI);
   }
 
+#if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
   unsigned long apiRequestsStartTime = millis();
+#endif
 // MAKE API REQUESTS
 #if defined(API_PROTOCOL_HTTP)
   WiFiClient client;
@@ -336,7 +337,7 @@ void setup() {
                        wifiRSSI);
   }
   // SEND MQTT STATUS (success case)
-#if HOME_ASSISTANT_MQTT_ENABLED
+#if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
   if (WiFi.status() == WL_CONNECTED) {
     sendMQTTStatus(batteryVoltage, batteryPercent, wifiRSSI, millis() - apiRequestsStartTime);
   }
@@ -344,7 +345,7 @@ void setup() {
 
   killWiFi();  // WiFi no longer needed
   long networkDuration = millis() - networkStartTime;
-  Serial.println("Network operations took " + String(networkDuration) + " ms");
+  Serial.println("Network operations took " + String(networkDuration / 1000.0, 3) + " s");
 
   enrichWithMoonData(environment_data);
 

@@ -20,9 +20,6 @@
 #include <WiFiClient.h>
 #include "api_response.h"
 #include "config.h"
-#ifdef HOME_ASSISTANT_MQTT_ENABLED
-#include <PubSubClient.h>
-#endif
 
 wl_status_t startWiFi(int8_t &wifiRSSI);
 void killWiFi();
@@ -32,8 +29,3 @@ bool printLocalTime(tm *timeInfo);
 int getOWMonecall(WiFiClient &client, environment_data_t &r);
 int getOMCall(WiFiClient &client, environment_data_t &r);
 int getAirPollution(WiFiClient &client, air_pollution_t &r);
-
-#ifdef HOME_ASSISTANT_MQTT_ENABLED
-void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t wifiRSSI,
-                    unsigned long networkActivityDuration);
-#endif

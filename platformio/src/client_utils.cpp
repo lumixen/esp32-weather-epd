@@ -39,7 +39,6 @@
 #include "config.h"
 #include "display_utils.h"
 #include "renderer.h"
-#include "home_assistant_mqtt.h"
 
 #ifdef API_PROTOCOL_HTTP
 static const uint16_t PORT = 80;
@@ -389,74 +388,3 @@ void printHeapUsage() {
   Serial.println("[debug] Max Allocatable : " + String(ESP.getMaxAllocHeap()) + " B");
   return;
 }
-
-#if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
-
-// Helper function to publish discovery and state for mqtt sensors.
-// Returns true if both publishes were successful, otherwise false.
-bool publishMQTTSensor(PubSubClient &mqtt, const char *sensorName, const String &discoveryTopic,
-                       const String &discoveryPayload, const String &stateTopic, const char *stateValue) {
-  if (mqtt.publish(discoveryTopic.c_str(), discoveryPayload.c_str(), true)) {
-    if (mqtt.publish(stateTopic.c_str(), stateValue, true)) {
-      Serial.printf("  Published %s\n", sensorName);
-      return true;
-    } else {
-      Serial.printf("  Warning: Failed to publish %s state\n", sensorName);
-      return false;
-    }
-  } else {
-    Serial.printf("  Warning: Failed to publish %s discovery\n", sensorName);
-    return false;
-  }
-}
-
-void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t wifiRSSI,
-                    unsigned long apiActivityDuration) {
-  WiFiClient mqttWifi;
-  PubSubClient mqtt(mqttWifi);
-  mqtt.setBufferSize(512);
-  mqtt.setServer(D_HOME_ASSISTANT_MQTT_SERVER, HOME_ASSISTANT_MQTT_PORT);
-  Serial.println("Connecting to MQTT...");
-  bool connected =
-      mqtt.connect(D_HOME_ASSISTANT_MQTT_CLIENT_ID, D_HOME_ASSISTANT_MQTT_USERNAME, D_HOME_ASSISTANT_MQTT_PASSWORD);
-  if (connected) {
-    Serial.println("MQTT connected. Now publishing discovery and status.");
-
-#if BATTERY_MONITORING
-    // 1. Publish Battery Voltage
-    char voltageStr[8];
-    snprintf(voltageStr, sizeof(voltageStr), "%.3f", batteryVoltage / 1000.0);
-    publishMQTTSensor(mqtt, "Battery voltage", FPSTR(HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_TOPIC),
-                      FPSTR(HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_PAYLOAD),
-                      FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_VOLTAGE), voltageStr);
-
-    // 2. Publish Battery Percent
-    char percentStr[4];
-    snprintf(percentStr, sizeof(percentStr), "%u", batteryPercentage);
-    publishMQTTSensor(mqtt, "Battery percent", FPSTR(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_TOPIC),
-                      FPSTR(HOME_ASSISTANT_MQTT_BATTERY_PERCENT_PAYLOAD),
-                      FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_PERCENT), percentStr);
-#endif
-
-    // 3. Publish WiFi RSSI
-    char rssiStr[5];
-    snprintf(rssiStr, sizeof(rssiStr), "%d", wifiRSSI);
-    publishMQTTSensor(mqtt, "WiFi RSSI", FPSTR(HOME_ASSISTANT_MQTT_WIFI_RSSI_TOPIC),
-                      FPSTR(HOME_ASSISTANT_MQTT_WIFI_RSSI_PAYLOAD), FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_RSSI),
-                      rssiStr);
-
-    // 4. Publish API Activity Duration
-    char durationStr[12];
-    snprintf(durationStr, sizeof(durationStr), "%lu", apiActivityDuration);
-    publishMQTTSensor(mqtt, "API activity duration", FPSTR(HOME_ASSISTANT_MQTT_API_ACTIVITY_DURATION_TOPIC),
-                      FPSTR(HOME_ASSISTANT_MQTT_API_ACTIVITY_DURATION_PAYLOAD),
-                      FPSTR(HOME_ASSISTANT_MQTT_STATE_TOPIC_API_ACTIVITY_DURATION), durationStr);
-    mqtt.disconnect();
-    delay(300);  // give the MQTT client time to send the outgoing packets before powering off WiFi
-    Serial.println("MQTT publish complete.");
-  } else {
-    Serial.println(mqtt.state());
-    Serial.println("MQTT connection failed.");
-  }
-}
-#endif  // HOME_ASSISTANT_MQTT_ENABLED
