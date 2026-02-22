@@ -3,6 +3,7 @@
 #include "config.h"
 
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
+#include <pgmspace.h>
 
 // Base topic prefix for state messages
 #define MQTT_STATE_BASE_TOPIC "esp32_weather_epd/"
