@@ -284,6 +284,9 @@ class Wifi(BaseModel):
 
 class PinsConfig(BaseModel):
     batAdc: int = 35
+    bmePwr: int = 27
+    bmeSDA: int = 21
+    bmeSCL: int = 22
     epdBusy: int = 14
     epdCS: int = 13
     epdRst: int = 21
@@ -374,6 +377,7 @@ class ConfigSchema(BaseModel):
     batteryMonitoring: bool = True
     debugLevel: int = 0  # TODO: From 0 to 2
     pin: PinsConfig = Field(default_factory=PinsConfig)
+    bmeAddress: int = 0x76
     wifi: Wifi = Field(default_factory=Wifi)
     owmApikey: str | None = None
     owmOnecallVersion: str = "3.0"
@@ -425,6 +429,7 @@ class ConfigSchema(BaseModel):
             "HUMIDITY",
             "UVI",
             "PRESSURE",
+            "INPRESSURE",
             "AIR_QUALITY",
             "VISIBILITY",
             "MOONRISE",

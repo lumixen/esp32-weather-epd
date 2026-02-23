@@ -73,7 +73,7 @@ void drawMultiLnString(int16_t x, int16_t y, const String &text, alignment_t ali
 void beginLightSleep(const void *);
 void initDisplay();
 void powerOffDisplay();
-void drawCurrentConditions(const current_t &current, const daily_t &today, const air_pollution_t &air_pollution);
+void drawCurrentConditions(const current_t &current, const daily_t &today, const air_pollution_t &air_pollution, std::optional<float> inPressure);
 void drawForecast(const daily_t *daily, tm timeInfo);
 void drawAlerts(std::vector<owm_alerts_t> &alerts, const String &city, const String &date);
 void drawLocationDate(const String &city, const String &date);
@@ -92,3 +92,4 @@ void drawCurrentUVI(const current_t &current);
 void drawCurrentVisibility(const current_t &current);
 void drawCurrentWind(const current_t &current);
 void drawCurrentDewpoint(const current_t &current);
+void drawCurrentInPressure(std::optional<float> inPressure);

@@ -34,6 +34,8 @@
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
 #include "home_assistant_mqtt_client.h"
 #endif
+#include "env_sensor.h"
+#include "env_sensor_bme280.h"
 
 #ifndef API_PROTOCOL_HTTP
 #include <WiFiClientSecure.h>
@@ -47,6 +49,12 @@ static environment_data_t environment_data;
 static air_pollution_t air_pollution;
 
 Preferences prefs;
+
+SemaphoreHandle_t sensorReadingDoneSemaphore;
+std::optional<float> inTemp = std::nullopt;
+std::optional<float> inHumidity = std::nullopt;
+std::optional<float> inPressure = std::nullopt;
+String sensorStatusStr;
 
 // RTC_DATA_ATTR variables survive deep sleep resets, but not power cycles.
 // They are used to store data that must persist across deep sleep cycles, such as the wake-up counter.
@@ -142,12 +150,39 @@ void handleNetworkError(const unsigned char *icon, const String &statusStr, cons
 #endif
 
   killWiFi();
+  if (!xSemaphoreTake(sensorReadingDoneSemaphore, pdMS_TO_TICKS(2000) == pdTRUE)) {
+    Serial.println("[error] Timeout waiting for sensor reading to complete");
+  }
   initDisplay();
   do {
     drawError(icon, statusStr, tmpStr);
   } while (display.nextPage());
   powerOffDisplay();
   beginDeepSleep(startTime, timeInfo);
+}
+
+void envSensorReadingTask(void *pvParameters) {
+  EnvSensor *sensor = new BME280EnvSensor();
+  if (sensor->begin()) {
+    inTemp = sensor->getTemperature();
+    inHumidity = sensor->getHumidity();
+    inPressure = sensor->getPressure();
+
+    Serial.println("Temp: " + String(inTemp.value_or(NAN)) + "°C, Humidity: " + String(inHumidity.value_or(NAN)) +
+                   "%, Pressure: " + String(inPressure.value_or(NAN)) + " hPa");
+
+    if (std::isnan(inTemp.value_or(NAN)) || std::isnan(inHumidity.value_or(NAN)) ||
+        std::isnan(inPressure.value_or(NAN))) {
+      sensorStatusStr = "BME " + String(TXT_READ_FAILED);
+    } else {
+      sensorStatusStr = TXT_SUCCESS;
+    }
+  } else {
+    sensorStatusStr = "BME " + String(TXT_NOT_FOUND);
+  }
+  delete sensor;
+  xSemaphoreGive(sensorReadingDoneSemaphore);  // Signal completion
+  vTaskDelete(NULL);                           // Delete this task when done
 }
 
 /* Program entry point.
@@ -221,6 +256,15 @@ void setup() {
   String statusStr = {};
   String tmpStr = {};
   tm timeInfo = {};
+
+  sensorReadingDoneSemaphore = xSemaphoreCreateBinary();
+  xTaskCreate(envSensorReadingTask,  // Task function
+              "EnvSensorReadingTask",
+              4096,  // Stack size
+              NULL,  // Parameters
+              1,     // Priority
+              NULL   // Task handle
+  );
 
   // START TIMING FOR WIFI + TIME SYNC + API
   unsigned long networkStartTime = millis();
@@ -354,10 +398,14 @@ void setup() {
   String dateStr;
   getDateStr(dateStr, &timeInfo);
 
+  if (!xSemaphoreTake(sensorReadingDoneSemaphore, pdMS_TO_TICKS(2000) == pdTRUE)) {
+    Serial.println("[error] Timeout waiting for sensor reading to complete");
+  }
+  
   // RENDER FULL REFRESH
   initDisplay();
   do {
-    drawCurrentConditions(environment_data.current, environment_data.daily[0], air_pollution);
+    drawCurrentConditions(environment_data.current, environment_data.daily[0], air_pollution, inPressure.value_or(NAN));
     Serial.println("Drawing current conditions");
     drawOutlookGraph(environment_data.hourly, environment_data.daily, timeInfo);
     Serial.println("Drawing outlook graph");
