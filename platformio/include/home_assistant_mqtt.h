@@ -17,6 +17,14 @@ static const char HOME_ASSISTANT_MQTT_WIFI_RSSI_TOPIC[] PROGMEM =
     D_HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/sensor/${clientId}/wifi_rssi/config";
 static const char HOME_ASSISTANT_MQTT_API_ACTIVITY_DURATION_TOPIC[] PROGMEM =
     D_HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/sensor/${clientId}/api_activity_duration/config";
+#ifndef BME_TYPE_NONE
+static const char HOME_ASSISTANT_MQTT_TEMPERATURE_TOPIC[] PROGMEM =
+    D_HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/sensor/${clientId}/temperature/config";
+static const char HOME_ASSISTANT_MQTT_HUMIDITY_TOPIC[] PROGMEM =
+    D_HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/sensor/${clientId}/humidity/config";
+static const char HOME_ASSISTANT_MQTT_PRESSURE_TOPIC[] PROGMEM =
+    D_HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/sensor/${clientId}/pressure/config";
+#endif  // BME_TYPE_NONE
 
 // State Topics
 static const char MQTT_STATE_TOPIC_VOLTAGE[] PROGMEM = MQTT_STATE_BASE_TOPIC "${clientId}/battery_voltage";
@@ -24,6 +32,11 @@ static const char MQTT_STATE_TOPIC_PERCENT[] PROGMEM = MQTT_STATE_BASE_TOPIC "${
 static const char MQTT_STATE_TOPIC_RSSI[] PROGMEM = MQTT_STATE_BASE_TOPIC "${clientId}/wifi_rssi";
 static const char MQTT_STATE_TOPIC_API_ACTIVITY_DURATION[] PROGMEM =
     MQTT_STATE_BASE_TOPIC "${clientId}/api_activity_duration";
+#ifndef BME_TYPE_NONE
+static const char MQTT_STATE_TOPIC_TEMPERATURE[] PROGMEM = MQTT_STATE_BASE_TOPIC "${clientId}/temperature";
+static const char MQTT_STATE_TOPIC_HUMIDITY[] PROGMEM = MQTT_STATE_BASE_TOPIC "${clientId}/humidity";
+static const char MQTT_STATE_TOPIC_PRESSURE[] PROGMEM = MQTT_STATE_BASE_TOPIC "${clientId}/pressure";
+#endif  // BME_TYPE_NONE
 
 // Device information (shared across all sensors)
 #define MQTT_DEVICE_INFO \
@@ -72,5 +85,35 @@ static const char HOME_ASSISTANT_MQTT_API_ACTIVITY_DURATION_PAYLOAD[] PROGMEM =
     "\"object_id\":\"${clientId}_api_activity_duration\","
     "\"name\":\"API Activity Duration\","
     "\"state_topic\":\"" MQTT_STATE_BASE_TOPIC "${clientId}/api_activity_duration\"," MQTT_DEVICE_INFO "}";
+
+#ifndef BME_TYPE_NONE
+
+static const char HOME_ASSISTANT_MQTT_TEMPERATURE_PAYLOAD[] PROGMEM =
+    "{"
+    "\"device_class\":\"temperature\","
+    "\"unit_of_measurement\":\"°C\","
+    "\"unique_id\":\"${clientId}_temperature\","
+    "\"object_id\":\"${clientId}_temperature\","
+    "\"name\":\"Temperature\","
+    "\"state_topic\":\"" MQTT_STATE_BASE_TOPIC "${clientId}/temperature\"," MQTT_DEVICE_INFO "}";
+
+static const char HOME_ASSISTANT_MQTT_HUMIDITY_PAYLOAD[] PROGMEM =
+    "{"
+    "\"device_class\":\"humidity\","
+    "\"unit_of_measurement\":\"%\","
+    "\"unique_id\":\"${clientId}_humidity\","
+    "\"object_id\":\"${clientId}_humidity\","
+    "\"name\":\"Humidity\","
+    "\"state_topic\":\"" MQTT_STATE_BASE_TOPIC "${clientId}/humidity\"," MQTT_DEVICE_INFO "}";
+
+static const char HOME_ASSISTANT_MQTT_PRESSURE_PAYLOAD[] PROGMEM =
+    "{"
+    "\"device_class\":\"pressure\","
+    "\"unit_of_measurement\":\"hPa\","
+    "\"unique_id\":\"${clientId}_pressure\","
+    "\"object_id\":\"${clientId}_pressure\","
+    "\"name\":\"Pressure\","
+    "\"state_topic\":\"" MQTT_STATE_BASE_TOPIC "${clientId}/pressure\"," MQTT_DEVICE_INFO "}";
+#endif // BME_TYPE_NONE
 
 #endif  // HOME_ASSISTANT_MQTT_ENABLED

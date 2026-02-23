@@ -2,6 +2,7 @@ from enum import Enum
 import re
 from typing import Dict, Optional
 from typing import Annotated
+from typing import Union, Literal
 from pydantic import BaseModel, Field, WithJsonSchema, model_validator
 
 
@@ -274,7 +275,7 @@ class Wifi(BaseModel):
                 )
         return self
     
-    def bssid_to_config_value(self):
+    def bssid_to_define_value(self):
         # Convert BSSID string to C++ uint8_t array format
         cleaned = self.bssid.replace(":", "").upper()
         hex_pairs = [cleaned[i : i + 2] for i in range(0, len(cleaned), 2)]
@@ -284,9 +285,6 @@ class Wifi(BaseModel):
 
 class PinsConfig(BaseModel):
     batAdc: int = 35
-    bmePwr: int = 27
-    bmeSDA: int = 21
-    bmeSCL: int = 22
     epdBusy: int = 14
     epdCS: int = 13
     epdRst: int = 21
@@ -311,7 +309,7 @@ class Color(str, Enum):
     BLACK = "black"
     RED = "red"
 
-    def to_config_value(self):
+    def to_define_value(self):
         if self == Color.BLACK:
             return "GxEPD_BLACK"
         return "GxEPD_RED"
@@ -330,6 +328,23 @@ class Colors(BaseModel):
     statusBarWeakWifi: Color = Color.BLACK
     statusBarMessage: Color = Color.BLACK
 
+class BMEBase(BaseModel):
+    type: str
+
+    def type_to_config_value(self):
+        return f'#define BME_TYPE_{self.type.upper()}'
+
+class BMENone(BMEBase):
+    type: Literal["NONE"] = "NONE"
+
+class BME280(BMEBase):
+    type: Literal["BME280"] = "BME280"
+    pinPwr: int = 27
+    pinSDA: int = 21
+    pinSCL: int = 22
+    address: int = 0x76
+
+BMEType = Union[BMENone, BME280]
 
 class ConfigSchema(BaseModel):
     epdPanel: Annotated[EpdPanel, enum_schema(EpdPanel)] = EpdPanel.GENERIC_BW_V2
@@ -340,6 +355,7 @@ class ConfigSchema(BaseModel):
     airQualityAPI: AirQualityAPI = AirQualityAPI.OPEN_METEO
     ntpSyncIntervalHours: int = 6
     useImperialUnitsAsDefault: bool = False
+    bme: BMEType = Field(default_factory=BMENone)
     unitsTemp: UnitsTemp = Field(
         default_factory=lambda data: UnitsTemp.FAHRENHEIT
         if data["useImperialUnitsAsDefault"]
@@ -377,7 +393,6 @@ class ConfigSchema(BaseModel):
     batteryMonitoring: bool = True
     debugLevel: int = 0  # TODO: From 0 to 2
     pin: PinsConfig = Field(default_factory=PinsConfig)
-    bmeAddress: int = 0x76
     wifi: Wifi = Field(default_factory=Wifi)
     owmApikey: str | None = None
     owmOnecallVersion: str = "3.0"

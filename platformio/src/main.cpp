@@ -34,8 +34,12 @@
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
 #include "home_assistant_mqtt_client.h"
 #endif
+#ifndef BME_TYPE_NONE
 #include "env_sensor.h"
+#ifdef BME_TYPE_BME280
 #include "env_sensor_bme280.h"
+#endif
+#endif
 
 #ifndef API_PROTOCOL_HTTP
 #include <WiFiClientSecure.h>
@@ -50,10 +54,12 @@ static air_pollution_t air_pollution;
 
 Preferences prefs;
 
+#ifndef BME_TYPE_NONE
 SemaphoreHandle_t sensorReadingDoneSemaphore;
-std::optional<float> inTemp = std::nullopt;
-std::optional<float> inHumidity = std::nullopt;
-std::optional<float> inPressure = std::nullopt;
+#endif
+std::optional<float> inTemp = {};
+std::optional<float> inHumidity = {};
+std::optional<float> inPressure = {};
 String sensorStatusStr;
 
 // RTC_DATA_ATTR variables survive deep sleep resets, but not power cycles.
@@ -144,15 +150,23 @@ void handleNetworkError(const unsigned char *icon, const String &statusStr, cons
                         unsigned long startTime, tm *timeInfo, uint32_t batteryVoltage, uint8_t batteryPercent,
                         int8_t wifiRSSI) {
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
+#ifndef BME_TYPE_NONE
+  if (!xSemaphoreTake(sensorReadingDoneSemaphore, pdMS_TO_TICKS(2000) == pdTRUE)) {
+    Serial.println("[error] Timeout waiting for sensor reading to complete");
+  }
+#endif
   if (WiFi.status() == WL_CONNECTED) {
-    sendMQTTStatus(batteryVoltage, batteryPercent, wifiRSSI, 0);
+    sendMQTTStatus({.batteryVoltage = batteryVoltage,
+                    .batteryPercentage = batteryPercent,
+                    .wifiRSSI = wifiRSSI,
+                    .apiActivityDuration = 0,
+                    .temperature = inTemp,
+                    .humidity = inHumidity,
+                    .pressure = inPressure});
   }
 #endif
 
   killWiFi();
-  if (!xSemaphoreTake(sensorReadingDoneSemaphore, pdMS_TO_TICKS(2000) == pdTRUE)) {
-    Serial.println("[error] Timeout waiting for sensor reading to complete");
-  }
   initDisplay();
   do {
     drawError(icon, statusStr, tmpStr);
@@ -161,8 +175,11 @@ void handleNetworkError(const unsigned char *icon, const String &statusStr, cons
   beginDeepSleep(startTime, timeInfo);
 }
 
+#ifndef BME_TYPE_NONE
 void envSensorReadingTask(void *pvParameters) {
+#ifdef BME_TYPE_BME280
   EnvSensor *sensor = new BME280EnvSensor();
+#endif
   if (sensor->begin()) {
     inTemp = sensor->getTemperature();
     inHumidity = sensor->getHumidity();
@@ -184,6 +201,7 @@ void envSensorReadingTask(void *pvParameters) {
   xSemaphoreGive(sensorReadingDoneSemaphore);  // Signal completion
   vTaskDelete(NULL);                           // Delete this task when done
 }
+#endif
 
 /* Program entry point.
  */
@@ -257,14 +275,15 @@ void setup() {
   String tmpStr = {};
   tm timeInfo = {};
 
+#ifndef BME_TYPE_NONE
   sensorReadingDoneSemaphore = xSemaphoreCreateBinary();
-  xTaskCreate(envSensorReadingTask,  // Task function
-              "EnvSensorReadingTask",
+  xTaskCreate(envSensorReadingTask, "EnvSensorReadingTask",
               4096,  // Stack size
               NULL,  // Parameters
               1,     // Priority
               NULL   // Task handle
   );
+#endif
 
   // START TIMING FOR WIFI + TIME SYNC + API
   unsigned long networkStartTime = millis();
@@ -383,7 +402,13 @@ void setup() {
   // SEND MQTT STATUS (success case)
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
   if (WiFi.status() == WL_CONNECTED) {
-    sendMQTTStatus(batteryVoltage, batteryPercent, wifiRSSI, millis() - apiRequestsStartTime);
+    sendMQTTStatus({.batteryVoltage = batteryVoltage,
+                    .batteryPercentage = batteryPercent,
+                    .wifiRSSI = wifiRSSI,
+                    .apiActivityDuration = millis() - apiRequestsStartTime,
+                    .temperature = inTemp,
+                    .humidity = inHumidity,
+                    .pressure = inPressure});
   }
 #endif
 
@@ -398,10 +423,12 @@ void setup() {
   String dateStr;
   getDateStr(dateStr, &timeInfo);
 
+#ifndef BME_TYPE_NONE
   if (!xSemaphoreTake(sensorReadingDoneSemaphore, pdMS_TO_TICKS(2000) == pdTRUE)) {
     Serial.println("[error] Timeout waiting for sensor reading to complete");
   }
-  
+#endif
+
   // RENDER FULL REFRESH
   initDisplay();
   do {

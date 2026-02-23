@@ -1,10 +1,10 @@
 #pragma once
 
 #include "config.h"
+#ifdef BME_TYPE_BME280
 #include "env_sensor.h"
 #include <Adafruit_BME280.h>
 #include <Wire.h>
-#include <optional>
 
 class BME280EnvSensor : public EnvSensor {
  public:
@@ -21,3 +21,4 @@ class BME280EnvSensor : public EnvSensor {
   TwoWire wire;
   bool initialized;
 };
+#endif

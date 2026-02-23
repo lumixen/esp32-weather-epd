@@ -73,8 +73,7 @@ bool publishMQTTSensor(const char *sensorName, const char *clientId, const char 
   return success;
 }
 
-void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t wifiRSSI,
-                    unsigned long apiActivityDuration) {
+void sendMQTTStatus(const mqtt_status_params_t &params) {
   unsigned long startTime = millis();
   if (haMqttConnectSemaphore == NULL) {
     haMqttConnectSemaphore = xSemaphoreCreateBinary();
@@ -101,14 +100,14 @@ void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t w
 #if BATTERY_MONITORING
     // 1. Publish Battery Voltage
     char voltageStr[8];
-    snprintf(voltageStr, sizeof(voltageStr), "%.3f", batteryVoltage / 1000.0);
+    snprintf(voltageStr, sizeof(voltageStr), "%.3f", params.batteryVoltage / 1000.0);
 
     publishMQTTSensor("Battery voltage", clientId, HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_TOPIC,
                       HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_PAYLOAD, MQTT_STATE_TOPIC_VOLTAGE, voltageStr);
 
     // 2. Publish Battery Percent
     char percentStr[4];
-    snprintf(percentStr, sizeof(percentStr), "%u", batteryPercentage);
+    snprintf(percentStr, sizeof(percentStr), "%u", params.batteryPercentage);
 
     publishMQTTSensor("Battery percent", clientId, HOME_ASSISTANT_MQTT_BATTERY_PERCENT_TOPIC,
                       HOME_ASSISTANT_MQTT_BATTERY_PERCENT_PAYLOAD, MQTT_STATE_TOPIC_PERCENT, percentStr);
@@ -116,18 +115,41 @@ void sendMQTTStatus(uint32_t batteryVoltage, uint8_t batteryPercentage, int8_t w
 
     // 3. Publish WiFi RSSI
     char rssiStr[5];
-    snprintf(rssiStr, sizeof(rssiStr), "%d", wifiRSSI);
+    snprintf(rssiStr, sizeof(rssiStr), "%d", params.wifiRSSI);
 
     publishMQTTSensor("WiFi RSSI", clientId, HOME_ASSISTANT_MQTT_WIFI_RSSI_TOPIC, HOME_ASSISTANT_MQTT_WIFI_RSSI_PAYLOAD,
                       MQTT_STATE_TOPIC_RSSI, rssiStr);
 
     // 4. Publish API Activity Duration
     char durationStr[12];
-    snprintf(durationStr, sizeof(durationStr), "%lu", apiActivityDuration);
+    snprintf(durationStr, sizeof(durationStr), "%lu", params.apiActivityDuration);
 
     publishMQTTSensor("API activity duration", clientId, HOME_ASSISTANT_MQTT_API_ACTIVITY_DURATION_TOPIC,
                       HOME_ASSISTANT_MQTT_API_ACTIVITY_DURATION_PAYLOAD, MQTT_STATE_TOPIC_API_ACTIVITY_DURATION,
                       durationStr);
+#ifndef BME_TYPE_NONE
+    // 5. Publish Temperature
+    if (params.temperature.has_value()) {
+      char tempStr[8];
+      snprintf(tempStr, sizeof(tempStr), "%.2f", params.temperature.value());
+      publishMQTTSensor("Temperature", clientId, HOME_ASSISTANT_MQTT_TEMPERATURE_TOPIC,
+                        HOME_ASSISTANT_MQTT_TEMPERATURE_PAYLOAD, MQTT_STATE_TOPIC_TEMPERATURE, tempStr);
+    }
+    // 6. Publish Humidity
+    if (params.humidity.has_value()) {
+      char humidityStr[8];
+      snprintf(humidityStr, sizeof(humidityStr), "%.2f", params.humidity.value());
+      publishMQTTSensor("Humidity", clientId, HOME_ASSISTANT_MQTT_HUMIDITY_TOPIC, HOME_ASSISTANT_MQTT_HUMIDITY_PAYLOAD,
+                        MQTT_STATE_TOPIC_HUMIDITY, humidityStr);
+    }
+    // 7. Publish Pressure
+    if (params.pressure.has_value()) {
+      char pressureStr[8];
+      snprintf(pressureStr, sizeof(pressureStr), "%.2f", params.pressure.value());
+      publishMQTTSensor("Pressure", clientId, HOME_ASSISTANT_MQTT_PRESSURE_TOPIC, HOME_ASSISTANT_MQTT_PRESSURE_PAYLOAD,
+                        MQTT_STATE_TOPIC_PRESSURE, pressureStr);
+    }
+#endif
     if (!(haMqttClient.loopStop())) {
       Serial.println("Warning: MQTT loop did not stop cleanly.");
     }
