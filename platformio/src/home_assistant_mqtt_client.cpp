@@ -128,56 +128,58 @@ void sendMQTTStatus(const mqtt_status_params_t &params) {
                                                    HOME_ASSISTANT_MQTT_PRESSURE_PAYLOAD);
 #endif  // BME_TYPE_NONE
       publishedMqttConfig = publishSuccess;
-
-      if (publishedMqttConfig) {
-        Serial.println("Publishing sensor states...");
-        char valueStr[12];
-#if BATTERY_MONITORING
-        // 1. Publish Battery Voltage
-        snprintf(valueStr, sizeof(valueStr), "%.3f", params.batteryVoltage / 1000.0);
-        publishMQTTSensorState("Battery voltage", clientId, MQTT_STATE_TOPIC_VOLTAGE, valueStr);
-
-        // 2. Publish Battery Percent
-        snprintf(valueStr, sizeof(valueStr), "%u", params.batteryPercentage);
-        publishMQTTSensorState("Battery percent", clientId, MQTT_STATE_TOPIC_PERCENT, valueStr);
-#endif
-
-        // 3. Publish WiFi RSSI
-        snprintf(valueStr, sizeof(valueStr), "%d", params.wifiRSSI);
-        publishMQTTSensorState("WiFi RSSI", clientId, MQTT_STATE_TOPIC_RSSI, valueStr);
-
-        // 4. Publish API Activity Duration
-        snprintf(valueStr, sizeof(valueStr), "%lu", params.apiActivityDuration);
-        publishMQTTSensorState("API activity duration", clientId, MQTT_STATE_TOPIC_API_ACTIVITY_DURATION, valueStr);
-#ifndef BME_TYPE_NONE
-        // 5. Publish Temperature
-        if (params.temperature.has_value()) {
-          snprintf(valueStr, sizeof(valueStr), "%.2f", params.temperature.value());
-          publishMQTTSensorState("Temperature", clientId, MQTT_STATE_TOPIC_TEMPERATURE, valueStr);
-        }
-        // 6. Publish Humidity
-        if (params.humidity.has_value()) {
-          snprintf(valueStr, sizeof(valueStr), "%.2f", params.humidity.value());
-          publishMQTTSensorState("Humidity", clientId, MQTT_STATE_TOPIC_HUMIDITY, valueStr);
-        }
-        // 7. Publish Pressure
-        if (params.pressure.has_value()) {
-          snprintf(valueStr, sizeof(valueStr), "%.2f", params.pressure.value());
-          publishMQTTSensorState("Pressure", clientId, MQTT_STATE_TOPIC_PRESSURE, valueStr);
-        }
-#endif
-      }
-      if (!(haMqttClient.loopStop())) {
-        Serial.println("Warning: MQTT loop did not stop cleanly.");
-      }
-      Serial.println("MQTT publish complete.");
     } else {
-      Serial.println("Error: MQTT connection timed out.");
-      haMqttClient.loopStop();
+      Serial.println("Discovery messages already published, skipping...");
     }
-    Serial.println("MQTT total time: " + String((millis() - startTime) / 1000.0, 3) + "s");
-    vSemaphoreDelete(haMqttConnectSemaphore);
-    haMqttConnectSemaphore = NULL;
+
+    if (publishedMqttConfig) {
+      Serial.println("Publishing sensor states...");
+      char valueStr[12];
+#if BATTERY_MONITORING
+      // 1. Publish Battery Voltage
+      snprintf(valueStr, sizeof(valueStr), "%.3f", params.batteryVoltage / 1000.0);
+      publishMQTTSensorState("Battery voltage", clientId, MQTT_STATE_TOPIC_VOLTAGE, valueStr);
+
+      // 2. Publish Battery Percent
+      snprintf(valueStr, sizeof(valueStr), "%u", params.batteryPercentage);
+      publishMQTTSensorState("Battery percent", clientId, MQTT_STATE_TOPIC_PERCENT, valueStr);
+#endif
+
+      // 3. Publish WiFi RSSI
+      snprintf(valueStr, sizeof(valueStr), "%d", params.wifiRSSI);
+      publishMQTTSensorState("WiFi RSSI", clientId, MQTT_STATE_TOPIC_RSSI, valueStr);
+
+      // 4. Publish API Activity Duration
+      snprintf(valueStr, sizeof(valueStr), "%lu", params.apiActivityDuration);
+      publishMQTTSensorState("API activity duration", clientId, MQTT_STATE_TOPIC_API_ACTIVITY_DURATION, valueStr);
+#ifndef BME_TYPE_NONE
+      // 5. Publish Temperature
+      if (params.temperature.has_value()) {
+        snprintf(valueStr, sizeof(valueStr), "%.2f", params.temperature.value());
+        publishMQTTSensorState("Temperature", clientId, MQTT_STATE_TOPIC_TEMPERATURE, valueStr);
+      }
+      // 6. Publish Humidity
+      if (params.humidity.has_value()) {
+        snprintf(valueStr, sizeof(valueStr), "%.2f", params.humidity.value());
+        publishMQTTSensorState("Humidity", clientId, MQTT_STATE_TOPIC_HUMIDITY, valueStr);
+      }
+      // 7. Publish Pressure
+      if (params.pressure.has_value()) {
+        snprintf(valueStr, sizeof(valueStr), "%.2f", params.pressure.value());
+        publishMQTTSensorState("Pressure", clientId, MQTT_STATE_TOPIC_PRESSURE, valueStr);
+      }
+#endif
+    }
+    if (!(haMqttClient.loopStop())) {
+      Serial.println("Warning: MQTT loop did not stop cleanly.");
+    }
+    Serial.println("MQTT publish complete.");
+  } else {
+    Serial.println("Error: MQTT connection timed out.");
+    haMqttClient.loopStop();
   }
+  Serial.println("MQTT total time: " + String((millis() - startTime) / 1000.0, 3) + "s");
+  vSemaphoreDelete(haMqttConnectSemaphore);
+  haMqttConnectSemaphore = NULL;
 }
 #endif  // HOME_ASSISTANT_MQTT_ENABLED
