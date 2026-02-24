@@ -432,7 +432,7 @@ void setup() {
   // RENDER FULL REFRESH
   initDisplay();
   do {
-    drawCurrentConditions(environment_data.current, environment_data.daily[0], air_pollution, inPressure.value_or(NAN));
+    drawCurrentConditions(environment_data.current, environment_data.daily[0], air_pollution, inPressure);
     Serial.println("Drawing current conditions");
     drawOutlookGraph(environment_data.hourly, environment_data.daily, timeInfo);
     Serial.println("Drawing outlook graph");
