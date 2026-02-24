@@ -85,6 +85,8 @@ pin:
   epdMOSI: 23
   epdPwr: 2
 useImperialUnitsAsDefault: false
+bme:
+  type: BME280
 unitsTemp: Celsius
 unitsSpeed: km/h
 unitsPres: mbar

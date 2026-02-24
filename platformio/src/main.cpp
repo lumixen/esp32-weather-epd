@@ -74,7 +74,7 @@ void toggleBuiltinLED(bool state) {
 }
 
 /* Put esp32 into ultra low-power deep sleep (<11μA).
- * Aligns wake time to the minute. Sleep times defined in config.cpp.
+ * Aligns wake time to the minute. Sleep times defined in config.
  */
 void beginDeepSleep(unsigned long startTime, tm *timeInfo) {
   if (!getLocalTime(timeInfo)) {
@@ -151,7 +151,7 @@ void handleNetworkError(const unsigned char *icon, const String &statusStr, cons
                         int8_t wifiRSSI) {
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
 #ifndef BME_TYPE_NONE
-  if (!xSemaphoreTake(sensorReadingDoneSemaphore, pdMS_TO_TICKS(2000) == pdTRUE)) {
+  if (xSemaphoreTake(sensorReadingDoneSemaphore, pdMS_TO_TICKS(2000)) != pdTRUE) {
     Serial.println("[error] Timeout waiting for sensor reading to complete");
   }
 #endif
@@ -326,7 +326,7 @@ void setup() {
   }
 
   bool driftIsHuge = (timeInfo.tm_year < (2020 - 1900));  // RTC lost power or uninitialized
-  bool timerTriggered = (wakeUpCounter >= cyclesPerInterval);
+  bool timerTriggered = ((wakeUpCounter % cyclesPerInterval) == 0);
 
   if (driftIsHuge || timerTriggered) {
     configTzTime(D_TIMEZONE, NTP_SERVER_1, NTP_SERVER_2);
@@ -424,7 +424,7 @@ void setup() {
   getDateStr(dateStr, &timeInfo);
 
 #ifndef BME_TYPE_NONE
-  if (!xSemaphoreTake(sensorReadingDoneSemaphore, pdMS_TO_TICKS(2000) == pdTRUE)) {
+  if (xSemaphoreTake(sensorReadingDoneSemaphore, pdMS_TO_TICKS(2000)) != pdTRUE) {
     Serial.println("[error] Timeout waiting for sensor reading to complete");
   }
 #endif

@@ -91,6 +91,7 @@ const char *TXT_AIR_POLLUTION      = "Luchtvervuiling";
 const char *TXT_VISIBILITY         = "Zichtbaarheid";
 const char *TXT_INDOOR_TEMPERATURE = "Temperatuur";
 const char *TXT_INDOOR_HUMIDITY    = "Vochtigheid";
+const char *TXT_INDOOR_PRESSURE    = "Luchtdruk";
 const char *TXT_DEWPOINT           = "Dauwpunt";
 
 // MOON PHASE
