@@ -1,10 +1,15 @@
-#ifndef __ENV_DATA_MODEL_H__
-#define __ENV_DATA_MODEL_H__
+#pragma once
 
 #include <Arduino.h>
 
 #define NUM_HOURLY 24  // 48
 #define NUM_DAILY 5    // 8
+
+struct sensor_readings {
+  std::optional<float> temperature;
+  std::optional<float> humidity;
+  std::optional<float> pressure;
+};
 
 typedef struct weather {
   int id;              // Weather condition id
@@ -138,5 +143,3 @@ typedef struct environment_data {
   daily_t daily[NUM_DAILY];
   std::vector<owm_alerts_t> alerts;
 } environment_data_t;
-
-#endif  // __ENV_DATA_MODEL_H__

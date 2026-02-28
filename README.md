@@ -85,6 +85,13 @@ pin:
   epdMOSI: 23
   epdPwr: 2
 useImperialUnitsAsDefault: false
+bme:
+  # Set type NONE if no BME is installed
+  type: BME280
+  pinPwr: 27
+  pinSDA: 21
+  pinSCL: 22
+  address: 0x76
 unitsTemp: Celsius
 unitsSpeed: km/h
 unitsPres: mbar

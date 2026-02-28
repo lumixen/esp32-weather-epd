@@ -34,6 +34,12 @@
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
 #include "home_assistant_mqtt_client.h"
 #endif
+#ifndef BME_TYPE_NONE
+#include "env_sensor.h"
+#ifdef BME_TYPE_BME280
+#include "env_sensor_bme280.h"
+#endif
+#endif
 
 #ifndef API_PROTOCOL_HTTP
 #include <WiFiClientSecure.h>
@@ -48,6 +54,11 @@ static air_pollution_t air_pollution;
 
 Preferences prefs;
 
+SemaphoreHandle_t sensorReadingDoneSemaphore;
+std::optional<float> inTemp = {};
+std::optional<float> inHumidity = {};
+std::optional<float> inPressure = {};
+
 // RTC_DATA_ATTR variables survive deep sleep resets, but not power cycles.
 // They are used to store data that must persist across deep sleep cycles, such as the wake-up counter.
 RTC_DATA_ATTR uint32_t wakeUpCounter = 0;
@@ -60,7 +71,7 @@ void toggleBuiltinLED(bool state) {
 }
 
 /* Put esp32 into ultra low-power deep sleep (<11μA).
- * Aligns wake time to the minute. Sleep times defined in config.cpp.
+ * Aligns wake time to the minute. Sleep times defined in config.
  */
 void beginDeepSleep(unsigned long startTime, tm *timeInfo) {
   if (!getLocalTime(timeInfo)) {
@@ -132,13 +143,47 @@ void enrichWithMoonData(environment_data_t &data) {
   data.daily[0].moon_phase = moonState.phase;
 }  // end enrichWithMoonData
 
+sensor_readings getSensorReadings() {
+  if (sensorReadingDoneSemaphore == nullptr) {
+    return {.temperature = inTemp, .humidity = inHumidity, .pressure = inPressure};
+  }
+  std::optional<float> inTempSafeCopy = {};
+  std::optional<float> inHumiditySafeCopy = {};
+  std::optional<float> inPressureSafeCopy = {};
+#ifndef BME_TYPE_NONE
+  if (xSemaphoreTake(sensorReadingDoneSemaphore, pdMS_TO_TICKS(2000)) == pdTRUE) {
+    inTempSafeCopy = inTemp;
+    inHumiditySafeCopy = inHumidity;
+    inPressureSafeCopy = inPressure;
+    vSemaphoreDelete(sensorReadingDoneSemaphore);
+    sensorReadingDoneSemaphore = nullptr;
+  } else {
+    Serial.println("[error] Timeout waiting for sensor reading to complete");
+  }
+#endif
+  return {.temperature = inTempSafeCopy, .humidity = inHumiditySafeCopy, .pressure = inPressureSafeCopy};
+}
+
+#if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
+void publishMqtt(uint32_t batteryVoltage, uint8_t batteryPercent, int8_t wifiRSSI, unsigned long apiActivityDuration) {
+  sensor_readings sensorReadings = getSensorReadings();
+  if (WiFi.status() == WL_CONNECTED) {
+    sendMQTTStatus({.batteryVoltage = batteryVoltage,
+                    .batteryPercentage = batteryPercent,
+                    .wifiRSSI = wifiRSSI,
+                    .apiActivityDuration = apiActivityDuration,
+                    .temperature = sensorReadings.temperature,
+                    .humidity = sensorReadings.humidity,
+                    .pressure = sensorReadings.pressure});
+  }
+}
+#endif
+
 void handleNetworkError(const unsigned char *icon, const String &statusStr, const String &tmpStr,
                         unsigned long startTime, tm *timeInfo, uint32_t batteryVoltage, uint8_t batteryPercent,
                         int8_t wifiRSSI) {
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
-  if (WiFi.status() == WL_CONNECTED) {
-    sendMQTTStatus(batteryVoltage, batteryPercent, wifiRSSI, 0);
-  }
+  publishMqtt(batteryVoltage, batteryPercent, wifiRSSI, 0);
 #endif
 
   killWiFi();
@@ -149,6 +194,27 @@ void handleNetworkError(const unsigned char *icon, const String &statusStr, cons
   powerOffDisplay();
   beginDeepSleep(startTime, timeInfo);
 }
+
+#ifndef BME_TYPE_NONE
+void envSensorReadingTask(void *pvParameters) {
+#ifdef BME_TYPE_BME280
+  EnvSensor *sensor = new BME280EnvSensor();
+#endif
+  if (sensor->begin()) {
+    inTemp = sensor->getTemperature();
+    inHumidity = sensor->getHumidity();
+    inPressure = sensor->getPressure();
+
+    Serial.println("Temp: " + String(inTemp.value_or(NAN)) + "°C, Humidity: " + String(inHumidity.value_or(NAN)) +
+                   "%, Pressure: " + String(inPressure.value_or(NAN)) + " hPa");
+  } else {
+    Serial.println("[error] Failed to initialize BME sensor");
+  }
+  delete sensor;
+  xSemaphoreGive(sensorReadingDoneSemaphore);  // Signal completion
+  vTaskDelete(NULL);                           // Delete this task when done
+}
+#endif
 
 /* Program entry point.
  */
@@ -222,6 +288,16 @@ void setup() {
   String tmpStr = {};
   tm timeInfo = {};
 
+#ifndef BME_TYPE_NONE
+  sensorReadingDoneSemaphore = xSemaphoreCreateBinary();
+  xTaskCreate(envSensorReadingTask, "EnvSensorReadingTask",
+              4096,  // Stack size
+              NULL,  // Parameters
+              1,     // Priority
+              NULL   // Task handle
+  );
+#endif
+
   // START TIMING FOR WIFI + TIME SYNC + API
   unsigned long networkStartTime = millis();
 
@@ -263,7 +339,7 @@ void setup() {
   }
 
   bool driftIsHuge = (timeInfo.tm_year < (2020 - 1900));  // RTC lost power or uninitialized
-  bool timerTriggered = (wakeUpCounter >= cyclesPerInterval);
+  bool timerTriggered = ((wakeUpCounter % cyclesPerInterval) == 0);
 
   if (driftIsHuge || timerTriggered) {
     configTzTime(D_TIMEZONE, NTP_SERVER_1, NTP_SERVER_2);
@@ -336,11 +412,9 @@ void setup() {
     handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
                        wifiRSSI);
   }
-  // SEND MQTT STATUS (success case)
+// SEND MQTT STATUS (success case)
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
-  if (WiFi.status() == WL_CONNECTED) {
-    sendMQTTStatus(batteryVoltage, batteryPercent, wifiRSSI, millis() - apiRequestsStartTime);
-  }
+  publishMqtt(batteryVoltage, batteryPercent, wifiRSSI, millis() - apiRequestsStartTime);
 #endif
 
   killWiFi();  // WiFi no longer needed
@@ -354,10 +428,12 @@ void setup() {
   String dateStr;
   getDateStr(dateStr, &timeInfo);
 
+  sensor_readings sensorReadings = getSensorReadings();
+
   // RENDER FULL REFRESH
   initDisplay();
   do {
-    drawCurrentConditions(environment_data.current, environment_data.daily[0], air_pollution);
+    drawCurrentConditions(environment_data.current, environment_data.daily[0], air_pollution, sensorReadings.pressure);
     Serial.println("Drawing current conditions");
     drawOutlookGraph(environment_data.hourly, environment_data.daily, timeInfo);
     Serial.println("Drawing outlook graph");

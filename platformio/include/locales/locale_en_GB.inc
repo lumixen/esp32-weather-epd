@@ -84,6 +84,7 @@ const char *TXT_AIR_POLLUTION      = "Air Pollution";
 const char *TXT_VISIBILITY         = "Visibility";
 const char *TXT_INDOOR_TEMPERATURE = "Temperature";
 const char *TXT_INDOOR_HUMIDITY    = "Humidity";
+const char *TXT_INDOOR_PRESSURE    = "Pressure";
 const char *TXT_DEWPOINT           = "Dew Point";
 
 // MOON PHASE

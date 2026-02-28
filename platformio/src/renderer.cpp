@@ -716,14 +716,76 @@ void drawCurrentVisibility(const current_t &current) {
     drawString(48 + (162 * PosX), 204 + 17 / 2 + (48 + 8) * PosY + 48 / 2, dataStr, LEFT);
   }
 #endif
-  // end drawCurrentDewpoint
+// end drawCurrentDewpoint
+
+// drawCurrentInPressure
+#ifdef POS_INPRESSURE
+  void drawCurrentInPressure(std::optional<float> inPressure) {
+    String dataStr, unitStr;
+    int PosX = (POS_INPRESSURE % 2);
+    int PosY = static_cast<int>(POS_INPRESSURE / 2);
+
+    // icons
+    display.drawInvertedBitmap(162 * PosX, 204 + (48 + 8) * PosY, wi_barometer_48x48, 48, 48, GxEPD_BLACK);
+
+    // labels
+    display.setFont(&FONT_7pt8b);
+    drawString(48 + (162 * PosX), 204 + 10 + (48 + 8) * PosY, TXT_INDOOR_PRESSURE, LEFT);
+
+    if (!inPressure.has_value()) {
+      dataStr = "--";
+      unitStr = "";
+    } else {
+// pressure
+#ifdef UNITS_PRES_HECTOPASCALS
+      dataStr = String(inPressure.value());
+      unitStr = String(" ") + TXT_UNITS_PRES_HECTOPASCALS;
+#endif
+#ifdef UNITS_PRES_PASCALS
+      dataStr = String(static_cast<int>(std::round(hectopascals_to_pascals(inPressure.value()))));
+      unitStr = String(" ") + TXT_UNITS_PRES_PASCALS;
+#endif
+#ifdef UNITS_PRES_MILLIMETERSOFMERCURY
+      dataStr = String(static_cast<int>(std::round(hectopascals_to_millimetersofmercury(inPressure.value()))));
+      unitStr = String(" ") + TXT_UNITS_PRES_MILLIMETERSOFMERCURY;
+#endif
+#ifdef UNITS_PRES_INCHESOFMERCURY
+      dataStr = String(std::round(1e1f * hectopascals_to_inchesofmercury(inPressure.value())) / 1e1f, 1);
+      unitStr = String(" ") + TXT_UNITS_PRES_INCHESOFMERCURY;
+#endif
+#ifdef UNITS_PRES_MILLIBARS
+      dataStr = String(static_cast<int>(std::round(hectopascals_to_millibars(inPressure.value()))));
+      unitStr = String(" ") + TXT_UNITS_PRES_MILLIBARS;
+#endif
+#ifdef UNITS_PRES_ATMOSPHERES
+      dataStr = String(std::round(1e3f * hectopascals_to_atmospheres(inPressure.value())) / 1e3f, 3);
+      unitStr = String(" ") + TXT_UNITS_PRES_ATMOSPHERES;
+#endif
+#ifdef UNITS_PRES_GRAMSPERSQUARECENTIMETER
+      dataStr = String(static_cast<int>(std::round(hectopascals_to_gramspersquarecentimeter(inPressure.value()))));
+      unitStr = String(" ") + TXT_UNITS_PRES_GRAMSPERSQUARECENTIMETER;
+#endif
+#ifdef UNITS_PRES_POUNDSPERSQUAREINCH
+      dataStr = String(std::round(1e2f * hectopascals_to_poundspersquareinch(inPressure.value())) / 1e2f, 2);
+      unitStr = String(" ") + TXT_UNITS_PRES_POUNDSPERSQUAREINCH;
+#endif
+    }
+    display.setFont(&FONT_12pt8b);
+    drawString(48 + (162 * PosX), 204 + 17 / 2 + (48 + 8) * PosY + 48 / 2, dataStr, LEFT);
+    display.setFont(&FONT_8pt8b);
+    drawString(display.getCursorX(), 204 + 17 / 2 + (48 + 8) * PosY + 48 / 2, unitStr, LEFT);
+    return;
+  }
+#endif
+  // end drawCurrentInPressure
 
   // End defining functions for left panel.
 
   /* This function is responsible for drawing the current conditions and
    * associated icons.
    */
-  void drawCurrentConditions(const current_t &current, const daily_t &today, const air_pollution_t &air_pollution) {
+  void drawCurrentConditions(const current_t &current, const daily_t &today, const air_pollution_t &air_pollution,
+                             std::optional<float> inPressure) {
     String dataStr, unitStr;
     // current weather icon
     display.drawInvertedBitmap(0, 0, getCurrentConditionsBitmap196(current, today), 196, 196, GxEPD_BLACK);
@@ -823,8 +885,10 @@ void drawCurrentVisibility(const current_t &current) {
     drawCurrentDewpoint(current);
 #endif
 
+#ifdef POS_INPRESSURE
+    drawCurrentInPressure(inPressure);
+#endif
     // end drawing left panel
-
   }  // end drawCurrentConditions
 
   /* This function is responsible for drawing the five day forecast.

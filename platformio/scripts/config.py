@@ -1,4 +1,4 @@
-Import("env", "projenv")
+Import("env")
 
 try:
     import pydantic
@@ -10,7 +10,7 @@ try:
 except ImportError:
     env.Execute("$PYTHONEXE -m pip install pyyaml")
 
-from schema import ConfigSchema, defined_enums
+from schema import ConfigSchema
 from pydantic import BaseModel
 from re import sub
 from datetime import datetime
@@ -74,23 +74,31 @@ def process_config_item(k, v, prefix="", font_files=None, parent_obj=None):
         for name, idx in v.items():
             lines.append(f"#define POS_{name.upper()} {idx}")
     else:
-        func_name = f"{k.lower()}_to_config_value"
-
-        # 1. Check if the parent object has a specific converter for this field
-        # (e.g., Wifi.bssid_to_config_value handles the bssid field)
+        # 0. Check if the value itself has a to_config_value method
         if (
             parent_obj
-            and hasattr(parent_obj, func_name)
-            and callable(getattr(parent_obj, func_name))
+            and hasattr(parent_obj, f"{k.lower()}_to_config_value")
+            and callable(getattr(parent_obj, f"{k.lower()}_to_config_value"))
         ):
-            lines.append(f"#define {macro_key} {getattr(parent_obj, func_name)()}")
+            lines.append(f"{getattr(parent_obj, f'{k.lower()}_to_config_value')()}")
+
+        # 1. Check if the parent object has a specific converter for this field
+        # (e.g., Wifi.bssid_to_define_value handles the bssid field)
+        elif (
+            parent_obj
+            and hasattr(parent_obj, f"{k.lower()}_to_define_value")
+            and callable(getattr(parent_obj, f"{k.lower()}_to_define_value"))
+        ):
+            lines.append(
+                f"#define {macro_key} {getattr(parent_obj, f'{k.lower()}_to_define_value')()}"
+            )
 
         # 2. Check if the value itself has a generic converter
-        # (e.g., Color.to_config_value handles the Color enum)
-        elif hasattr(v, "to_config_value") and callable(
-            getattr(v, "to_config_value", None)
+        # (e.g., Color.to_define_value handles the Color enum)
+        elif hasattr(v, "to_define_value") and callable(
+            getattr(v, "to_define_value", None)
         ):
-            lines.append(f"#define {macro_key} {v.to_config_value()}")
+            lines.append(f"#define {macro_key} {v.to_define_value()}")
 
         elif hasattr(v, "name"):
             if k == "locale":

@@ -19,6 +19,7 @@
 
 #include "defines.h"
 #include <cstdint>
+#include <optional>
 #include <Arduino.h>
 
 // DEFAULT CONFIGS
