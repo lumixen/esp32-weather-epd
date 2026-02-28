@@ -60,7 +60,6 @@ SemaphoreHandle_t sensorReadingDoneSemaphore;
 std::optional<float> inTemp = {};
 std::optional<float> inHumidity = {};
 std::optional<float> inPressure = {};
-String sensorStatusStr;
 
 // RTC_DATA_ATTR variables survive deep sleep resets, but not power cycles.
 // They are used to store data that must persist across deep sleep cycles, such as the wake-up counter.
@@ -187,15 +186,8 @@ void envSensorReadingTask(void *pvParameters) {
 
     Serial.println("Temp: " + String(inTemp.value_or(NAN)) + "°C, Humidity: " + String(inHumidity.value_or(NAN)) +
                    "%, Pressure: " + String(inPressure.value_or(NAN)) + " hPa");
-
-    if (std::isnan(inTemp.value_or(NAN)) || std::isnan(inHumidity.value_or(NAN)) ||
-        std::isnan(inPressure.value_or(NAN))) {
-      sensorStatusStr = "BME " + String(TXT_READ_FAILED);
-    } else {
-      sensorStatusStr = TXT_SUCCESS;
-    }
   } else {
-    sensorStatusStr = "BME " + String(TXT_NOT_FOUND);
+    Serial.println("[error] Failed to initialize BME sensor");
   }
   delete sensor;
   xSemaphoreGive(sensorReadingDoneSemaphore);  // Signal completion
@@ -399,7 +391,12 @@ void setup() {
     handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
                        wifiRSSI);
   }
-  // SEND MQTT STATUS (success case)
+// SEND MQTT STATUS (success case)
+#ifndef BME_TYPE_NONE
+  if (xSemaphoreTake(sensorReadingDoneSemaphore, pdMS_TO_TICKS(2000)) != pdTRUE) {
+    Serial.println("[error] Timeout waiting for sensor reading to complete");
+  }
+#endif
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
   if (WiFi.status() == WL_CONNECTED) {
     sendMQTTStatus({.batteryVoltage = batteryVoltage,
@@ -422,12 +419,6 @@ void setup() {
   getRefreshTimeStr(refreshTimeStr, timeConfigured, &timeInfo);
   String dateStr;
   getDateStr(dateStr, &timeInfo);
-
-#ifndef BME_TYPE_NONE
-  if (xSemaphoreTake(sensorReadingDoneSemaphore, pdMS_TO_TICKS(2000)) != pdTRUE) {
-    Serial.println("[error] Timeout waiting for sensor reading to complete");
-  }
-#endif
 
   // RENDER FULL REFRESH
   initDisplay();
