@@ -145,12 +145,17 @@ void enrichWithMoonData(environment_data_t &data) {
   data.daily[0].moon_phase = moonState.phase;
 }  // end enrichWithMoonData
 
-void handleNetworkError(const unsigned char *icon, const String &statusStr, const String &tmpStr,
-                        unsigned long startTime, tm *timeInfo, uint32_t batteryVoltage, uint8_t batteryPercent,
-                        int8_t wifiRSSI) {
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
+void publishMqtt(uint32_t batteryVoltage, uint8_t batteryPercent, int8_t wifiRSSI, unsigned long apiActivityDuration) {
+  std::optional<float> inTempSafeCopy = {};
+  std::optional<float> inHumiditySafeCopy = {};
+  std::optional<float> inPressureSafeCopy = {};
 #ifndef BME_TYPE_NONE
-  if (xSemaphoreTake(sensorReadingDoneSemaphore, pdMS_TO_TICKS(2000)) != pdTRUE) {
+  if (xSemaphoreTake(sensorReadingDoneSemaphore, pdMS_TO_TICKS(2000)) == pdTRUE) {
+    inTempSafeCopy = inTemp;
+    inHumiditySafeCopy = inHumidity;
+    inPressureSafeCopy = inPressure;
+  } else {
     Serial.println("[error] Timeout waiting for sensor reading to complete");
   }
 #endif
@@ -158,11 +163,19 @@ void handleNetworkError(const unsigned char *icon, const String &statusStr, cons
     sendMQTTStatus({.batteryVoltage = batteryVoltage,
                     .batteryPercentage = batteryPercent,
                     .wifiRSSI = wifiRSSI,
-                    .apiActivityDuration = 0,
-                    .temperature = inTemp,
-                    .humidity = inHumidity,
-                    .pressure = inPressure});
+                    .apiActivityDuration = apiActivityDuration,
+                    .temperature = inTempSafeCopy,
+                    .humidity = inHumiditySafeCopy,
+                    .pressure = inPressureSafeCopy});
   }
+}
+#endif
+
+void handleNetworkError(const unsigned char *icon, const String &statusStr, const String &tmpStr,
+                        unsigned long startTime, tm *timeInfo, uint32_t batteryVoltage, uint8_t batteryPercent,
+                        int8_t wifiRSSI) {
+#if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
+  publishMqtt(batteryVoltage, batteryPercent, wifiRSSI, 0);
 #endif
 
   killWiFi();
@@ -398,15 +411,7 @@ void setup() {
   }
 #endif
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
-  if (WiFi.status() == WL_CONNECTED) {
-    sendMQTTStatus({.batteryVoltage = batteryVoltage,
-                    .batteryPercentage = batteryPercent,
-                    .wifiRSSI = wifiRSSI,
-                    .apiActivityDuration = millis() - apiRequestsStartTime,
-                    .temperature = inTemp,
-                    .humidity = inHumidity,
-                    .pressure = inPressure});
-  }
+  publishMqtt(batteryVoltage, batteryPercent, wifiRSSI, millis() - apiRequestsStartTime);
 #endif
 
   killWiFi();  // WiFi no longer needed

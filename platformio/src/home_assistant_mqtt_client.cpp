@@ -107,13 +107,15 @@ void sendMQTTStatus(const mqtt_status_params_t &params) {
     bool publishSuccess = true;
     if (!publishedMqttConfig) {
       Serial.println("Publishing discovery messages...");
-      // Publish discovery messages only once per power cycle
+// Publish discovery messages only once per power cycle
+#if BATTERY_MONITORING
       publishSuccess &=
           publishMQTTSensorDiscovery("Battery voltage", clientId, HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_TOPIC,
                                      HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_PAYLOAD);
       publishSuccess &=
           publishMQTTSensorDiscovery("Battery percent", clientId, HOME_ASSISTANT_MQTT_BATTERY_PERCENT_TOPIC,
                                      HOME_ASSISTANT_MQTT_BATTERY_PERCENT_PAYLOAD);
+#endif
       publishSuccess &= publishMQTTSensorDiscovery("WiFi RSSI", clientId, HOME_ASSISTANT_MQTT_WIFI_RSSI_TOPIC,
                                                    HOME_ASSISTANT_MQTT_WIFI_RSSI_PAYLOAD);
       publishSuccess &=
