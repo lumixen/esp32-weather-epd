@@ -54,9 +54,7 @@ static air_pollution_t air_pollution;
 
 Preferences prefs;
 
-#ifndef BME_TYPE_NONE
 SemaphoreHandle_t sensorReadingDoneSemaphore;
-#endif
 std::optional<float> inTemp = {};
 std::optional<float> inHumidity = {};
 std::optional<float> inPressure = {};
@@ -145,8 +143,10 @@ void enrichWithMoonData(environment_data_t &data) {
   data.daily[0].moon_phase = moonState.phase;
 }  // end enrichWithMoonData
 
-#if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
-void publishMqtt(uint32_t batteryVoltage, uint8_t batteryPercent, int8_t wifiRSSI, unsigned long apiActivityDuration) {
+sensor_readings getSensorReadings() {
+  if (sensorReadingDoneSemaphore == nullptr) {
+    return {.temperature = inTemp, .humidity = inHumidity, .pressure = inPressure};
+  }
   std::optional<float> inTempSafeCopy = {};
   std::optional<float> inHumiditySafeCopy = {};
   std::optional<float> inPressureSafeCopy = {};
@@ -155,18 +155,26 @@ void publishMqtt(uint32_t batteryVoltage, uint8_t batteryPercent, int8_t wifiRSS
     inTempSafeCopy = inTemp;
     inHumiditySafeCopy = inHumidity;
     inPressureSafeCopy = inPressure;
+    vSemaphoreDelete(sensorReadingDoneSemaphore);
+    sensorReadingDoneSemaphore = nullptr;
   } else {
     Serial.println("[error] Timeout waiting for sensor reading to complete");
   }
 #endif
+  return {.temperature = inTempSafeCopy, .humidity = inHumiditySafeCopy, .pressure = inPressureSafeCopy};
+}
+
+#if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
+void publishMqtt(uint32_t batteryVoltage, uint8_t batteryPercent, int8_t wifiRSSI, unsigned long apiActivityDuration) {
+  sensor_readings sensorReadings = getSensorReadings();
   if (WiFi.status() == WL_CONNECTED) {
     sendMQTTStatus({.batteryVoltage = batteryVoltage,
                     .batteryPercentage = batteryPercent,
                     .wifiRSSI = wifiRSSI,
                     .apiActivityDuration = apiActivityDuration,
-                    .temperature = inTempSafeCopy,
-                    .humidity = inHumiditySafeCopy,
-                    .pressure = inPressureSafeCopy});
+                    .temperature = sensorReadings.temperature,
+                    .humidity = sensorReadings.humidity,
+                    .pressure = sensorReadings.pressure});
   }
 }
 #endif
@@ -405,11 +413,6 @@ void setup() {
                        wifiRSSI);
   }
 // SEND MQTT STATUS (success case)
-#ifndef BME_TYPE_NONE
-  if (xSemaphoreTake(sensorReadingDoneSemaphore, pdMS_TO_TICKS(2000)) != pdTRUE) {
-    Serial.println("[error] Timeout waiting for sensor reading to complete");
-  }
-#endif
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
   publishMqtt(batteryVoltage, batteryPercent, wifiRSSI, millis() - apiRequestsStartTime);
 #endif
@@ -425,10 +428,12 @@ void setup() {
   String dateStr;
   getDateStr(dateStr, &timeInfo);
 
+  sensor_readings sensorReadings = getSensorReadings();
+
   // RENDER FULL REFRESH
   initDisplay();
   do {
-    drawCurrentConditions(environment_data.current, environment_data.daily[0], air_pollution, inPressure);
+    drawCurrentConditions(environment_data.current, environment_data.daily[0], air_pollution, sensorReadings.pressure);
     Serial.println("Drawing current conditions");
     drawOutlookGraph(environment_data.hourly, environment_data.daily, timeInfo);
     Serial.println("Drawing outlook graph");
