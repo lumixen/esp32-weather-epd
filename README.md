@@ -169,7 +169,7 @@ colors:
   forecastPrecipitation: red
 ```
 
-The full list of actual available options can be found in [schema.py](platformio/config/schema.py).
+The full list of actual available options can be found in [schema.py](platformio/scripts/schema.py).
 
 ### Home Assistant integration through MQTT
 
