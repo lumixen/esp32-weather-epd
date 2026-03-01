@@ -179,3 +179,6 @@ Available sensors:
  - Battery Voltage
  - API Activity Duration
  - WIFI Signal Strength
+ - Temperature
+ - Humidity
+ - Pressure
