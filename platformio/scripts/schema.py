@@ -327,6 +327,7 @@ class Colors(BaseModel):
     statusBarBatteryWarning: Color = Color.BLACK
     statusBarWeakWifi: Color = Color.BLACK
     statusBarMessage: Color = Color.BLACK
+    forecastPrecipitation: Color = Color.BLACK
 
 class BMEBase(BaseModel):
     type: str

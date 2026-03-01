@@ -962,7 +962,7 @@ void drawCurrentVisibility(const current_t &current) {
       if (dailyPrecip > 0.0f) {
 #endif
         display.setFont(&FONT_6pt8b);
-        drawString(x + 31, 98 + 69 / 2 + 38 - 6 + 26, dataStr + unitStr, CENTER);
+        drawString(x + 31, 98 + 69 / 2 + 38 - 6 + 26, dataStr + unitStr, CENTER, COLORS_FORECAST_PRECIPITATION);
 #ifdef DISPLAY_DAILY_PRECIP_SMART
       }
 #endif

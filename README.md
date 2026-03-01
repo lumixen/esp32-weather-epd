@@ -2,6 +2,7 @@
 
 - [Open-Meteo](https://open-meteo.com/) as the primary weather API.
 - Set up for Lolin D32 board.
+- Improved multi-color e-paper displays support.
 - Configuration is managed via a non-versioned YAML file.
 - Supports the DKE DEPG0750RWF86BF 3-color e-paper display.
 - Home Assistant integration through MQTT with auto-discovery.
@@ -165,6 +166,7 @@ colors:
   statusBarBatteryWarning: red
   statusBarWeakWifi: red
   statusBarMessage: red
+  forecastPrecipitation: red
 ```
 
 The full list of actual available options can be found in [schema.py](platformio/config/schema.py).
