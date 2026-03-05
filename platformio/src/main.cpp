@@ -75,7 +75,7 @@ void toggleBuiltinLED(bool state) {
   return;
 }
 
-void time_sync_notification_cb(struct timeval *tv) {
+void timeSyncNotificationCallback(struct timeval *tv) {
   ntpSyncOffsetMicroseconds = tv->tv_sec * 1000000LL + tv->tv_usec;
   Serial.printf("[NTP] Time adjusted by %lld microseconds\n", ntpSyncOffsetMicroseconds);
   if (sntpSyncSemaphore) {
@@ -353,7 +353,7 @@ void setup() {
 
   if (driftIsHuge || timerTriggered) {
     sntpSyncSemaphore = xSemaphoreCreateBinary();
-    sntp_set_time_sync_notification_cb(time_sync_notification_cb);
+    sntp_set_time_sync_notification_cb(timeSyncNotificationCallback);
     Serial.println("[NTP] Synchronizing time with NTP server...");
     configTzTime(D_TIMEZONE, D_NTP_SERVER_1, D_NTP_SERVER_2);
     if (xSemaphoreTake(sntpSyncSemaphore, pdMS_TO_TICKS(NTP_TIMEOUT)) == pdTRUE) {
