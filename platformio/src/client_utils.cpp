@@ -21,7 +21,6 @@
 
 // arduino/esp32 libraries
 #include <Arduino.h>
-#include <esp_sntp.h>
 #include <HTTPClient.h>
 #include <SPI.h>
 #include <time.h>
@@ -158,42 +157,6 @@ void killWiFi() {
   WiFi.disconnect();
   WiFi.mode(WIFI_OFF);
 }  // killWiFi
-
-/* Prints the local time to serial monitor.
- *
- * Returns true if getting local time was a success, otherwise false.
- */
-bool printLocalTime(tm *timeInfo) {
-  int attempts = 0;
-  while (!getLocalTime(timeInfo) && attempts++ < 3) {
-    Serial.println(TXT_FAILED_TO_GET_TIME);
-    return false;
-  }
-  Serial.println(timeInfo, "%A, %B %d, %Y %H:%M:%S");
-  return true;
-}  // printLocalTime
-
-/* Waits for NTP server time sync, adjusted for the time zone specified in
- * config.cpp.
- *
- * Returns true if time was set successfully, otherwise false.
- *
- * Note: Must be connected to WiFi to get time from NTP server.
- */
-bool waitForSNTPSync(tm *timeInfo) {
-  // Wait for SNTP synchronization to complete
-  unsigned long timeout = millis() + NTP_TIMEOUT;
-  if ((sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET) && (millis() < timeout)) {
-    Serial.print(TXT_WAITING_FOR_SNTP);
-    delay(100);  // ms
-    while ((sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET) && (millis() < timeout)) {
-      Serial.print(".");
-      delay(100);  // ms
-    }
-    Serial.println();
-  }
-  return printLocalTime(timeInfo);
-}  // waitForSNTPSync
 
 /* Perform an HTTP GET request to OpenWeatherMap's "One Call" API
  * If data is received, it will be parsed and stored in the global variable

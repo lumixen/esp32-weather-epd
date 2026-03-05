@@ -23,8 +23,6 @@
 
 wl_status_t startWiFi(int8_t &wifiRSSI);
 void killWiFi();
-bool waitForSNTPSync(tm *timeInfo);
-bool printLocalTime(tm *timeInfo);
 
 int getOWMonecall(WiFiClient &client, environment_data_t &r);
 int getOMCall(WiFiClient &client, environment_data_t &r);

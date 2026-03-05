@@ -274,7 +274,7 @@ class Wifi(BaseModel):
                     "(where X is a hexadecimal digit)"
                 )
         return self
-    
+
     def bssid_to_define_value(self):
         # Convert BSSID string to C++ uint8_t array format
         cleaned = self.bssid.replace(":", "").upper()
@@ -315,6 +315,17 @@ class Color(str, Enum):
         return "GxEPD_RED"
 
 
+class NTPConfig(BaseModel):
+    # NTP_SERVER_1 is the primary time server, while NTP_SERVER_2 is a fallback.
+    # pool.ntp.org will find the closest available NTP server to you.
+    server_1: str = "pool.ntp.org"
+    server_2: str = "time.nist.gov"
+    syncIntervalWakeups: int = 6
+    # If you encounter the 'Failed To Fetch The Time' error, try increasing
+    # NTP_TIMEOUT or select closer/lower latency time servers.
+    timeout: int = 20000  # ms
+
+
 class Colors(BaseModel):
     outlookThresholdTemperature: int = 0
     outlookTemperatureBelowThreshold: Color = Color.BLACK
@@ -329,14 +340,17 @@ class Colors(BaseModel):
     statusBarMessage: Color = Color.BLACK
     forecastPrecipitation: Color = Color.BLACK
 
+
 class BMEBase(BaseModel):
     type: str
 
     def type_to_config_value(self):
-        return f'#define BME_TYPE_{self.type.upper()}'
+        return f"#define BME_TYPE_{self.type.upper()}"
+
 
 class BMENone(BMEBase):
     type: Literal["NONE"] = "NONE"
+
 
 class BME280(BMEBase):
     type: Literal["BME280"] = "BME280"
@@ -345,7 +359,9 @@ class BME280(BMEBase):
     pinSCL: int = 22
     address: int = 0x76
 
+
 BMEType = Union[BMENone, BME280]
+
 
 class ConfigSchema(BaseModel):
     epdPanel: Annotated[EpdPanel, enum_schema(EpdPanel)] = EpdPanel.GENERIC_BW_V2
@@ -354,34 +370,46 @@ class ConfigSchema(BaseModel):
     apiProtocol: ApiProtocol = ApiProtocol.HTTPS_VERIFY
     weatherAPI: WeatherAPI = WeatherAPI.OPEN_METEO
     airQualityAPI: AirQualityAPI = AirQualityAPI.OPEN_METEO
-    ntpSyncIntervalHours: int = 6
+    ntp: NTPConfig = Field(default_factory=NTPConfig)
+
+    # ntpSyncIntervalHours: int = 6
     useImperialUnitsAsDefault: bool = False
     bme: BMEType = Field(default_factory=BMENone)
     unitsTemp: UnitsTemp = Field(
-        default_factory=lambda data: UnitsTemp.FAHRENHEIT
-        if data["useImperialUnitsAsDefault"]
-        else UnitsTemp.CELSIUS
+        default_factory=lambda data: (
+            UnitsTemp.FAHRENHEIT
+            if data["useImperialUnitsAsDefault"]
+            else UnitsTemp.CELSIUS
+        )
     )
     unitsSpeed: UnitsSpeed = Field(
-        default_factory=lambda data: UnitsSpeed.MILESPERHOUR
-        if data["useImperialUnitsAsDefault"]
-        else UnitsSpeed.KILOMETERSPERHOUR
+        default_factory=lambda data: (
+            UnitsSpeed.MILESPERHOUR
+            if data["useImperialUnitsAsDefault"]
+            else UnitsSpeed.KILOMETERSPERHOUR
+        )
     )
     unitsPres: UnitsPres = Field(
-        default_factory=lambda data: UnitsPres.INCHESOFMERCURY
-        if data["useImperialUnitsAsDefault"]
-        else UnitsPres.MILLIBARS
+        default_factory=lambda data: (
+            UnitsPres.INCHESOFMERCURY
+            if data["useImperialUnitsAsDefault"]
+            else UnitsPres.MILLIBARS
+        )
     )
     unitsDistance: UnitsDistance = Field(
-        default_factory=lambda data: UnitsDistance.MILES
-        if data["useImperialUnitsAsDefault"]
-        else UnitsDistance.KILOMETERS
+        default_factory=lambda data: (
+            UnitsDistance.MILES
+            if data["useImperialUnitsAsDefault"]
+            else UnitsDistance.KILOMETERS
+        )
     )
     unitsHourlyPrecip: UnitsPrecip = UnitsPrecip.POP
     unitsDailyPrecip: UnitsPrecip = Field(
-        default_factory=lambda data: UnitsPrecip.INCHES
-        if data["useImperialUnitsAsDefault"]
-        else UnitsPrecip.MILLIMETERS
+        default_factory=lambda data: (
+            UnitsPrecip.INCHES
+            if data["useImperialUnitsAsDefault"]
+            else UnitsPrecip.MILLIMETERS
+        )
     )
     windDirectionIndicator: WindDirectionIndicator = WindDirectionIndicator.ARROW
     windArrowPrecision: WindArrowPrecision = WindArrowPrecision.SECONDARY_INTERCARDINAL
