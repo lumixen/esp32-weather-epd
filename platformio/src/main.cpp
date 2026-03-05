@@ -17,6 +17,7 @@
 
 #include "config.h"
 #include <Arduino.h>
+#include <esp_sntp.h>
 #include <Adafruit_Sensor.h>
 #include <Preferences.h>
 #include <time.h>
@@ -52,22 +53,34 @@
 static environment_data_t environment_data;
 static air_pollution_t air_pollution;
 
+static long long ntpSyncOffsetMicroseconds = 0;
+
 Preferences prefs;
 
-SemaphoreHandle_t sensorReadingDoneSemaphore;
+static SemaphoreHandle_t sensorReadingDoneSemaphore = nullptr;
+static SemaphoreHandle_t sntpSyncSemaphore = nullptr;
+
 std::optional<float> inTemp = {};
 std::optional<float> inHumidity = {};
 std::optional<float> inPressure = {};
 
 // RTC_DATA_ATTR variables survive deep sleep resets, but not power cycles.
 // They are used to store data that must persist across deep sleep cycles, such as the wake-up counter.
-RTC_DATA_ATTR uint32_t wakeUpCounter = 0;
+RTC_DATA_ATTR uint32_t ntpWakeUpCounter = 0;
 
 /* Toggle the built-in LED on or off. */
 void toggleBuiltinLED(bool state) {
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, state ? LOW : HIGH);  // Lolin D32 LED is active low
   return;
+}
+
+void time_sync_notification_cb(struct timeval *tv) {
+  ntpSyncOffsetMicroseconds = tv->tv_sec * 1000000LL + tv->tv_usec;
+  Serial.printf("[NTP] Time adjusted by %lld microseconds\n", ntpSyncOffsetMicroseconds);
+  if (sntpSyncSemaphore) {
+    xSemaphoreGive(sntpSyncSemaphore);
+  }
 }
 
 /* Put esp32 into ultra low-power deep sleep (<11μA).
@@ -323,7 +336,7 @@ void setup() {
   }
 
   // TIME SYNCHRONIZATION
-  // Sync periodically based on configured interval (NTP_SYNC_INTERVAL_HOURS) and wake-up counter.
+  // Sync periodically based on configured interval (NTP_SYNC_INTERVAL_WAKEUPS) and wake-up counter.
   // If RTC time is not valid (e.g., after reset or power loss), force an immediate sync.
   setenv("TZ", D_TIMEZONE, 1);
   tzset();
@@ -331,28 +344,34 @@ void setup() {
   bool timeConfigured = false;
   getLocalTime(&timeInfo);  // Updates timeInfo with current RTC time
 
-  // Calculate how many cycles represent the sync interval
-  // Ensure we perform integer division, defaulting to at least 1 cycle if sleep duration > interval
-  unsigned int cyclesPerInterval = (NTP_SYNC_INTERVAL_HOURS * 60) / SLEEP_DURATION;
+  unsigned int cyclesPerInterval = NTP_SYNC_INTERVAL_WAKEUPS;
   if (cyclesPerInterval < 1) {
     cyclesPerInterval = 1;
   }
-
   bool driftIsHuge = (timeInfo.tm_year < (2020 - 1900));  // RTC lost power or uninitialized
-  bool timerTriggered = ((wakeUpCounter % cyclesPerInterval) == 0);
+  bool timerTriggered = ((ntpWakeUpCounter % cyclesPerInterval) == 0);
 
   if (driftIsHuge || timerTriggered) {
-    configTzTime(D_TIMEZONE, NTP_SERVER_1, NTP_SERVER_2);
-    timeConfigured = waitForSNTPSync(&timeInfo);
+    sntpSyncSemaphore = xSemaphoreCreateBinary();
+    sntp_set_time_sync_notification_cb(time_sync_notification_cb);
+    Serial.println("[NTP] Synchronizing time with NTP server...");
+    configTzTime(D_TIMEZONE, D_NTP_SERVER_1, D_NTP_SERVER_2);
+    if (xSemaphoreTake(sntpSyncSemaphore, pdMS_TO_TICKS(NTP_TIMEOUT)) == pdTRUE) {
+      timeConfigured = true;
+      getLocalTime(&timeInfo);
+      Serial.println(&timeInfo, "%A, %B %d, %Y %H:%M:%S");
+    } else {
+      Serial.println(TXT_FAILED_TO_GET_TIME);
+    }
     if (timeConfigured) {
-      wakeUpCounter = 0;  // Reset counter after successful sync
+      ntpWakeUpCounter = 0;  // Reset counter after successful sync
     }
   } else {
-    Serial.println("Using internal RTC time. (Wake #" + String(wakeUpCounter) + "/" + String(cyclesPerInterval) + ")");
+    Serial.println("Using internal RTC time. (Wake #" + String(ntpWakeUpCounter) + "/" + String(cyclesPerInterval) + ")");
     timeConfigured = true;
   }
 
-  wakeUpCounter++;
+  ntpWakeUpCounter++;
 
   if (!timeConfigured) {
     Serial.println(TXT_TIME_SYNCHRONIZATION_FAILED);

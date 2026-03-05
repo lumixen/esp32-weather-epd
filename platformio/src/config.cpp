@@ -78,13 +78,6 @@ const char *TIME_FORMAT = D_TIME_FORMAT;  // 24-hour ex: 01:23   23:00
 // https://man7.org/linux/man-pages/man3/strftime.3.html
 // const char *HOUR_FORMAT = "%l%P"; // 12-hour ex: 1am  11pm
 const char *HOUR_FORMAT = D_HOUR_FORMAT;  // 24-hour ex: 01   23
-// NTP_SERVER_1 is the primary time server, while NTP_SERVER_2 is a fallback.
-// pool.ntp.org will find the closest available NTP server to you.
-const char *NTP_SERVER_1 = "pool.ntp.org";
-const char *NTP_SERVER_2 = "time.nist.gov";
-// If you encounter the 'Failed To Fetch The Time' error, try increasing
-// NTP_TIMEOUT or select closer/lower latency time servers.
-const unsigned long NTP_TIMEOUT = 20000;  // ms
 
 // BATTERY
 // To protect the battery upon LOW_BATTERY_VOLTAGE, the display will cease to
@@ -102,12 +95,3 @@ const unsigned long VERY_LOW_BATTERY_SLEEP_INTERVAL = 120;  // (minutes)
 // Battery voltage calculations are based on a typical 3.7v LiPo.
 const uint32_t MAX_BATTERY_VOLTAGE = 4200;  // (millivolts)
 const uint32_t MIN_BATTERY_VOLTAGE = 3000;  // (millivolts)
-
-// See config.h for the below options
-// E-PAPER PANEL
-// LOCALE
-// UNITS
-// WIND ICON PRECISION
-// FONTS
-// ALERTS
-// BATTERY MONITORING

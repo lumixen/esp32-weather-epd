@@ -93,6 +93,9 @@ bme:
   pinSDA: 21
   pinSCL: 22
   address: 0x76
+ntp:
+  server_1: pool.ntp.org
+  server_2: time.nist.gov
 unitsTemp: Celsius
 unitsSpeed: km/h
 unitsPres: mbar
