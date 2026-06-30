@@ -327,9 +327,11 @@ class NTPConfig(BaseModel):
 
 
 class Colors(BaseModel):
-    outlookThresholdTemperature: int = 0
-    outlookTemperatureBelowThreshold: Color = Color.BLACK
-    outlookTemperatureAboveThreshold: Color = Color.BLACK
+    outlookLowThresholdTemperature: int = 0
+    outlookHighThresholdTemperature: int = 35
+    outlookTemperatureLowColor: Color = Color.BLACK
+    outlookTemperatureNormalColor: Color = Color.BLACK
+    outlookTemperatureHighColor: Color = Color.BLACK
     outlookConditionsIconAccent: Color = Color.BLACK
     city: Color = Color.BLACK
     date: Color = Color.BLACK
