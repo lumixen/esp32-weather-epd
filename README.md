@@ -156,8 +156,11 @@ homeAssistantMqtt:
   deviceName: Device Name
   discoveryPrefix: homeassistant
 colors:
-  outlookTemperatureBelowFreezing: red
-  outlookTemperatureAboveFreezing: black
+  outlookLowThresholdTemperature: 0
+  outlookHighThresholdTemperature: 35
+  outlookTemperatureLowColor: red
+  outlookTemperatureNormalColor: black
+  outlookTemperatureHighColor: red
   outlookConditionsIconAccent: red
   city: black
   date: red
