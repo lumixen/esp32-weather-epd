@@ -54,7 +54,7 @@ bool configureTime(tm *timeInfo) {
       cyclesSinceLastNtpSync = 0;  // Reset counter after successful sync
     }
   } else {
-    Serial.println("Using internal RTC time. (Wake #" + String(cyclesSinceLastNtpSync) + "/" +
+    Serial.println("[TIME] Using internal RTC time. (Wake #" + String(cyclesSinceLastNtpSync) + "/" +
                    String(cyclesPerInterval) + ")");
     timeConfigured = true;
   }
