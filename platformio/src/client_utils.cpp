@@ -337,6 +337,9 @@ int getOMCall(WiFiClient &client, environment_data_t &r) {
     http.end();
     Serial.println("  " + String(httpResponse, DEC) + " " + getHttpResponsePhrase(httpResponse));
     ++attempts;
+    if (!rxSuccess) {
+      delay(100);
+    }
   }
 
   return httpResponse;
