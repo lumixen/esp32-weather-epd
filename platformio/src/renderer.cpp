@@ -1236,8 +1236,9 @@ void drawCurrentVisibility(const current_t &current) {
       dataStr = String(tempVal);
 #if defined(UNITS_TEMP_CELSIUS) || defined(UNITS_TEMP_FAHRENHEIT)
       dataStr += "\260";
-      uint16_t tempColor = tempVal < COLORS_OUTLOOK_THRESHOLD_TEMPERATURE ? COLORS_OUTLOOK_TEMPERATURE_BELOW_THRESHOLD
-                                                                          : COLORS_OUTLOOK_TEMPERATURE_ABOVE_THRESHOLD;
+      uint16_t tempColor = tempVal < COLORS_OUTLOOK_LOW_THRESHOLD_TEMPERATURE   ? COLORS_OUTLOOK_TEMPERATURE_LOW_COLOR
+                         : tempVal > COLORS_OUTLOOK_HIGH_THRESHOLD_TEMPERATURE  ? COLORS_OUTLOOK_TEMPERATURE_HIGH_COLOR
+                                                                                : COLORS_OUTLOOK_TEMPERATURE_NORMAL_COLOR;
 #else
     uint16_t tempColor = GxEPD_BLACK;
 #endif
@@ -1309,12 +1310,13 @@ void drawCurrentVisibility(const current_t &current) {
         y1_t = y_t[i];
 
         // determine colors
-        uint16_t previousColor = hourly[i - 1].temp < COLORS_OUTLOOK_THRESHOLD_TEMPERATURE
-                                     ? COLORS_OUTLOOK_TEMPERATURE_BELOW_THRESHOLD
-                                     : COLORS_OUTLOOK_TEMPERATURE_ABOVE_THRESHOLD;
-        uint16_t currentColor = hourly[i].temp < COLORS_OUTLOOK_THRESHOLD_TEMPERATURE
-                                    ? COLORS_OUTLOOK_TEMPERATURE_BELOW_THRESHOLD
-                                    : COLORS_OUTLOOK_TEMPERATURE_ABOVE_THRESHOLD;
+        auto tempToColor = [](float t) -> uint16_t {
+          if (t < COLORS_OUTLOOK_LOW_THRESHOLD_TEMPERATURE)  return COLORS_OUTLOOK_TEMPERATURE_LOW_COLOR;
+          if (t > COLORS_OUTLOOK_HIGH_THRESHOLD_TEMPERATURE) return COLORS_OUTLOOK_TEMPERATURE_HIGH_COLOR;
+          return COLORS_OUTLOOK_TEMPERATURE_NORMAL_COLOR;
+        };
+        uint16_t previousColor = tempToColor(hourly[i - 1].temp);
+        uint16_t currentColor  = tempToColor(hourly[i].temp);
 
         if (previousColor == currentColor) {
           // No crossing, draw single line
@@ -1326,8 +1328,11 @@ void drawCurrentVisibility(const current_t &current) {
           // y = mx + b -> We need x where temp is threshold.
           float t0 = hourly[i - 1].temp;
           float t1 = hourly[i].temp;
-          float ratio =
-              (COLORS_OUTLOOK_THRESHOLD_TEMPERATURE - t0) / (t1 - t0);  // ratio of distance from t0 to threshold
+          // Determine which threshold was crossed.
+          float crossedThreshold = (t0 < COLORS_OUTLOOK_LOW_THRESHOLD_TEMPERATURE || t1 < COLORS_OUTLOOK_LOW_THRESHOLD_TEMPERATURE)
+                                       ? COLORS_OUTLOOK_LOW_THRESHOLD_TEMPERATURE
+                                       : COLORS_OUTLOOK_HIGH_THRESHOLD_TEMPERATURE;
+          float ratio = (crossedThreshold - t0) / (t1 - t0);  // ratio of distance from t0 to threshold
 
           int x_cross = x0_t + (x1_t - x0_t) * ratio;
           int y_cross = y0_t + (y1_t - y0_t) * ratio;
