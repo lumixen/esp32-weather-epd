@@ -96,6 +96,10 @@ bme:
 ntp:
   server_1: pool.ntp.org
   server_2: time.nist.gov
+  # How many wake cycles between NTP syncs. Between syncs, the internal RTC is used.
+  syncIntervalWakeups: 6
+  # NTP sync timeout in milliseconds. Increase if you get 'Failed To Fetch The Time'.
+  timeout: 20000
 unitsTemp: Celsius
 unitsSpeed: km/h
 unitsPres: mbar

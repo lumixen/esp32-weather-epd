@@ -126,7 +126,6 @@ void beginDeepSleep(unsigned long startTime, tm *timeInfo) {
   Serial.println(" " + String((millis() - startTime) / 1000.0, 3) + "s");
   Serial.print(TXT_ENTERING_DEEP_SLEEP_FOR);
   Serial.println(" " + String(sleepDuration) + "s");
-  logTimeBeforeSleep();
   esp_deep_sleep_start();
 }  // end beginDeepSleep
 
