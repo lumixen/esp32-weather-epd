@@ -64,5 +64,9 @@ bool configureTime(tm *timeInfo) {
     // Sync was attempted but failed; trigger a retry on the next wakeup.
     cyclesSinceLastNtpSync = cyclesPerInterval;
   }
+  if (timeConfigured) {
+    Serial.print("[TIME] ");
+    Serial.println(timeInfo, "%A, %B %d, %Y %H:%M:%S");
+  }
   return timeConfigured;
 }

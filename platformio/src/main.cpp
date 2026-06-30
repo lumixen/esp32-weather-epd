@@ -323,7 +323,6 @@ void setup() {
                        batteryPercent, wifiRSSI);
   }
 
-  Serial.println(&timeInfo, "%A, %B %d, %Y %H:%M:%S");
 
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
   unsigned long apiRequestsStartTime = millis();
