@@ -48,6 +48,8 @@ bool configureTime(tm *timeInfo) {
     } else {
       Serial.println(TXT_FAILED_TO_GET_TIME);
     }
+    vSemaphoreDelete(ntpSyncSemaphore);
+    ntpSyncSemaphore = nullptr;
     if (timeConfigured) {
       cyclesSinceLastNtpSync = 0;  // Reset counter after successful sync
     }
@@ -58,5 +60,9 @@ bool configureTime(tm *timeInfo) {
   }
 
   cyclesSinceLastNtpSync++;
+  if (!timeConfigured) {
+    // Sync was attempted but failed; trigger a retry on the next wakeup.
+    cyclesSinceLastNtpSync = cyclesPerInterval;
+  }
   return timeConfigured;
 }
