@@ -19,11 +19,11 @@
 #include <Arduino.h>
 #include <Adafruit_Sensor.h>
 #include <Preferences.h>
-#include <time.h>
 #include <WiFi.h>
 #include <Wire.h>
 
 #include "_locale.h"
+#include "time_utils.h"
 #include "api_response.h"
 #include "client_utils.h"
 #include "config.h"
@@ -54,14 +54,11 @@ static air_pollution_t air_pollution;
 
 Preferences prefs;
 
-SemaphoreHandle_t sensorReadingDoneSemaphore;
+static SemaphoreHandle_t sensorReadingDoneSemaphore = nullptr;
+
 std::optional<float> inTemp = {};
 std::optional<float> inHumidity = {};
 std::optional<float> inPressure = {};
-
-// RTC_DATA_ATTR variables survive deep sleep resets, but not power cycles.
-// They are used to store data that must persist across deep sleep cycles, such as the wake-up counter.
-RTC_DATA_ATTR uint32_t wakeUpCounter = 0;
 
 /* Toggle the built-in LED on or off. */
 void toggleBuiltinLED(bool state) {
@@ -117,10 +114,6 @@ void beginDeepSleep(unsigned long startTime, tm *timeInfo) {
     const int hoursUntilWake = 24 - curHour;
     sleepDuration = hoursUntilWake * 3600ULL - (timeInfo->tm_min * 60ULL + timeInfo->tm_sec);
   }
-
-  // add extra delay to compensate for esp32's with fast RTCs.
-  sleepDuration += 3ULL;
-  sleepDuration *= 1.0015f;
 
 #if DEBUG_LEVEL >= 1
   printHeapUsage();
@@ -322,43 +315,14 @@ void setup() {
     beginDeepSleep(startTime, &timeInfo);
   }
 
-  // TIME SYNCHRONIZATION
-  // Sync periodically based on configured interval (NTP_SYNC_INTERVAL_HOURS) and wake-up counter.
-  // If RTC time is not valid (e.g., after reset or power loss), force an immediate sync.
-  setenv("TZ", D_TIMEZONE, 1);
-  tzset();
-
-  bool timeConfigured = false;
-  getLocalTime(&timeInfo);  // Updates timeInfo with current RTC time
-
-  // Calculate how many cycles represent the sync interval
-  // Ensure we perform integer division, defaulting to at least 1 cycle if sleep duration > interval
-  unsigned int cyclesPerInterval = (NTP_SYNC_INTERVAL_HOURS * 60) / SLEEP_DURATION;
-  if (cyclesPerInterval < 1) {
-    cyclesPerInterval = 1;
-  }
-
-  bool driftIsHuge = (timeInfo.tm_year < (2020 - 1900));  // RTC lost power or uninitialized
-  bool timerTriggered = ((wakeUpCounter % cyclesPerInterval) == 0);
-
-  if (driftIsHuge || timerTriggered) {
-    configTzTime(D_TIMEZONE, NTP_SERVER_1, NTP_SERVER_2);
-    timeConfigured = waitForSNTPSync(&timeInfo);
-    if (timeConfigured) {
-      wakeUpCounter = 0;  // Reset counter after successful sync
-    }
-  } else {
-    Serial.println("Using internal RTC time. (Wake #" + String(wakeUpCounter) + "/" + String(cyclesPerInterval) + ")");
-    timeConfigured = true;
-  }
-
-  wakeUpCounter++;
+  bool timeConfigured = configureTime(&timeInfo);
 
   if (!timeConfigured) {
     Serial.println(TXT_TIME_SYNCHRONIZATION_FAILED);
     handleNetworkError(wi_time_4_196x196, TXT_TIME_SYNCHRONIZATION_FAILED, "", startTime, &timeInfo, batteryVoltage,
                        batteryPercent, wifiRSSI);
   }
+
 
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
   unsigned long apiRequestsStartTime = millis();
