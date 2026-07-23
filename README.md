@@ -52,7 +52,7 @@ Enclosure files and assembly instructions are available at [printables](https://
 
 Wiring is specific for Lolin D32 board:
 
-<img width="459" height="525" alt="image" src="https://github.com/user-attachments/assets/278b804c-fa89-4595-b60a-8fa0e6571931" />
+<img width="459" src="https://github.com/user-attachments/assets/278b804c-fa89-4595-b60a-8fa0e6571931" />
 
 | E-Paper Pin    | Lolin D32 Pin |
 |----------------|--------------|
