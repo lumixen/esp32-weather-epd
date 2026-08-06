@@ -1,9 +1,28 @@
+/* Provider-agnostic data models for esp32-weather-epd.
+ * Copyright (C) 2022-2025  Luke Marzen
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 #pragma once
 
 #include <Arduino.h>
+#include <vector>
 
 #define NUM_HOURLY 24  // 48
 #define NUM_DAILY 5    // 8
+#define NUM_AIR_POLLUTION \
+  24  // Depending on AQI scale, hourly concentrations will need to be averaged over a period of 1h to 24h
 
 struct sensor_readings {
   std::optional<float> temperature;
@@ -11,11 +30,14 @@ struct sensor_readings {
   std::optional<float> pressure;
 };
 
+/*
+ * Weather condition. `id` is the provider-native condition code (e.g. OWM
+ * condition id or WMO weather code), mapped to icons by the display layer.
+ */
 typedef struct weather {
   int id;              // Weather condition id
   String main;         // Group of weather parameters (Rain, Snow, Extreme etc.)
-  String description;  // Weather condition within the group (full list of weather conditions). Get the output in your
-                       // language
+  String description;  // Weather condition within the group
 } weather_t;
 
 /*
@@ -118,21 +140,42 @@ typedef struct daily {
 /*
  * National weather alerts data from major national weather warning systems
  */
-typedef struct owm_alerts {
+typedef struct weather_alert {
   String sender_name;  // Name of the alert source.
   String event;        // Alert event name
   int64_t start;       // Date and time of the start of the alert, Unix, UTC
   int64_t end;         // Date and time of the end of the alert, Unix, UTC
   String description;  // Description of the alert
   String tags;         // Type of severe weather
-} owm_alerts_t;
+} weather_alert_t;
 
 /*
- * Response from OpenWeatherMap's OneCall API
- *
- * https://openweathermap.org/api/one-call-api
+ * Hourly concentrations of air pollutants, μg/m^3
  */
-typedef struct environment_data {
+typedef struct air_quality_components {
+  float co[NUM_AIR_POLLUTION];     // Сoncentration of CO (Carbon monoxide), μg/m^3
+  float no[NUM_AIR_POLLUTION];     // Сoncentration of NO (Nitrogen monoxide), μg/m^3
+  float no2[NUM_AIR_POLLUTION];    // Сoncentration of NO2 (Nitrogen dioxide), μg/m^3
+  float o3[NUM_AIR_POLLUTION];     // Сoncentration of O3 (Ozone), μg/m^3
+  float so2[NUM_AIR_POLLUTION];    // Сoncentration of SO2 (Sulphur dioxide), μg/m^3
+  float pm2_5[NUM_AIR_POLLUTION];  // Сoncentration of PM2.5 (Fine particles matter), μg/m^3
+  float pm10[NUM_AIR_POLLUTION];   // Сoncentration of PM10 (Coarse particulate matter), μg/m^3
+  float nh3[NUM_AIR_POLLUTION];    // Сoncentration of NH3 (Ammonia), μg/m^3
+} air_quality_components_t;
+
+/*
+ * Hourly air quality data
+ */
+typedef struct air_quality {
+  air_quality_components_t components;
+  int64_t dt[NUM_AIR_POLLUTION];  // Date and time, Unix, UTC;
+} air_quality_t;
+
+/*
+ * Forecast data, provider-agnostic. Weather providers map their response
+ * into this model.
+ */
+typedef struct forecast {
   float lat;            // Geographical coordinates of the location (latitude)
   float lon;            // Geographical coordinates of the location (longitude)
   String timezone;      // Timezone name for the requested location
@@ -141,5 +184,4 @@ typedef struct environment_data {
 
   hourly_t hourly[NUM_HOURLY];
   daily_t daily[NUM_DAILY];
-  std::vector<owm_alerts_t> alerts;
-} environment_data_t;
+} forecast_t;

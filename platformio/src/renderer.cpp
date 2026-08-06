@@ -18,9 +18,9 @@
 #include "_locale.h"
 #include "_strftime.h"
 #include "renderer.h"
-#include "api_response.h"
 #include "config.h"
 #include "conversions.h"
+#include "data_models.h"
 #include "display_utils.h"
 #include "moon_tools.h"
 
@@ -385,7 +385,7 @@ void drawCurrentUVI(const current_t &current) {
 
 // drawCurrentAirQuality
 #ifdef POS_AIR_QUALITY
-void drawCurrentAirQuality(const air_pollution_t &air_pollution) {
+void drawCurrentAirQuality(const air_quality_t &air_quality) {
   String dataStr, unitStr;
   int PosX = (POS_AIR_QUALITY % 2);
   int PosY = static_cast<int>(POS_AIR_QUALITY / 2);
@@ -410,7 +410,7 @@ void drawCurrentAirQuality(const air_pollution_t &air_pollution) {
 
   // air quality index
   display.setFont(&FONT_12pt8b);
-  const air_components_t &c = air_pollution.components;
+  const air_quality_components_t &c = air_quality.components;
   // OpenWeatherMap does not provide pb (lead) conentrations, so we pass NULL.
   int aqi = calc_aqi(AQI_SCALE, c.co, c.nh3, c.no, c.no2, c.o3, NULL, c.so2, c.pm10, c.pm2_5);
   int aqi_max = aqi_scale_max(AQI_SCALE);
@@ -784,7 +784,7 @@ void drawCurrentVisibility(const current_t &current) {
   /* This function is responsible for drawing the current conditions and
    * associated icons.
    */
-  void drawCurrentConditions(const current_t &current, const daily_t &today, const air_pollution_t &air_pollution,
+  void drawCurrentConditions(const current_t &current, const daily_t &today, const air_quality_t &air_quality,
                              std::optional<float> inPressure) {
     String dataStr, unitStr;
     // current weather icon
@@ -866,7 +866,7 @@ void drawCurrentVisibility(const current_t &current) {
 #endif
 
 #ifdef POS_AIR_QUALITY
-    drawCurrentAirQuality(air_pollution);
+    drawCurrentAirQuality(air_quality);
 #endif
 
 #ifdef POS_MOONRISE
@@ -975,7 +975,7 @@ void drawCurrentVisibility(const current_t &current) {
   /* This function is responsible for drawing the current alerts if any.
    * Up to 2 alerts can be drawn.
    */
-  void drawAlerts(std::vector<owm_alerts_t> & alerts, const String &city, const String &date) {
+  void drawAlerts(std::vector<weather_alert_t> & alerts, const String &city, const String &date) {
 #if DEBUG_LEVEL >= 1
     Serial.println("[debug] alerts.size()    : " + String(alerts.size()));
 #endif
@@ -1026,7 +1026,7 @@ void drawCurrentVisibility(const current_t &current) {
       // adjust max width to for 48x48 icons
       max_w -= 48;
 
-      owm_alerts_t &cur_alert = alerts[alert_indices[0]];
+      weather_alert_t &cur_alert = alerts[alert_indices[0]];
       display.drawInvertedBitmap(196, 8, getAlertBitmap48(cur_alert), 48, 48, COLORS_ALERT);
       // must be called after getAlertBitmap
       toTitleCase(cur_alert.event);
@@ -1049,7 +1049,7 @@ void drawCurrentVisibility(const current_t &current) {
 
       display.setFont(&FONT_12pt8b);
       for (int i = 0; i < 2; ++i) {
-        owm_alerts_t &cur_alert = alerts[alert_indices[i]];
+        weather_alert_t &cur_alert = alerts[alert_indices[i]];
 
         display.drawInvertedBitmap(196, (i * 32), getAlertBitmap32(cur_alert), 32, 32, COLORS_ALERT);
         // must be called after getAlertBitmap

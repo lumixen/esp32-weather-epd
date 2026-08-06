@@ -18,6 +18,9 @@
 #include <cmath>
 #include <vector>
 #include <Arduino.h>
+#include <ArduinoJson.h>
+#include <HTTPClient.h>
+#include <WiFi.h>
 #include <driver/adc.h>
 #include <esp_adc_cal.h>
 
@@ -25,7 +28,6 @@
 
 #include "_locale.h"
 #include "_strftime.h"
-#include "api_response.h"
 #include "config.h"
 #include "display_utils.h"
 
@@ -240,7 +242,7 @@ int eventUrgency(const String &event) {
  * Truncate Extraneous Info (anything that follows a comma, period, or open
  *   parentheses)
  */
-void filterAlerts(std::vector<owm_alerts_t> &resp, int *ignore_list) {
+void filterAlerts(std::vector<weather_alert_t> &resp, int *ignore_list) {
   // Convert all event text and tags to lowercase.
   for (auto &alert : resp) {
     alert.event.toLowerCase();
@@ -877,7 +879,7 @@ const uint8_t *getCurrentConditionsBitmap196(const current_t &current, const dai
  * If a relevant category can not be determined, the default alert bitmap will
  * be returned. (warning triangle icon)
  */
-const uint8_t *getAlertBitmap32(const owm_alerts_t &alert) {
+const uint8_t *getAlertBitmap32(const weather_alert_t &alert) {
   enum alert_category c = getAlertCategory(alert);
   switch (c) {
     // this is the default if an alert wasn't associated with a catagory
@@ -947,7 +949,7 @@ const uint8_t *getAlertBitmap32(const owm_alerts_t &alert) {
  * If a relevant category can not be determined, the default alert bitmap will
  * be returned. (warning triangle icon)
  */
-const uint8_t *getAlertBitmap48(const owm_alerts_t &alert) {
+const uint8_t *getAlertBitmap48(const weather_alert_t &alert) {
   enum alert_category c = getAlertCategory(alert);
   switch (c) {
     // this is the default if an alert wasn't associated with a catagory
@@ -1028,7 +1030,7 @@ bool containsTerminology(const String s, const std::vector<String> &terminology)
  *
  * Weather alert terminology is defined in the included locale header.
  */
-enum alert_category getAlertCategory(const owm_alerts_t &alert) {
+enum alert_category getAlertCategory(const weather_alert_t &alert) {
   if (containsTerminology(alert.event, TERM_SMOG)) {
     return alert_category::SMOG;
   }
