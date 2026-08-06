@@ -1,10 +1,16 @@
 #include "config.h"
 
-#if defined(AIR_QUALITY_API_OPEN_METEO)
+#if defined(AIR_QUALITY_API_PROVIDER_OPEN_METEO)
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <WiFiClient.h>
+#if !defined(AIR_QUALITY_API_TRANSPORT_HTTP)
+#include <WiFiClientSecure.h>
+#endif
+#if defined(AIR_QUALITY_API_TRANSPORT_HTTPS_VERIFY)
+#include "cert.h"
+#endif
 #include <time.h>
 #include "client_utils.h"
 #include "open_meteo_air_quality_provider.h"
@@ -14,13 +20,25 @@
  *
  * Returns the HTTP Status Code.
  */
-int OpenMeteoAirQualityProvider::fetch(WiFiClient &client, air_quality_t &airQuality) {
+int OpenMeteoAirQualityProvider::fetch(air_quality_t &airQuality) {
+#if defined(AIR_QUALITY_API_TRANSPORT_HTTP)
+  WiFiClient client;
+  const uint16_t port = 80;
+#elif defined(AIR_QUALITY_API_TRANSPORT_HTTPS_NO_VERIFY)
+  WiFiClientSecure client;
+  client.setInsecure();
+  const uint16_t port = 443;
+#else  // AIR_QUALITY_API_TRANSPORT_HTTPS_VERIFY
+  WiFiClientSecure client;
+  client.setCACert(cert_ISRG_Root_X1);
+  const uint16_t port = 443;
+#endif
   String uri = "/v1/air-quality?latitude=" + LAT + "&longitude=" + LON +
                "&hourly=pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ammonia,nitrogen_monoxide,ozone,pm10&"
                "past_days=1&forecast_days=1&timeformat=unixtime";
   String sanitizedUri = OM_AIR_QUALITY_ENDPOINT + uri;
 
-  return httpGetWithRetry(client, OM_AIR_QUALITY_ENDPOINT, uri, sanitizedUri, true,
+  return httpGetWithRetry(client, OM_AIR_QUALITY_ENDPOINT, port, uri, sanitizedUri, true,
                           [&airQuality](Stream &json) { return deserializeAirQuality(json, airQuality); });
 }  // OpenMeteoAirQualityProvider::fetch
 
@@ -74,4 +92,4 @@ DeserializationError OpenMeteoAirQualityProvider::deserializeAirQuality(Stream &
   return error;
 }  // OpenMeteoAirQualityProvider::deserializeAirQuality
 
-#endif  // AIR_QUALITY_API_OPEN_METEO
+#endif  // AIR_QUALITY_API_PROVIDER_OPEN_METEO

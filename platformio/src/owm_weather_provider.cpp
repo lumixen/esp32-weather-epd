@@ -1,11 +1,17 @@
 #include "config.h"
 
-#if defined(WEATHER_API_OPEN_WEATHER_MAP)
+#if defined(WEATHER_API_PROVIDER_OPEN_WEATHER_MAP)
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
 #include <WiFiClient.h>
+#if !defined(WEATHER_API_TRANSPORT_HTTP)
+#include <WiFiClientSecure.h>
+#endif
+#if defined(WEATHER_API_TRANSPORT_HTTPS_VERIFY)
+#include "cert.h"
+#endif
 #include "_locale.h"
 #include "client_utils.h"
 #include "owm_weather_provider.h"
@@ -14,15 +20,31 @@
 // are probably doomed.
 #define OWM_NUM_ALERTS 8
 
+const char *OWMWeatherProvider::getApiName() const {
+  return "One Call API";
+}  // OWMWeatherProvider::getApiName
+
 /* Perform an HTTP GET request to OpenWeatherMap's "One Call" API and map the
  * response into the generic forecast model.
  *
  * Returns the HTTP Status Code.
  */
-int OWMWeatherProvider::fetch(WiFiClient &client, forecast_t &forecast) {
+int OWMWeatherProvider::fetch(forecast_t &forecast) {
+#if defined(WEATHER_API_TRANSPORT_HTTP)
+  WiFiClient client;
+  const uint16_t port = 80;
+#elif defined(WEATHER_API_TRANSPORT_HTTPS_NO_VERIFY)
+  WiFiClientSecure client;
+  client.setInsecure();
+  const uint16_t port = 443;
+#else  // WEATHER_API_TRANSPORT_HTTPS_VERIFY
+  WiFiClientSecure client;
+  client.setCACert(cert_USERTrust_RSA_Certification_Authority);
+  const uint16_t port = 443;
+#endif
   String uri = "/data/" + OWM_ONECALL_VERSION + "/onecall?lat=" + LAT + "&lon=" + LON + "&lang=" + OWM_LANG +
                "&units=metric&exclude=minutely";
-#if !defined(ALERTS_API_OPEN_WEATHER_MAP)
+#if !defined(ALERTS_API_PROVIDER_OPEN_WEATHER_MAP)
   // exclude alerts
   uri += ",alerts";
 #endif
@@ -34,12 +56,12 @@ int OWMWeatherProvider::fetch(WiFiClient &client, forecast_t &forecast) {
   uri += "&appid=" + OWM_APIKEY;
 
   std::vector<weather_alert_t> *alerts = nullptr;
-#if defined(ALERTS_API_OPEN_WEATHER_MAP)
+#if defined(ALERTS_API_PROVIDER_OPEN_WEATHER_MAP)
   alerts = &alerts_;
 #endif
 
   int httpResponse = httpGetWithRetry(
-      client, OWM_ENDPOINT, uri, sanitizedUri, false,
+      client, OWM_ENDPOINT, port, uri, sanitizedUri, false,
       [this, &forecast, alerts](Stream &json) { return deserializeOneCall(json, forecast, alerts); });
 
   fetchStatus_ = httpResponse;
@@ -52,7 +74,7 @@ int OWMWeatherProvider::fetch(WiFiClient &client, forecast_t &forecast) {
  *
  * Returns the HTTP Status Code.
  */
-int OWMWeatherProvider::fetch(WiFiClient &client, std::vector<weather_alert_t> &alerts) {
+int OWMWeatherProvider::fetch(std::vector<weather_alert_t> &alerts) {
   if (haveAlerts_) {
     alerts = alerts_;
     return HTTP_CODE_OK;
@@ -69,7 +91,7 @@ DeserializationError OWMWeatherProvider::deserializeOneCall(Stream &json, foreca
   filter["minutely"] = false;
   filter["hourly"] = true;
   filter["daily"] = true;
-#if !defined(ALERTS_API_OPEN_WEATHER_MAP)
+#if !defined(ALERTS_API_PROVIDER_OPEN_WEATHER_MAP)
   filter["alerts"] = false;
 #else
   // description can be very long so they are filtered out to save on memory
@@ -191,7 +213,7 @@ DeserializationError OWMWeatherProvider::deserializeOneCall(Stream &json, foreca
     ++i;
   }
 
-#if defined(ALERTS_API_OPEN_WEATHER_MAP)
+#if defined(ALERTS_API_PROVIDER_OPEN_WEATHER_MAP)
   if (alerts != nullptr) {
     i = 0;
     for (JsonObject alert : doc["alerts"].as<JsonArray>()) {
@@ -215,4 +237,4 @@ DeserializationError OWMWeatherProvider::deserializeOneCall(Stream &json, foreca
   return error;
 }  // OWMWeatherProvider::deserializeOneCall
 
-#endif  // WEATHER_API_OPEN_WEATHER_MAP
+#endif  // WEATHER_API_PROVIDER_OPEN_WEATHER_MAP

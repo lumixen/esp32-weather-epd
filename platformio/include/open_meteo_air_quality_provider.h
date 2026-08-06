@@ -6,7 +6,7 @@
 /* Open-Meteo air quality API provider. */
 class OpenMeteoAirQualityProvider : public AirQualityProvider {
  public:
-  int fetch(WiFiClient &client, air_quality_t &airQuality) override;
+  int fetch(air_quality_t &airQuality) override;
 
  private:
   static DeserializationError deserializeAirQuality(Stream &json, air_quality_t &airQuality);

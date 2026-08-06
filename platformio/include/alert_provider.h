@@ -1,7 +1,6 @@
 #pragma once
 
 #include <vector>
-#include <WiFiClient.h>
 #include "data_models.h"
 
 /* Interface for national weather alert providers.
@@ -16,5 +15,5 @@
 class AlertProvider {
  public:
   virtual ~AlertProvider() = default;
-  virtual int fetch(WiFiClient &client, std::vector<weather_alert_t> &alerts) = 0;
+  virtual int fetch(std::vector<weather_alert_t> &alerts) = 0;
 };

@@ -13,7 +13,7 @@
  */
 class OWMAlertProvider : public AlertProvider {
  public:
-  int fetch(WiFiClient &client, std::vector<weather_alert_t> &alerts) override;
+  int fetch(std::vector<weather_alert_t> &alerts) override;
 
  private:
   static DeserializationError deserializeAlerts(Stream &json, std::vector<weather_alert_t> &alerts);

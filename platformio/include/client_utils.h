@@ -36,5 +36,5 @@ void killWiFi();
  * succeeds and is responsible for deserializing and mapping the provider
  * response into the output model.
  */
-int httpGetWithRetry(WiFiClient &client, const String &host, const String &uri, const String &sanitizedUri,
-                     bool useHttp10, std::function<DeserializationError(Stream &)> parse);
+int httpGetWithRetry(WiFiClient &client, const String &host, uint16_t port, const String &uri,
+                     const String &sanitizedUri, bool useHttp10, std::function<DeserializationError(Stream &)> parse);

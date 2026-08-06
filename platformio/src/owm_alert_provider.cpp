@@ -1,11 +1,17 @@
 #include "config.h"
 
-#if defined(ALERTS_API_OPEN_WEATHER_MAP) && !defined(WEATHER_API_OPEN_WEATHER_MAP)
+#if defined(ALERTS_API_PROVIDER_OPEN_WEATHER_MAP) && !defined(WEATHER_API_PROVIDER_OPEN_WEATHER_MAP)
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
 #include <WiFiClient.h>
+#if !defined(ALERTS_API_TRANSPORT_HTTP)
+#include <WiFiClientSecure.h>
+#endif
+#if defined(ALERTS_API_TRANSPORT_HTTPS_VERIFY)
+#include "cert.h"
+#endif
 #include "_locale.h"
 #include "client_utils.h"
 #include "owm_alert_provider.h"
@@ -19,7 +25,19 @@
  *
  * Returns the HTTP Status Code.
  */
-int OWMAlertProvider::fetch(WiFiClient &client, std::vector<weather_alert_t> &alerts) {
+int OWMAlertProvider::fetch(std::vector<weather_alert_t> &alerts) {
+#if defined(ALERTS_API_TRANSPORT_HTTP)
+  WiFiClient client;
+  const uint16_t port = 80;
+#elif defined(ALERTS_API_TRANSPORT_HTTPS_NO_VERIFY)
+  WiFiClientSecure client;
+  client.setInsecure();
+  const uint16_t port = 443;
+#else  // ALERTS_API_TRANSPORT_HTTPS_VERIFY
+  WiFiClientSecure client;
+  client.setCACert(cert_USERTrust_RSA_Certification_Authority);
+  const uint16_t port = 443;
+#endif
   String uri = "/data/" + OWM_ONECALL_VERSION + "/onecall?lat=" + LAT + "&lon=" + LON + "&lang=" + OWM_LANG +
                "&units=metric&exclude=current,minutely,hourly,daily";
 
@@ -29,7 +47,7 @@ int OWMAlertProvider::fetch(WiFiClient &client, std::vector<weather_alert_t> &al
 
   uri += "&appid=" + OWM_APIKEY;
 
-  return httpGetWithRetry(client, OWM_ENDPOINT, uri, sanitizedUri, false,
+  return httpGetWithRetry(client, OWM_ENDPOINT, port, uri, sanitizedUri, false,
                           [&alerts](Stream &json) { return deserializeAlerts(json, alerts); });
 }  // OWMAlertProvider::fetch
 
@@ -80,4 +98,4 @@ DeserializationError OWMAlertProvider::deserializeAlerts(Stream &json, std::vect
   return error;
 }  // OWMAlertProvider::deserializeAlerts
 
-#endif  // ALERTS_API_OPEN_WEATHER_MAP && !WEATHER_API_OPEN_WEATHER_MAP
+#endif  // ALERTS_API_PROVIDER_OPEN_WEATHER_MAP && !WEATHER_API_PROVIDER_OPEN_WEATHER_MAP

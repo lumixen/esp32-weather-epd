@@ -1,19 +1,41 @@
 #include "config.h"
 
-#if defined(WEATHER_API_OPEN_METEO)
+#if defined(WEATHER_API_PROVIDER_OPEN_METEO)
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <WiFiClient.h>
+#if !defined(WEATHER_API_TRANSPORT_HTTP)
+#include <WiFiClientSecure.h>
+#endif
+#if defined(WEATHER_API_TRANSPORT_HTTPS_VERIFY)
+#include "cert.h"
+#endif
 #include "client_utils.h"
 #include "open_meteo_weather_provider.h"
+
+const char *OpenMeteoWeatherProvider::getApiName() const {
+  return "Open Meteo API";
+}  // OpenMeteoWeatherProvider::getApiName
 
 /* Perform an HTTP GET request to Open-Meteo's forecast API and map the
  * response into the generic forecast model.
  *
  * Returns the HTTP Status Code.
  */
-int OpenMeteoWeatherProvider::fetch(WiFiClient &client, forecast_t &forecast) {
+int OpenMeteoWeatherProvider::fetch(forecast_t &forecast) {
+#if defined(WEATHER_API_TRANSPORT_HTTP)
+  WiFiClient client;
+  const uint16_t port = 80;
+#elif defined(WEATHER_API_TRANSPORT_HTTPS_NO_VERIFY)
+  WiFiClientSecure client;
+  client.setInsecure();
+  const uint16_t port = 443;
+#else  // WEATHER_API_TRANSPORT_HTTPS_VERIFY
+  WiFiClientSecure client;
+  client.setCACert(cert_ISRG_Root_X1);
+  const uint16_t port = 443;
+#endif
   String uri =
       "/v1/forecast?latitude=" + LAT + "&longitude=" + LON + "&" +
       "current=temperature_2m,relative_humidity_2m,dew_point_2m,apparent_temperature,weather_code,cloud_cover,"
@@ -27,7 +49,7 @@ int OpenMeteoWeatherProvider::fetch(WiFiClient &client, forecast_t &forecast) {
   // This string is printed to terminal to help with debugging.
   String sanitizedUri = OM_ENDPOINT + uri;
 
-  return httpGetWithRetry(client, OM_ENDPOINT, uri, sanitizedUri, true,
+  return httpGetWithRetry(client, OM_ENDPOINT, port, uri, sanitizedUri, true,
                           [&forecast](Stream &json) { return deserializeCall(json, forecast); });
 }  // OpenMeteoWeatherProvider::fetch
 
@@ -106,4 +128,4 @@ DeserializationError OpenMeteoWeatherProvider::deserializeCall(Stream &json, for
   return error;
 }  // OpenMeteoWeatherProvider::deserializeCall
 
-#endif  // WEATHER_API_OPEN_METEO
+#endif  // WEATHER_API_PROVIDER_OPEN_METEO

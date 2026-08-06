@@ -35,12 +35,6 @@
 #include "config.h"
 #include "display_utils.h"
 
-#ifdef API_PROTOCOL_HTTP
-static const uint16_t PORT = 80;
-#else
-static const uint16_t PORT = 443;
-#endif
-
 /* Power-on and connect WiFi.
  * Takes int parameter to store WiFi RSSI, or “Received Signal Strength
  * Indicator"
@@ -162,8 +156,8 @@ void killWiFi() {
  * distinguishes WiFi errors from httpClient errors and the -256 offset
  * distinguishes JSON deserialization errors from httpClient errors.
  */
-int httpGetWithRetry(WiFiClient &client, const String &host, const String &uri, const String &sanitizedUri,
-                     bool useHttp10, std::function<DeserializationError(Stream &)> parse) {
+int httpGetWithRetry(WiFiClient &client, const String &host, uint16_t port, const String &uri,
+                     const String &sanitizedUri, bool useHttp10, std::function<DeserializationError(Stream &)> parse) {
   int attempts = 0;
   bool rxSuccess = false;
 
@@ -183,7 +177,7 @@ int httpGetWithRetry(WiFiClient &client, const String &host, const String &uri, 
     if (useHttp10) {
       http.useHTTP10(true);
     }
-    http.begin(client, host, PORT, uri);
+    http.begin(client, host, port, uri);
     httpResponse = http.GET();
     if (httpResponse == HTTP_CODE_OK) {
       DeserializationError jsonErr = parse(http.getStream());

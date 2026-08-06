@@ -14,8 +14,9 @@
  */
 class OWMWeatherProvider : public WeatherProvider, public AlertProvider {
  public:
-  int fetch(WiFiClient &client, forecast_t &forecast) override;
-  int fetch(WiFiClient &client, std::vector<weather_alert_t> &alerts) override;
+  const char *getApiName() const override;
+  int fetch(forecast_t &forecast) override;
+  int fetch(std::vector<weather_alert_t> &alerts) override;
 
  private:
   static DeserializationError deserializeOneCall(Stream &json, forecast_t &forecast,

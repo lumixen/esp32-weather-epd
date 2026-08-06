@@ -368,7 +368,7 @@ bool isWindy(float wind_speed, float wind_gust) {
           || wind_gust >= 40.2 /*m/s*/);
 }
 
-#ifdef WEATHER_API_OPEN_WEATHER_MAP
+#ifdef WEATHER_API_PROVIDER_OPEN_WEATHER_MAP
 /* Takes the current weather and today's daily weather forcast (from
  * OpenWeatherMap API response) and returns a pointer to the icon's 196x196
  * bitmap.
@@ -621,7 +621,7 @@ const conditions_accent getConditionsAccent(int id) {
 }
 
 #endif
-#ifdef WEATHER_API_OPEN_METEO
+#ifdef WEATHER_API_PROVIDER_OPEN_METEO
 /* Takes the current weather and today's daily weather forcast (from
  * OpenMeteo API response) and returns a pointer to the icon's 196x196
  * bitmap.

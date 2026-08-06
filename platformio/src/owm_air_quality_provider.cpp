@@ -1,10 +1,16 @@
 #include "config.h"
 
-#if defined(AIR_QUALITY_API_OPEN_WEATHER_MAP)
+#if defined(AIR_QUALITY_API_PROVIDER_OPEN_WEATHER_MAP)
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <WiFiClient.h>
+#if !defined(AIR_QUALITY_API_TRANSPORT_HTTP)
+#include <WiFiClientSecure.h>
+#endif
+#if defined(AIR_QUALITY_API_TRANSPORT_HTTPS_VERIFY)
+#include "cert.h"
+#endif
 #include <time.h>
 #include "client_utils.h"
 #include "owm_air_quality_provider.h"
@@ -14,7 +20,19 @@
  *
  * Returns the HTTP Status Code.
  */
-int OWMAirQualityProvider::fetch(WiFiClient &client, air_quality_t &airQuality) {
+int OWMAirQualityProvider::fetch(air_quality_t &airQuality) {
+#if defined(AIR_QUALITY_API_TRANSPORT_HTTP)
+  WiFiClient client;
+  const uint16_t port = 80;
+#elif defined(AIR_QUALITY_API_TRANSPORT_HTTPS_NO_VERIFY)
+  WiFiClientSecure client;
+  client.setInsecure();
+  const uint16_t port = 443;
+#else  // AIR_QUALITY_API_TRANSPORT_HTTPS_VERIFY
+  WiFiClientSecure client;
+  client.setCACert(cert_USERTrust_RSA_Certification_Authority);
+  const uint16_t port = 443;
+#endif
   int64_t end = time(nullptr);
   // minus 1 is important here, otherwise we could get an extra hour of history
   int64_t start = end - ((3600 * NUM_AIR_POLLUTION) - 1);
@@ -27,7 +45,7 @@ int OWMAirQualityProvider::fetch(WiFiClient &client, air_quality_t &airQuality) 
   String sanitizedUri = OWM_ENDPOINT + "/data/2.5/air_pollution/history?lat=" + LAT + "&lon=" + LON +
                         "&start=" + startStr + "&end=" + endStr + "&appid={API key}";
 
-  return httpGetWithRetry(client, OWM_ENDPOINT, uri, sanitizedUri, false,
+  return httpGetWithRetry(client, OWM_ENDPOINT, port, uri, sanitizedUri, false,
                           [&airQuality](Stream &json) { return deserializeAirQuality(json, airQuality); });
 }  // OWMAirQualityProvider::fetch
 
@@ -69,4 +87,4 @@ DeserializationError OWMAirQualityProvider::deserializeAirQuality(Stream &json, 
   return error;
 }  // OWMAirQualityProvider::deserializeAirQuality
 
-#endif  // AIR_QUALITY_API_OPEN_WEATHER_MAP
+#endif  // AIR_QUALITY_API_PROVIDER_OPEN_WEATHER_MAP
