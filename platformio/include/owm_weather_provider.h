@@ -25,7 +25,8 @@
  *
  * Also implements AlertProvider: OpenWeatherMap serves national weather
  * alerts in the same OneCall response, so they are extracted during the
- * weather fetch and served from cache without an additional HTTP request.
+ * weather fetch and served from the stored response without an additional
+ * HTTP request.
  */
 class OWMWeatherProvider : public WeatherProvider, public AlertProvider {
  public:
@@ -35,7 +36,7 @@ class OWMWeatherProvider : public WeatherProvider, public AlertProvider {
  private:
   static DeserializationError deserializeOneCall(Stream &json, forecast_t &forecast,
                                                  std::vector<weather_alert_t> *alerts);
-  std::vector<weather_alert_t> cachedAlerts_;
+  std::vector<weather_alert_t> alerts_;
   bool haveAlerts_ = false;
   int fetchStatus_ = -1;
 };

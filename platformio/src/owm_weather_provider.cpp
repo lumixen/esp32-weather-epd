@@ -51,7 +51,7 @@ int OWMWeatherProvider::fetch(WiFiClient &client, forecast_t &forecast) {
 
   std::vector<weather_alert_t> *alerts = nullptr;
 #if defined(ALERTS_API_OPEN_WEATHER_MAP)
-  alerts = &cachedAlerts_;
+  alerts = &alerts_;
 #endif
 
   int httpResponse = httpGetWithRetry(
@@ -70,7 +70,7 @@ int OWMWeatherProvider::fetch(WiFiClient &client, forecast_t &forecast) {
  */
 int OWMWeatherProvider::fetch(WiFiClient &client, std::vector<weather_alert_t> &alerts) {
   if (haveAlerts_) {
-    alerts = cachedAlerts_;
+    alerts = alerts_;
     return HTTP_CODE_OK;
   }
   return fetchStatus_;
