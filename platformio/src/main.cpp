@@ -359,11 +359,10 @@ void setup() {
     handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
                        wifiRSSI);
   }
-#if DISPLAY_ALERTS
   AlertProvider *alertProvider = createAlertProvider(weatherProvider);
   if (alertProvider != nullptr) {
-    // alerts are served from the weather provider's cached response, no
-    // additional HTTP request is made
+    // alerts may be served from the weather provider's cached response, in
+    // which case no additional HTTP request is made
     rxStatus = alertProvider->fetch(client, alerts);
     if (rxStatus != HTTP_CODE_OK) {
       statusStr = "Alerts API";
@@ -372,7 +371,6 @@ void setup() {
                          wifiRSSI);
     }
   }
-#endif
 
 #if defined(API_PROTOCOL_HTTPS_VERIFY)
 #ifdef AIR_QUALITY_API_OPEN_WEATHER_MAP
@@ -419,9 +417,7 @@ void setup() {
     Serial.println("Drawing forecast");
     drawLocationDate(CITY_STRING, dateStr);
     Serial.println("Drawing location and date");
-#if DISPLAY_ALERTS
     drawAlerts(alerts, CITY_STRING, dateStr);
-#endif
     drawStatusBar(statusStr, refreshTimeStr, wifiRSSI, batteryVoltage);
   } while (display.nextPage());
   powerOffDisplay();

@@ -38,7 +38,7 @@
 int OWMWeatherProvider::fetch(WiFiClient &client, forecast_t &forecast) {
   String uri = "/data/" + OWM_ONECALL_VERSION + "/onecall?lat=" + LAT + "&lon=" + LON + "&lang=" + OWM_LANG +
                "&units=metric&exclude=minutely";
-#if !DISPLAY_ALERTS
+#if !defined(ALERTS_API_OPEN_WEATHER_MAP)
   // exclude alerts
   uri += ",alerts";
 #endif
@@ -50,7 +50,7 @@ int OWMWeatherProvider::fetch(WiFiClient &client, forecast_t &forecast) {
   uri += "&appid=" + OWM_APIKEY;
 
   std::vector<weather_alert_t> *alerts = nullptr;
-#if DISPLAY_ALERTS
+#if defined(ALERTS_API_OPEN_WEATHER_MAP)
   alerts = &cachedAlerts_;
 #endif
 
@@ -85,7 +85,7 @@ DeserializationError OWMWeatherProvider::deserializeOneCall(Stream &json, foreca
   filter["minutely"] = false;
   filter["hourly"] = true;
   filter["daily"] = true;
-#if !DISPLAY_ALERTS
+#if !defined(ALERTS_API_OPEN_WEATHER_MAP)
   filter["alerts"] = false;
 #else
   // description can be very long so they are filtered out to save on memory
@@ -207,7 +207,7 @@ DeserializationError OWMWeatherProvider::deserializeOneCall(Stream &json, foreca
     ++i;
   }
 
-#if DISPLAY_ALERTS
+#if defined(ALERTS_API_OPEN_WEATHER_MAP)
   if (alerts != nullptr) {
     i = 0;
     for (JsonObject alert : doc["alerts"].as<JsonArray>()) {

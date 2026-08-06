@@ -158,6 +158,11 @@ class AirQualityAPI(str, Enum):
     OPEN_METEO = "Open-Meteo"
 
 
+class AlertsAPI(str, Enum):
+    NONE = "None"
+    OPEN_WEATHER_MAP = "OpenWeatherMap"
+
+
 class Font(str, Enum):
     FREEMONO = "FreeMono"
     FREESANS = "FreeSans"
@@ -418,7 +423,7 @@ class ConfigSchema(BaseModel):
     font: Font = Font.FREESANS
     displayDailyPrecip: DisplayDailyPrecip = DisplayDailyPrecip.SMART
     displayHourlyIcons: bool = True
-    displayAlerts: bool = True
+    alertsAPI: AlertsAPI = AlertsAPI.NONE
     statusBarExtrasBatVoltage: bool = False
     statusBarExtrasWifiRSSI: bool = False
     batteryMonitoring: bool = True
@@ -462,6 +467,7 @@ class ConfigSchema(BaseModel):
         if (
             self.weatherAPI == WeatherAPI.OPEN_WEATHER_MAP
             or self.airQualityAPI == AirQualityAPI.OPEN_WEATHER_MAP
+            or self.alertsAPI == AlertsAPI.OPEN_WEATHER_MAP
         ) and not self.owmApikey:
             raise ValueError("The API key is required on OpenWeatherMap")
         return self
