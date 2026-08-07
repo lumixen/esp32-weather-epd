@@ -18,17 +18,21 @@
 #include "config.h"
 #include <Arduino.h>
 #include <Adafruit_Sensor.h>
+#include <HTTPClient.h>
 #include <Preferences.h>
 #include <WiFi.h>
 #include <Wire.h>
 
 #include "_locale.h"
 #include "time_utils.h"
-#include "api_response.h"
+#include "air_quality_provider.h"
+#include "alert_provider.h"
 #include "client_utils.h"
 #include "config.h"
+#include "data_models.h"
 #include "display_utils.h"
 #include "icons/icons_196x196.h"
+#include "provider_factory.h"
 #include "renderer.h"
 #include "moon_tools.h"
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
@@ -41,16 +45,10 @@
 #endif
 #endif
 
-#ifndef API_PROTOCOL_HTTP
-#include <WiFiClientSecure.h>
-#endif
-#ifdef API_PROTOCOL_HTTPS_VERIFY
-#include "cert.h"
-#endif
-
 // too large to allocate locally on stack
-static environment_data_t environment_data;
-static air_pollution_t air_pollution;
+static forecast_t environment_data;
+static air_quality_t air_pollution;
+static std::vector<weather_alert_t> alerts;
 
 Preferences prefs;
 
@@ -129,7 +127,7 @@ void beginDeepSleep(unsigned long startTime, tm *timeInfo) {
   esp_deep_sleep_start();
 }  // end beginDeepSleep
 
-void enrichWithMoonData(environment_data_t &data) {
+void enrichWithMoonData(forecast_t &data) {
   moon_state_t moonState = getMoonState(LAT.toDouble(), LON.toDouble());
   data.daily[0].moonrise = moonState.moonrise;
   data.daily[0].moonset = moonState.moonset;
@@ -328,48 +326,29 @@ void setup() {
   unsigned long apiRequestsStartTime = millis();
 #endif
 // MAKE API REQUESTS
-#if defined(API_PROTOCOL_HTTP)
-  WiFiClient client;
-#elif defined(API_PROTOCOL_HTTPS_NO_VERIFY)
-  WiFiClientSecure client;
-  client.setInsecure();
-#elif defined(API_PROTOCOL_HTTPS_VERIFY)
-  WiFiClientSecure client;
-#ifdef WEATHER_API_OPEN_WEATHER_MAP
-  client.setCACert(cert_USERTrust_RSA_Certification_Authority);
-#endif
-#ifdef WEATHER_API_OPEN_METEO
-  client.setCACert(cert_ISRG_Root_X1);
-#endif
-#endif
-#ifdef WEATHER_API_OPEN_WEATHER_MAP
-  int rxStatus = getOWMonecall(client, environment_data);
+  WeatherProvider *weatherProvider = createWeatherProvider();
+  int rxStatus = weatherProvider->fetch(environment_data);
   if (rxStatus != HTTP_CODE_OK) {
-    statusStr = "One Call " + OWM_ONECALL_VERSION + " API";
+    statusStr = weatherProvider->getApiName();
     tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
     handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
                        wifiRSSI);
   }
-#endif
-#ifdef WEATHER_API_OPEN_METEO
-  int rxStatus = getOMCall(client, environment_data);
-  if (rxStatus != HTTP_CODE_OK) {
-    statusStr = "Open Meteo API";
-    tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
-    handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
-                       wifiRSSI);
+  AlertProvider *alertProvider = createAlertProvider(weatherProvider);
+  if (alertProvider != nullptr) {
+    // alerts may be served from the weather provider's stored response, in
+    // which case no additional HTTP request is made
+    rxStatus = alertProvider->fetch(alerts);
+    if (rxStatus != HTTP_CODE_OK) {
+      statusStr = "Alerts API";
+      tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
+      handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
+                         wifiRSSI);
+    }
   }
-#endif
 
-#if defined(API_PROTOCOL_HTTPS_VERIFY)
-#ifdef AIR_QUALITY_API_OPEN_WEATHER_MAP
-  client.setCACert(cert_USERTrust_RSA_Certification_Authority);
-#endif
-#ifdef AIR_QUALITY_API_OPEN_METEO
-  client.setCACert(cert_ISRG_Root_X1);
-#endif
-#endif
-  rxStatus = getAirPollution(client, air_pollution);
+  AirQualityProvider *airQualityProvider = createAirQualityProvider();
+  rxStatus = airQualityProvider->fetch(air_pollution);
   if (rxStatus != HTTP_CODE_OK) {
     statusStr = "Air Pollution API";
     tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
@@ -405,9 +384,7 @@ void setup() {
     Serial.println("Drawing forecast");
     drawLocationDate(CITY_STRING, dateStr);
     Serial.println("Drawing location and date");
-#if DISPLAY_ALERTS
-    drawAlerts(environment_data.alerts, CITY_STRING, dateStr);
-#endif
+    drawAlerts(alerts, CITY_STRING, dateStr);
     drawStatusBar(statusStr, refreshTimeStr, wifiRSSI, batteryVoltage);
   } while (display.nextPage());
   powerOffDisplay();

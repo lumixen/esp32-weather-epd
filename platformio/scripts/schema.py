@@ -54,8 +54,8 @@ class EpdDriver(str, Enum):
 #   Running cert.py will generate an updated cert.h file.
 #   The current certificate for api.openweathermap.org is valid until
 #   2026-04-10 23:59:59+00:00
-class ApiProtocol(str, Enum):
-    """API protocol for API requests"""
+class Transport(str, Enum):
+    """Transport protocol for API requests"""
 
     HTTP = "HTTP"
     HTTPS_NO_VERIFY = "HTTPS_NO_VERIFY"
@@ -158,6 +158,11 @@ class AirQualityAPI(str, Enum):
     OPEN_METEO = "Open-Meteo"
 
 
+class AlertsAPI(str, Enum):
+    NONE = "None"
+    OPEN_WEATHER_MAP = "OpenWeatherMap"
+
+
 class Font(str, Enum):
     FREEMONO = "FreeMono"
     FREESANS = "FreeSans"
@@ -181,6 +186,21 @@ class MoonPhaseStyle(str, Enum):
 
 
 # END ENUMS
+
+
+class WeatherAPIConfig(BaseModel):
+    provider: WeatherAPI
+    transport: Transport = Transport.HTTPS_VERIFY
+
+
+class AirQualityAPIConfig(BaseModel):
+    provider: AirQualityAPI
+    transport: Transport = Transport.HTTPS_VERIFY
+
+
+class AlertsAPIConfig(BaseModel):
+    provider: AlertsAPI = AlertsAPI.NONE
+    transport: Transport = Transport.HTTPS_VERIFY
 
 defined_enums: list[Enum] = [
     EpdPanel,
@@ -369,9 +389,8 @@ class ConfigSchema(BaseModel):
     epdPanel: Annotated[EpdPanel, enum_schema(EpdPanel)] = EpdPanel.GENERIC_BW_V2
     epdDriver: EpdDriver = EpdDriver.DESPI_C02
     locale: Locale
-    apiProtocol: ApiProtocol = ApiProtocol.HTTPS_VERIFY
-    weatherAPI: WeatherAPI = WeatherAPI.OPEN_METEO
-    airQualityAPI: AirQualityAPI = AirQualityAPI.OPEN_METEO
+    weatherAPI: WeatherAPIConfig = Field(default_factory=WeatherAPIConfig)
+    airQualityAPI: AirQualityAPIConfig = Field(default_factory=AirQualityAPIConfig)
     ntp: NTPConfig = Field(default_factory=NTPConfig)
 
     # ntpSyncIntervalHours: int = 6
@@ -418,7 +437,7 @@ class ConfigSchema(BaseModel):
     font: Font = Font.FREESANS
     displayDailyPrecip: DisplayDailyPrecip = DisplayDailyPrecip.SMART
     displayHourlyIcons: bool = True
-    displayAlerts: bool = True
+    alertsAPI: AlertsAPIConfig = Field(default_factory=AlertsAPIConfig)
     statusBarExtrasBatVoltage: bool = False
     statusBarExtrasWifiRSSI: bool = False
     batteryMonitoring: bool = True
@@ -460,8 +479,9 @@ class ConfigSchema(BaseModel):
     @model_validator(mode="after")
     def validate_apikey(self):
         if (
-            self.weatherAPI == WeatherAPI.OPEN_WEATHER_MAP
-            or self.airQualityAPI == AirQualityAPI.OPEN_WEATHER_MAP
+            self.weatherAPI.provider == WeatherAPI.OPEN_WEATHER_MAP
+            or self.airQualityAPI.provider == AirQualityAPI.OPEN_WEATHER_MAP
+            or self.alertsAPI.provider == AlertsAPI.OPEN_WEATHER_MAP
         ) and not self.owmApikey:
             raise ValueError("The API key is required on OpenWeatherMap")
         return self

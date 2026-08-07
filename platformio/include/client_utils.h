@@ -16,14 +16,25 @@
  */
 #pragma once
 
+#include <functional>
 #include <Arduino.h>
+#include <ArduinoJson.h>
+#include <WiFi.h>
 #include <WiFiClient.h>
-#include "api_response.h"
 #include "config.h"
 
 wl_status_t startWiFi(int8_t &wifiRSSI);
 void killWiFi();
 
-int getOWMonecall(WiFiClient &client, environment_data_t &r);
-int getOMCall(WiFiClient &client, environment_data_t &r);
-int getAirPollution(WiFiClient &client, air_pollution_t &r);
+/* Perform an HTTP GET request with retry.
+ *
+ * Returns the HTTP status code on success (HTTP_CODE_OK). Negative codes:
+ * -512 - WiFi status offset when disconnected, -256 - JSON deserialization
+ * error code offset.
+ *
+ * The `parse` callback is invoked with the response stream once the request
+ * succeeds and is responsible for deserializing and mapping the provider
+ * response into the output model.
+ */
+int httpGetWithRetry(WiFiClient &client, const String &host, uint16_t port, const String &uri,
+                     const String &sanitizedUri, bool useHttp10, std::function<DeserializationError(Stream &)> parse);

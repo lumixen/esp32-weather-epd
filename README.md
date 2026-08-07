@@ -73,8 +73,18 @@ To configure the build, create a new `config.yml` file in the `platformio` folde
 epdPanel: DKE_3C_86BF
 epdDriver: Waveshare
 locale: en_US
-weatherAPI: Open-Meteo
-airQualityAPI: Open-Meteo
+# Each API is configured independently with its provider and transport
+# (transport: HTTP, HTTPS_NO_VERIFY or HTTPS_VERIFY)
+weatherAPI:
+  provider: Open-Meteo
+  transport: HTTP
+airQualityAPI:
+  provider: Open-Meteo
+  transport: HTTP
+# provider: None disables alerts
+alertsAPI:
+  provider: None
+  transport: HTTP
 pin:
   batAdc: 35
   epdBusy: 4
@@ -111,7 +121,6 @@ windArrowPrecision: secondary intercardinal
 font: FreeSans
 displayDailyPrecip: smart
 displayHourlyIcons: true
-displayAlerts: false
 batteryMonitoring: true
 statusBarExtrasBatVoltage: true
 statusBarExtrasWifiRSSI: false
