@@ -127,13 +127,6 @@ void beginDeepSleep(unsigned long startTime, tm *timeInfo) {
   esp_deep_sleep_start();
 }  // end beginDeepSleep
 
-void enrichWithMoonData(forecast_t &data) {
-  moon_state_t moonState = getMoonState(LAT.toDouble(), LON.toDouble());
-  data.daily[0].moonrise = moonState.moonrise;
-  data.daily[0].moonset = moonState.moonset;
-  data.daily[0].moon_phase = moonState.phase;
-}  // end enrichWithMoonData
-
 sensor_readings getSensorReadings() {
   if (sensorReadingDoneSemaphore == nullptr) {
     return {.temperature = inTemp, .humidity = inHumidity, .pressure = inPressure};
@@ -364,7 +357,7 @@ void setup() {
   long networkDuration = millis() - networkStartTime;
   Serial.println("Network operations took " + String(networkDuration / 1000.0, 3) + " s");
 
-  enrichWithMoonData(environment_data);
+  moon_state_t moon = getMoonState(LAT.toDouble(), LON.toDouble());
 
   String refreshTimeStr;
   getRefreshTimeStr(refreshTimeStr, timeConfigured, &timeInfo);
@@ -376,9 +369,9 @@ void setup() {
   // RENDER FULL REFRESH
   initDisplay();
   do {
-    drawCurrentConditions(environment_data.current, environment_data.daily[0], air_pollution, sensorReadings.pressure);
+    drawCurrentConditions(environment_data.current, air_pollution, sensorReadings.pressure, moon);
     Serial.println("Drawing current conditions");
-    drawOutlookGraph(environment_data.hourly, environment_data.daily, timeInfo);
+    drawOutlookGraph(environment_data.hourly, environment_data.daily, timeInfo, moon);
     Serial.println("Drawing outlook graph");
     drawForecast(environment_data.daily, timeInfo);
     Serial.println("Drawing forecast");

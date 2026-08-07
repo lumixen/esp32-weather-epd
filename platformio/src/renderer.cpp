@@ -597,7 +597,7 @@ void drawCurrentVisibility(const current_t &current) {
 
 // drawCurrentMoonrise
 #ifdef POS_MOONRISE
-  void drawCurrentMoonrise(const daily_t &today) {
+  void drawCurrentMoonrise(const moon_state_t &moon) {
     String dataStr, unitStr;
     int PosX = POS_MOONRISE % 2;
     int PosY = static_cast<int>(POS_MOONRISE / 2);
@@ -612,7 +612,7 @@ void drawCurrentVisibility(const current_t &current) {
     // moonrise
     display.setFont(&FONT_12pt8b);
     char timeBuffer[12] = {};  // big enough to accommodate "hh:mm:ss am"
-    time_t ts = today.moonrise;
+    time_t ts = moon.moonrise;
     tm *timeInfo = localtime(&ts);
     _strftime(timeBuffer, sizeof(timeBuffer), TIME_FORMAT, timeInfo);
     drawString(48 + (162 * PosX), 204 + 17 / 2 + (48 + 8) * PosY + 48 / 2, timeBuffer, LEFT);
@@ -624,7 +624,7 @@ void drawCurrentVisibility(const current_t &current) {
 
 // drawCurrentMoonset
 #ifdef POS_MOONSET
-  void drawCurrentMoonset(const daily_t &today) {
+  void drawCurrentMoonset(const moon_state_t &moon) {
     String dataStr, unitStr;
     int PosX = (POS_MOONSET % 2);
     int PosY = static_cast<int>(POS_MOONSET / 2);
@@ -638,7 +638,7 @@ void drawCurrentVisibility(const current_t &current) {
     // moonset
     display.setFont(&FONT_12pt8b);
     char timeBuffer[12] = {};  // big enough to accommodate "hh:mm:ss am"
-    time_t ts = today.moonset;
+    time_t ts = moon.moonset;
     tm *timeInfo = localtime(&ts);
     _strftime(timeBuffer, sizeof(timeBuffer), TIME_FORMAT, timeInfo);
     drawString(48 + (162 * PosX), 204 + 17 / 2 + (48 + 8) * PosY + 48 / 2, timeBuffer, LEFT);
@@ -650,13 +650,13 @@ void drawCurrentVisibility(const current_t &current) {
 
 // drawCurrentMoonphase
 #ifdef POS_MOONPHASE
-  void drawCurrentMoonphase(const daily_t &daily) {
+  void drawCurrentMoonphase(const moon_state_t &moon) {
     String dataStr, unitStr;
     int PosX = (POS_MOONPHASE % 2);
     int PosY = static_cast<int>(POS_MOONPHASE / 2);
 
     // icons
-    display.drawInvertedBitmap(162 * PosX, 204 + (48 + 8) * PosY, getMoonPhaseBitmap48(daily), 48, 48, GxEPD_BLACK);
+    display.drawInvertedBitmap(162 * PosX, 204 + (48 + 8) * PosY, getMoonPhaseBitmap48(moon), 48, 48, GxEPD_BLACK);
 
     // labels
     display.setFont(&FONT_7pt8b);
@@ -664,7 +664,7 @@ void drawCurrentVisibility(const current_t &current) {
 
     // moonphase
     const int sp = 8;
-    dataStr = String(getMoonPhaseStr(daily));
+    dataStr = String(getMoonPhaseStr(moon));
     int max_w = (162 + (PosX * 162) - sp) - (48 + (PosX * 162));
     if (getStringWidth(dataStr) <= max_w) {  // Fits on a single line, draw along bottom
       drawString(48 + (162 * PosX), 204 + 17 / 2 + (48 + 8) * PosY + 48 / 2, dataStr, LEFT);
@@ -784,11 +784,11 @@ void drawCurrentVisibility(const current_t &current) {
   /* This function is responsible for drawing the current conditions and
    * associated icons.
    */
-  void drawCurrentConditions(const current_t &current, const daily_t &today, const air_quality_t &air_quality,
-                             std::optional<float> inPressure) {
+  void drawCurrentConditions(const current_t &current, const air_quality_t &air_quality, std::optional<float> inPressure,
+                             const moon_state_t &moon) {
     String dataStr, unitStr;
     // current weather icon
-    display.drawInvertedBitmap(0, 0, getCurrentConditionsBitmap196(current, today), 196, 196, GxEPD_BLACK);
+    display.drawInvertedBitmap(0, 0, getCurrentConditionsBitmap196(current, moon), 196, 196, GxEPD_BLACK);
 
     // current temp
 #ifdef UNITS_TEMP_KELVIN
@@ -870,15 +870,15 @@ void drawCurrentVisibility(const current_t &current) {
 #endif
 
 #ifdef POS_MOONRISE
-    drawCurrentMoonrise(today);
+    drawCurrentMoonrise(moon);
 #endif
 
 #ifdef POS_MOONSET
-    drawCurrentMoonset(today);
+    drawCurrentMoonset(moon);
 #endif
 
 #ifdef POS_MOONPHASE
-    drawCurrentMoonphase(today);
+    drawCurrentMoonphase(moon);
 #endif
 
 #ifdef POS_DEWPOINT
@@ -1104,7 +1104,7 @@ void drawCurrentVisibility(const current_t &current) {
   /* This function is responsible for drawing the outlook graph for the specified
    * number of hours(up to 48).
    */
-  void drawOutlookGraph(const hourly_t *hourly, const daily_t *daily, tm timeInfo) {
+  void drawOutlookGraph(const hourly_t *hourly, const daily_t *daily, tm timeInfo, const moon_state_t &moon) {
     const int xPos0 = 350;
     int xPos1 = DISP_WIDTH;
     const int yPos0 = 216;
@@ -1378,7 +1378,7 @@ void drawCurrentVisibility(const current_t &current) {
           for (int idx = l_idx + 1; idx < r_idx; ++idx) {
             y_b = std::min(y_t[idx], y_b);
           }
-          const uint8_t *bitmap = getHourlyForecastBitmap32(hourly[i], daily[day_idx]);
+          const uint8_t *bitmap = getHourlyForecastBitmap32(hourly[i], moon);
           const uint16_t hourIconAccentColor =
               getConditionsAccent(hourly[i].weather.id) == conditions_accent::WORTH_ACCENTING
                   ? COLORS_OUTLOOK_CONDITIONS_ICON_ACCENT

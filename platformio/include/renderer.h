@@ -73,19 +73,19 @@ void drawMultiLnString(int16_t x, int16_t y, const String &text, alignment_t ali
 void beginLightSleep(const void *);
 void initDisplay();
 void powerOffDisplay();
-void drawCurrentConditions(const current_t &current, const daily_t &today, const air_quality_t &air_quality,
-                           std::optional<float> inPressure);
+void drawCurrentConditions(const current_t &current, const air_quality_t &air_quality, std::optional<float> inPressure,
+                           const moon_state_t &moon);
 void drawForecast(const daily_t *daily, tm timeInfo);
 void drawAlerts(std::vector<weather_alert_t> &alerts, const String &city, const String &date);
 void drawLocationDate(const String &city, const String &date);
-void drawOutlookGraph(const hourly_t *hourly, const daily_t *daily, tm timeInfo);
+void drawOutlookGraph(const hourly_t *hourly, const daily_t *daily, tm timeInfo, const moon_state_t &moon);
 void drawStatusBar(const String &statusStr, const String &refreshTimeStr, int rssi, uint32_t batVoltage);
 void drawError(const uint8_t *bitmap_196x196, const String &errMsgLn1, const String &errMsgLn2 = "");
 void drawCurrentAirQuality(const air_quality_t &air_quality);
 void drawCurrentHumidity(const current_t &current);
-void drawCurrentMoonphase(const daily_t &today);
-void drawCurrentMoonrise(const daily_t &today);
-void drawCurrentMoonset(const daily_t &today);
+void drawCurrentMoonphase(const moon_state_t &moon);
+void drawCurrentMoonrise(const moon_state_t &moon);
+void drawCurrentMoonset(const moon_state_t &moon);
 void drawCurrentPressure(const current_t &current);
 void drawCurrentSunrise(const current_t &current);
 void drawCurrentSunset(const current_t &current);

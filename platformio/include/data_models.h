@@ -113,11 +113,6 @@ typedef struct daily {
   int64_t dt;        // Time of the forecasted data, unix, UTC
   int64_t sunrise;   // Sunrise time, Unix, UTC
   int64_t sunset;    // Sunset time, Unix, UTC
-  int64_t moonrise;  // The time of when the moon rises for this day, Unix, UTC
-  int64_t moonset;   // The time of when the moon sets for this day, Unix, UTC
-  float moon_phase;  // Moon phase. 0 and 1 are 'new moon', 0.25 is 'first quarter moon', 0.5 is 'full moon' and 0.75 is
-                     // 'last quarter moon'. The periods in between are called 'waxing crescent', 'waxing gibous',
-                     // 'waning gibous', and 'waning crescent', respectively.
   temperature_t temp;
   int pressure;  // Atmospheric pressure on the sea level, hPa
   int humidity;  // Humidity, %

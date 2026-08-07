@@ -20,6 +20,7 @@
 #include <time.h>
 #include <WiFi.h>
 #include "data_models.h"
+#include "moon_tools.h"
 
 enum alert_category {
   NOT_FOUND = -1,
@@ -67,9 +68,9 @@ float getAvgConc(const float pollutant[], int hours);
 const char *getAQIdesc(int aqi);
 const char *getWiFidesc(int rssi);
 const uint8_t *getWiFiBitmap16(int rssi);
-const uint8_t *getHourlyForecastBitmap32(const hourly_t &hourly, const daily_t &today);
+const uint8_t *getHourlyForecastBitmap32(const hourly_t &hourly, const moon_state_t &moon);
 const uint8_t *getDailyForecastBitmap64(const daily_t &daily);
-const uint8_t *getCurrentConditionsBitmap196(const current_t &current, const daily_t &today);
+const uint8_t *getCurrentConditionsBitmap196(const current_t &current, const moon_state_t &moon);
 const uint8_t *getAlertBitmap32(const weather_alert_t &alert);
 const uint8_t *getAlertBitmap48(const weather_alert_t &alert);
 enum alert_category getAlertCategory(const weather_alert_t &alert);
@@ -78,6 +79,6 @@ const char *getCompassPointNotation(int windDeg);
 const char *getHttpResponsePhrase(int code);
 const char *getWifiStatusPhrase(wl_status_t status);
 void printHeapUsage();
-const uint8_t *getMoonPhaseBitmap48(const daily_t &daily);
-const char *getMoonPhaseStr(const daily_t &daily);
+const uint8_t *getMoonPhaseBitmap48(const moon_state_t &moon);
+const char *getMoonPhaseStr(const moon_state_t &moon);
 const conditions_accent getConditionsAccent(int weatherCode);
