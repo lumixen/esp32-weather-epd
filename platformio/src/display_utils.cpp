@@ -834,13 +834,13 @@ const conditions_accent getConditionsAccent(int id) {
  *
  * The daily weather forcast of today is needed for moonrise and moonset times.
  */
-const uint8_t *getHourlyForecastBitmap32(const hourly_t &hourly, const daily_t &today) {
+const uint8_t *getHourlyForecastBitmap32(const hourly_t &hourly, const moon_state_t &moon) {
   const int id = hourly.weather.id;
   const bool day = hourly.is_day;
-  const bool moon = isMoonInSky(hourly.dt, today.moonrise, today.moonset, today.moon_phase);
   const bool cloudy = isCloudy(hourly.clouds);
   const bool windy = isWindy(hourly.wind_speed, hourly.wind_gust);
-  return getConditionsBitmap<32>(id, day, moon, cloudy, windy);
+  const bool moon_in_sky = isMoonInSky(hourly.dt, moon.moonrise, moon.moonset, moon.phase);
+  return getConditionsBitmap<32>(id, day, moon_in_sky, cloudy, windy);
 }
 
 /* Takes the daily weather forecast (from OpenWeatherMap API response) and
@@ -862,13 +862,13 @@ const uint8_t *getDailyForecastBitmap64(const daily_t &daily) {
  *
  * The daily weather forcast of today is needed for moonrise and moonset times.
  */
-const uint8_t *getCurrentConditionsBitmap196(const current_t &current, const daily_t &today) {
+const uint8_t *getCurrentConditionsBitmap196(const current_t &current, const moon_state_t &moon) {
   const int id = current.weather.id;
   const bool day = current.is_day;
-  const bool moon = isMoonInSky(current.dt, today.moonrise, today.moonset, today.moon_phase);
+  const bool moon_in_sky = isMoonInSky(current.dt, moon.moonrise, moon.moonset, moon.phase);
   const bool cloudy = isCloudy(current.clouds);
   const bool windy = isWindy(current.wind_speed, current.wind_gust);
-  return getConditionsBitmap<196>(id, day, moon, cloudy, windy);
+  return getConditionsBitmap<196>(id, day, moon_in_sky, cloudy, windy);
 }  // end getCurrentConditionsBitmap196
 
 /* Returns a 32x32 bitmap for a given alert.
@@ -1718,14 +1718,14 @@ static const unsigned char *moon_phase_icon_arr[] = {wi_moon_alt_new_48x48,
  *  scale range to match 28 numbers of different icons
  *  offset +0.5 to shift icon to center of moon phase period
  */
-const uint8_t *getMoonPhaseBitmap48(const daily_t &daily) {
-  int n = static_cast<int>(daily.moon_phase * 28 + 0.5);
+const uint8_t *getMoonPhaseBitmap48(const moon_state_t &moon) {
+  int n = static_cast<int>(moon.phase * 28 + 0.5);
   return moon_phase_icon_arr[n];
 }  // end getMoonPhaseBitmap48
 
 // Returns the current moon phase string
-const char *getMoonPhaseStr(const daily_t &daily) {
-  int n = static_cast<int>(daily.moon_phase * 28 + 0.5);
+const char *getMoonPhaseStr(const moon_state_t &moon) {
+  int n = static_cast<int>(moon.phase * 28 + 0.5);
   switch (n) {
     case 0:
       return TXT_NEW_MOON;
