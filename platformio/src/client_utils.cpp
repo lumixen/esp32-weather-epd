@@ -157,7 +157,8 @@ void killWiFi() {
  * distinguishes JSON deserialization errors from httpClient errors.
  */
 int httpGetWithRetry(WiFiClient &client, const String &host, uint16_t port, const String &uri,
-                     const String &sanitizedUri, bool useHttp10, std::function<DeserializationError(Stream &)> parse) {
+                     const String &sanitizedUri, bool useHttp10,
+                     std::function<DeserializationError(Stream &, size_t)> parse) {
   int attempts = 0;
   bool rxSuccess = false;
 
@@ -180,7 +181,12 @@ int httpGetWithRetry(WiFiClient &client, const String &host, uint16_t port, cons
     http.begin(client, host, port, uri);
     httpResponse = http.GET();
     if (httpResponse == HTTP_CODE_OK) {
-      DeserializationError jsonErr = parse(http.getStream());
+      // Pass the response content length so parsers can stop reading exactly
+      // at the end of the body instead of reading past it into the (already
+      // closed) connection.
+      const int size = http.getSize();
+      const size_t expectedLen = size > 0 ? static_cast<size_t>(size) : 0;
+      DeserializationError jsonErr = parse(http.getStream(), expectedLen);
       if (jsonErr) {
         // -256 offset distinguishes these errors from httpClient errors
         httpResponse = -256 - static_cast<int>(jsonErr.code());

@@ -62,7 +62,7 @@ int OWMWeatherProvider::fetch(forecast_t &forecast) {
 
   int httpResponse = httpGetWithRetry(
       client, OWM_ENDPOINT, port, uri, sanitizedUri, false,
-      [this, &forecast, alerts](Stream &json) { return deserializeOneCall(json, forecast, alerts); });
+      [this, &forecast, alerts](Stream &json, size_t) { return deserializeOneCall(json, forecast, alerts); });
 
   fetchStatus_ = httpResponse;
   haveAlerts_ = (httpResponse == HTTP_CODE_OK);

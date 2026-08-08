@@ -81,10 +81,16 @@ weatherAPI:
 airQualityAPI:
   provider: Open-Meteo
   transport: HTTP
-# provider: None disables alerts
+# provider: None disables alerts (or omit the alertsAPI block entirely).
+# Each provider accepts its own keys; a provider value selects the provider:
+#   - MeteoAlarm national weather warnings (https://www.meteoalarm.org/).
+#     country: country slug of the Atom feed, e.g. netherlands,
+#       united-kingdom or austria (https://www.meteoalarm.org/en/live/feed).
+#   - OpenWeatherMap alerts
+# Warnings are filtered by the configured location (lat/lon): only warnings
+# whose geographic polygon contains it are shown.
 alertsAPI:
   provider: None
-  transport: HTTP
 pin:
   batAdc: 35
   epdBusy: 4

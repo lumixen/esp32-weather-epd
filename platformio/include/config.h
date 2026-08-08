@@ -37,6 +37,7 @@ extern const String OWM_ENDPOINT;
 extern const String OWM_ONECALL_VERSION;
 extern const String OM_ENDPOINT;
 extern const String OM_AIR_QUALITY_ENDPOINT;
+extern const String METEOALARM_COUNTRY;
 extern const String LAT;
 extern const String LON;
 extern const String CITY_STRING;

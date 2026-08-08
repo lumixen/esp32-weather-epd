@@ -60,6 +60,12 @@ const String OM_ENDPOINT = "api.open-meteo.com";
 // https://open-meteo.com/en/docs/air-quality-api
 const String OM_AIR_QUALITY_ENDPOINT = "air-quality-api.open-meteo.com";
 
+// METEOALARM API
+// https://www.meteoalarm.org/
+#if defined(ALERTS_API_PROVIDER_METEOALARM)
+const String METEOALARM_COUNTRY = D_ALERTS_API_COUNTRY;
+#endif
+
 // LOCATION
 // Set your latitude and longitude.
 // (used to get weather data as part of API requests to OpenWeatherMap)

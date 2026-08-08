@@ -34,7 +34,10 @@ void killWiFi();
  *
  * The `parse` callback is invoked with the response stream once the request
  * succeeds and is responsible for deserializing and mapping the provider
- * response into the output model.
+ * response into the output model. `expectedLen` is the response content
+ * length in bytes (0 if unknown); providers may use it to stop reading
+ * exactly at the end of the body instead of reading until EOF.
  */
 int httpGetWithRetry(WiFiClient &client, const String &host, uint16_t port, const String &uri,
-                     const String &sanitizedUri, bool useHttp10, std::function<DeserializationError(Stream &)> parse);
+                     const String &sanitizedUri, bool useHttp10,
+                     std::function<DeserializationError(Stream &, size_t expectedLen)> parse);
