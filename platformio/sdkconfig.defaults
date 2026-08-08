@@ -1,0 +1,37 @@
+# ESP-IDF configuration defaults (Kconfig). This is the source of truth for
+# the ESP-IDF side of the build; the full expanded config lands in the
+# generated sdkconfig.<env> (a build artifact, gitignored). Adjust options
+# here, or interactively with `pio run -t menuconfig`.
+#
+# Arduino as ESP-IDF component: autostart setup()/loop() and use the lolin_d32
+# variant (defines LED_BUILTIN etc.).
+CONFIG_AUTOSTART_ARDUINO=y
+CONFIG_ARDUINO_VARIANT="d32"
+
+# The Arduino component requires a 1000 Hz FreeRTOS tick.
+CONFIG_FREERTOS_HZ=1000
+
+# The task watchdog's default 5s limit is shorter than legitimate blocking
+# network phases (slow HTTP server first bytes, up to the 30s stream read
+# timeout); 60s keeps it as a genuine hang detector without spurious trips.
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=60
+
+# MCU frequency 240MHz -> 80MHz (better power efficiency).
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_80=y
+
+# 4MB flash, matching the lolin_d32 module.
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_ESPTOOLPY_HEADER_FLASHSIZE_UPDATE=y
+
+# Custom partition table (vendor of the Arduino huge_app layout).
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions/huge_app.csv"
+
+# Faster wake-up from deep sleep (the display deep-sleeps after every update).
+CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP=y
+
+# Required by Arduino core 3.x NetworkClientSecure (WiFiClientSecure): its
+# ssl_client.cpp implementation is compiled out unless a PSK key-exchange
+# mode is enabled in mbedTLS.
+CONFIG_MBEDTLS_PSK_MODES=y
+CONFIG_MBEDTLS_KEY_EXCHANGE_PSK=y

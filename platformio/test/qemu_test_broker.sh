@@ -10,5 +10,5 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 exec python3 "$ROOT/test/qemu_test_broker.py" \
     --qemu /opt/qemu/bin/qemu-system-xtensa \
-    --esptool "$HOME/.platformio/packages/tool-esptoolpy/esptool.py" \
+    --esptool "$HOME/.platformio/penv/bin/esptool" \
     --build-dir "$ROOT/.pio/build/lolin_d32_qemu"

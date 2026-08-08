@@ -335,10 +335,10 @@ void setup() {
     // which case no additional HTTP request is made
     rxStatus = alertProvider->fetch(alerts);
     if (rxStatus != HTTP_CODE_OK) {
-      statusStr = "Alerts API";
-      tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
-      handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
-                         wifiRSSI);
+      // Alerts are a non-essential source: log the failure and continue
+      // without them instead of taking over the whole display.
+      Serial.println("[error] Alerts API: " + String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus));
+      alerts.clear();
     }
   }
 

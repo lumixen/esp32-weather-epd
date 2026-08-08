@@ -45,7 +45,7 @@ int OWMAirQualityProvider::fetch(air_quality_t &airQuality) {
   String sanitizedUri = OWM_ENDPOINT + "/data/2.5/air_pollution/history?lat=" + LAT + "&lon=" + LON +
                         "&start=" + startStr + "&end=" + endStr + "&appid={API key}";
 
-  return httpGetWithRetry(client, OWM_ENDPOINT, port, uri, sanitizedUri, false,
+  return httpGetWithRetry(client, OWM_ENDPOINT, port, uri, sanitizedUri, false, HTTP_CLIENT_TCP_TIMEOUT,
                           [&airQuality](Stream &json, size_t) { return deserializeAirQuality(json, airQuality); });
 }  // OWMAirQualityProvider::fetch
 
