@@ -86,12 +86,7 @@ airQualityAPI:
 #   - MeteoAlarm national weather warnings (https://www.meteoalarm.org/).
 #     country: country slug of the Atom feed, e.g. netherlands,
 #       united-kingdom or austria (https://www.meteoalarm.org/en/live/feed).
-#     The feed is always fetched over HTTPS with certificate verification.
-#     Parsing stops at the 2 warnings nearest to the top of the feed that
-#     match the location, and the download is cut short at the announced
-#     content length (the display shows at most 2 warnings).
-#   - OpenWeatherMap alerts, with an optional transport key
-#     (HTTP, HTTPS_NO_VERIFY or HTTPS_VERIFY).
+#   - OpenWeatherMap alerts
 # Warnings are filtered by the configured location (lat/lon): only warnings
 # whose geographic polygon contains it are shown.
 alertsAPI:
