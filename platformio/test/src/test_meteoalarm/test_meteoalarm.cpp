@@ -397,7 +397,10 @@ static void test_latest_feed_expiry(void) {
 /* expectedLen stops the read at the content length: when it matches the
  * document length the result is identical to an unlimited parse (no
  * "unexpected end" error even though the stream is not read to EOF); when it
- * cuts inside an entry, that entry is dropped but the parse still succeeds. */
+ * cuts inside an entry, that entry is dropped but the parse still succeeds.
+ * The read always stops exactly at expectedLen: never past it (a connection
+ * closed right after the body must not be probed), so no byte beyond the
+ * announced length is ever consumed. */
 static void test_expected_len(void) {
   std::vector<weather_alert_t> alerts;
 
@@ -408,6 +411,7 @@ static void test_expected_len(void) {
   TEST_ASSERT_TRUE(err == DeserializationError::Ok);
   TEST_ASSERT_EQUAL_UINT(2, alerts.size());
   TEST_ASSERT_EQUAL_STRING("Yellow Squall Warning", alerts[0].event.c_str());
+  TEST_ASSERT_EQUAL_UINT(realFeed.length(), ss.bytesRead());
 
   alerts.clear();
   size_t cut = realFeed.indexOf("</entry>") + 8;  // end of the first entry
@@ -416,9 +420,8 @@ static void test_expected_len(void) {
   TEST_ASSERT_TRUE(err == DeserializationError::Ok);
   TEST_ASSERT_EQUAL_UINT(1, alerts.size());
   TEST_ASSERT_EQUAL_STRING("Yellow Squall Warning", alerts[0].event.c_str());
-  // The read stopped at the first buffer boundary past the cut, far short of
-  // the end of the document.
-  TEST_ASSERT(ss2.bytesRead() < realFeed.length());
+  // The read stopped exactly at the cut, far short of the end of the document.
+  TEST_ASSERT_EQUAL_UINT(cut, ss2.bytesRead());
 
   alerts.clear();
   err = parseFeed(kFeedUkraineReal, alerts, kNow);

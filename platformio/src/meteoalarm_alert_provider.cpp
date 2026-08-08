@@ -350,7 +350,15 @@ DeserializationError MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector
       atExpectedEnd = true;
       break;
     }
-    const size_t n = xml.readBytes(buf, sizeof(buf));
+    // Request at most the bytes that remain in the body: readBytes stops as
+    // soon as its count is reached, so an exact final chunk never probes the
+    // connection past the end of the response (a server closing the socket
+    // right after the body would otherwise surface as a TLS read error).
+    size_t want = sizeof(buf);
+    if (expectedLen > 0 && expectedLen - total < want) {
+      want = expectedLen - total;
+    }
+    const size_t n = xml.readBytes(buf, want);
     if (n == 0) {
       break;  // end of stream (or read timeout)
     }
