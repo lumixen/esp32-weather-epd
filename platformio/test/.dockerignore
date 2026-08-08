@@ -1,0 +1,4 @@
+# The image only needs the Dockerfile and install_qemu.sh; keep the context
+# free of the unit test suites and Python caches.
+src
+__pycache__

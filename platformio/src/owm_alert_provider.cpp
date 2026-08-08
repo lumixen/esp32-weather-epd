@@ -48,7 +48,7 @@ int OWMAlertProvider::fetch(std::vector<weather_alert_t> &alerts) {
   uri += "&appid=" + OWM_APIKEY;
 
   return httpGetWithRetry(client, OWM_ENDPOINT, port, uri, sanitizedUri, false,
-                          [&alerts](Stream &json) { return deserializeAlerts(json, alerts); });
+                          [&alerts](Stream &json, size_t) { return deserializeAlerts(json, alerts); });
 }  // OWMAlertProvider::fetch
 
 DeserializationError OWMAlertProvider::deserializeAlerts(Stream &json, std::vector<weather_alert_t> &alerts) {

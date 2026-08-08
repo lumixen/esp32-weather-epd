@@ -39,7 +39,7 @@ int OpenMeteoAirQualityProvider::fetch(air_quality_t &airQuality) {
   String sanitizedUri = OM_AIR_QUALITY_ENDPOINT + uri;
 
   return httpGetWithRetry(client, OM_AIR_QUALITY_ENDPOINT, port, uri, sanitizedUri, true,
-                          [&airQuality](Stream &json) { return deserializeAirQuality(json, airQuality); });
+                          [&airQuality](Stream &json, size_t) { return deserializeAirQuality(json, airQuality); });
 }  // OpenMeteoAirQualityProvider::fetch
 
 DeserializationError OpenMeteoAirQualityProvider::deserializeAirQuality(Stream &json, air_quality_t &airQuality) {

@@ -50,7 +50,7 @@ int OpenMeteoWeatherProvider::fetch(forecast_t &forecast) {
   String sanitizedUri = OM_ENDPOINT + uri;
 
   return httpGetWithRetry(client, OM_ENDPOINT, port, uri, sanitizedUri, true,
-                          [&forecast](Stream &json) { return deserializeCall(json, forecast); });
+                          [&forecast](Stream &json, size_t) { return deserializeCall(json, forecast); });
 }  // OpenMeteoWeatherProvider::fetch
 
 DeserializationError OpenMeteoWeatherProvider::deserializeCall(Stream &json, forecast_t &forecast) {

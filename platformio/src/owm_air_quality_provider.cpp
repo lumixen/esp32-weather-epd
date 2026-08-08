@@ -46,7 +46,7 @@ int OWMAirQualityProvider::fetch(air_quality_t &airQuality) {
                         "&start=" + startStr + "&end=" + endStr + "&appid={API key}";
 
   return httpGetWithRetry(client, OWM_ENDPOINT, port, uri, sanitizedUri, false,
-                          [&airQuality](Stream &json) { return deserializeAirQuality(json, airQuality); });
+                          [&airQuality](Stream &json, size_t) { return deserializeAirQuality(json, airQuality); });
 }  // OWMAirQualityProvider::fetch
 
 DeserializationError OWMAirQualityProvider::deserializeAirQuality(Stream &json, air_quality_t &airQuality) {

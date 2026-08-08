@@ -3,7 +3,7 @@ import re
 from typing import Dict, Optional
 from typing import Annotated
 from typing import Union, Literal
-from pydantic import BaseModel, Field, WithJsonSchema, model_validator
+from pydantic import BaseModel, ConfigDict, Field, WithJsonSchema, model_validator
 
 
 class DocEnum(Enum):
@@ -161,6 +161,7 @@ class AirQualityAPI(str, Enum):
 class AlertsAPI(str, Enum):
     NONE = "None"
     OPEN_WEATHER_MAP = "OpenWeatherMap"
+    METEOALARM = "MeteoAlarm"
 
 
 class Font(str, Enum):
@@ -198,9 +199,52 @@ class AirQualityAPIConfig(BaseModel):
     transport: Transport = Transport.HTTPS_VERIFY
 
 
-class AlertsAPIConfig(BaseModel):
-    provider: AlertsAPI = AlertsAPI.NONE
+class NoAlertsConfig(BaseModel):
+    """Alerts API disabled"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    provider: Literal["None"] = "None"
+
+    def provider_to_config_value(self):
+        return "#define ALERTS_API_PROVIDER_NONE"
+
+
+class OpenWeatherMapAlertConfig(BaseModel):
+    """OpenWeatherMap alerts (One Call API)"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    provider: Literal["OpenWeatherMap"] = "OpenWeatherMap"
     transport: Transport = Transport.HTTPS_VERIFY
+
+    def provider_to_config_value(self):
+        return "#define ALERTS_API_PROVIDER_OPEN_WEATHER_MAP"
+
+
+class MeteoAlarmAlertConfig(BaseModel):
+    """MeteoAlarm (EUMETNET) alerts.
+
+    The feed is always fetched over HTTPS with certificate verification;
+    the feed server rejects plain HTTP with a 302 redirect to HTTPS.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    provider: Literal["MeteoAlarm"] = "MeteoAlarm"
+    # Feeds are fetched per country. The country name must match the slug
+    # used in the feed URL, e.g. "netherlands", "united-kingdom", "austria"
+    # (see https://feeds.meteoalarm.org/).
+    country: str = ""
+
+    def provider_to_config_value(self):
+        return "#define ALERTS_API_PROVIDER_METEOALARM"
+
+
+AlertsAPIConfig = Annotated[
+    Union[NoAlertsConfig, OpenWeatherMapAlertConfig, MeteoAlarmAlertConfig],
+    Field(discriminator="provider"),
+]
 
 defined_enums: list[Enum] = [
     EpdPanel,
@@ -437,7 +481,7 @@ class ConfigSchema(BaseModel):
     font: Font = Font.FREESANS
     displayDailyPrecip: DisplayDailyPrecip = DisplayDailyPrecip.SMART
     displayHourlyIcons: bool = True
-    alertsAPI: AlertsAPIConfig = Field(default_factory=AlertsAPIConfig)
+    alertsAPI: AlertsAPIConfig = Field(default_factory=NoAlertsConfig)
     statusBarExtrasBatVoltage: bool = False
     statusBarExtrasWifiRSSI: bool = False
     batteryMonitoring: bool = True
@@ -484,6 +528,11 @@ class ConfigSchema(BaseModel):
             or self.alertsAPI.provider == AlertsAPI.OPEN_WEATHER_MAP
         ) and not self.owmApikey:
             raise ValueError("The API key is required on OpenWeatherMap")
+        if (
+            self.alertsAPI.provider == AlertsAPI.METEOALARM
+            and not self.alertsAPI.country
+        ):
+            raise ValueError("The country is required on MeteoAlarm")
         return self
 
     @model_validator(mode="after")

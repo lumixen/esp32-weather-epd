@@ -200,6 +200,8 @@ void envSensorReadingTask(void *pvParameters) {
 }
 #endif
 
+#if !defined(PIO_UNIT_TESTING)
+
 /* Program entry point.
  */
 void setup() {
@@ -389,3 +391,5 @@ void setup() {
 /* This will never run
  */
 void loop() {}  // end loop
+
+#endif  // !PIO_UNIT_TESTING

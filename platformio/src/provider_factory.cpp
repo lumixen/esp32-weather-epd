@@ -16,6 +16,9 @@
 #if defined(ALERTS_API_PROVIDER_OPEN_WEATHER_MAP) && !defined(WEATHER_API_PROVIDER_OPEN_WEATHER_MAP)
 #include "owm_alert_provider.h"
 #endif
+#if defined(ALERTS_API_PROVIDER_METEOALARM)
+#include "meteoalarm_alert_provider.h"
+#endif
 
 WeatherProvider *createWeatherProvider() {
 #if defined(WEATHER_API_PROVIDER_OPEN_WEATHER_MAP)
@@ -46,9 +49,11 @@ AlertProvider *createAlertProvider(WeatherProvider *weatherProvider) {
   // The weather provider does not serve alerts, use a standalone alert
   // provider that fetches them separately.
   return new OWMAlertProvider();
+#elif defined(ALERTS_API_PROVIDER_METEOALARM)
+  // MeteoAlarm national weather warnings from a dedicated Atom feed.
+  return new MeteoAlarmAlertProvider();
 #else
-  // No alert source configured. A dedicated external alert provider (e.g.
-  // MeteoAlarm) can be added here in the future.
+  // No alert source configured.
   return nullptr;
 #endif
 }  // createAlertProvider
