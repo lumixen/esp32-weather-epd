@@ -15,6 +15,19 @@ cd platformio
 - Verify: build must end with `[SUCCESS]`. Typical footprint: RAM ~31% (102 KB / 320 KB), Flash ~47% (1.48 MB / 3 MB).
 - Upload to device: `~/.platformio/penv/bin/pio run -e lolin_d32 -t upload`; serial monitor: `-t monitor` (115200 baud).
 
+## Testing
+
+Unit tests run on the ESP32 QEMU emulator inside Docker — no hardware needed:
+
+```sh
+cd platformio
+bash test/run_tests_docker.sh
+```
+
+- Suite: `lolin_d32_qemu` env; tests live in `test/src/test_meteoalarm/` (Unity); the run must end with all test cases succeeding.
+- The env compiles `src/` together with the tests (`test_build_src = yes`); `main.cpp` is excluded via `#if !defined(PIO_UNIT_TESTING)`. New suites: create `test/src/<suite>/test_<suite>.cpp`; `test_dir = test/src` keeps the rest of `test/` (Docker/QEMU infra) out of the build.
+- Mechanics: repo bind-mounted read-write at `/project` → build artifacts land in `platformio/.pio/` on the host. PlatformIO toolchains are cached in the named Docker volume `esp32-weather-epd-pio` (`/root/.platformio` in-container; `docker volume rm esp32-weather-epd-pio` forces re-download). QEMU is baked into the image at `/opt/qemu`; the `esp32-weather-epd-test` image is rebuilt only when missing (`docker rmi` to force).
+
 ## Configuration pipeline
 
 - `platformio/config.yml` is the user configuration source of truth (WiFi, API keys, units, layout, colors, locale).
