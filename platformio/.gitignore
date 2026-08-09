@@ -5,7 +5,7 @@ config.yml
 /http
 /include/defines.h
 /logs
-; generated per-env ESP-IDF config (sdkconfig.defaults is the source of truth)
+# generated per-env ESP-IDF config (sdkconfig.defaults is the source of truth)
 sdkconfig.*
 !sdkconfig.defaults
 managed_components
