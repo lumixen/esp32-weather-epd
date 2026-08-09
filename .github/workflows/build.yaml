@@ -25,7 +25,7 @@ jobs:
           path: |
             ~/.platformio
             platformio/.pio
-          key: ${{ runner.os }}-pio-build-${{ hashFiles('platformio/platformio.ini', 'platformio/sdkconfig.defaults', 'partitions/huge_app.csv') }}
+          key: ${{ runner.os }}-pio-build-${{ hashFiles('platformio/platformio.ini', 'platformio/sdkconfig.defaults', 'platformio/partitions/huge_app.csv') }}
           restore-keys: |
             ${{ runner.os }}-pio-build-
 
