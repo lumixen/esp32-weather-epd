@@ -28,14 +28,14 @@ fi
 # where the volume cannot persist between runs); local usage is unchanged.
 if [ -n "${PIO_HOST_DIR:-}" ]; then
     mkdir -p "$PIO_HOST_DIR"
-    PIO_VOLUME="-v $PIO_HOST_DIR:/root/.platformio"
+    PIO_VOLUME_ARGS=(-v "$PIO_HOST_DIR:/root/.platformio")
 else
-    PIO_VOLUME="-v esp32-weather-epd-pio:/root/.platformio"
+    PIO_VOLUME_ARGS=(-v "esp32-weather-epd-pio:/root/.platformio")
 fi
 
 exec docker run --rm --platform "$PLATFORM" \
     -v "$ROOT:/project" \
-    $PIO_VOLUME \
+    "${PIO_VOLUME_ARGS[@]}" \
     -w /project/platformio \
     "$IMAGE" \
     pio test -e lolin_d32_qemu --without-uploading "$@"
