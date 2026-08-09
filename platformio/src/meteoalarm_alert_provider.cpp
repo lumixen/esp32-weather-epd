@@ -562,9 +562,11 @@ DeserializationError MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector
                    " ms, stream read timeout " + String(xml.getTimeout()) + " ms, available " +
                    String(xml.available()));
 #if DEBUG_LEVEL >= 1
-    Serial.print("[debug] last " + String(sizeof(tail)) + " body bytes: ");
-    for (size_t i = 0; i < sizeof(tail); ++i) {
-      const char c = tail[(tailPos + i) % sizeof(tail)];
+    const size_t avail = total < sizeof(tail) ? total : sizeof(tail);
+    const size_t start = total < sizeof(tail) ? 0 : tailPos;
+    Serial.print("[debug] last " + String(avail) + " body bytes: ");
+    for (size_t i = 0; i < avail; ++i) {
+      const char c = tail[(start + i) % sizeof(tail)];
       if (c >= 0x20 && c <= 0x7E) {
         Serial.print(c);
       } else {
