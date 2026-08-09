@@ -32,6 +32,11 @@ jobs:
       - name: Install PlatformIO Core
         run: pip install platformio
 
+      - name: Create config from example
+        working-directory: platformio
+        shell: bash
+        run: cp -n config.example.yml config.yml
+
       - name: Build PlatformIO Project
         working-directory: platformio
         run: pio run -e lolin_d32

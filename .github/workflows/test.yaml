@@ -40,6 +40,11 @@ jobs:
           restore-keys: |
             pio-build-
 
+      - name: Create config from example
+        working-directory: platformio
+        shell: bash
+        run: cp -n config.example.yml config.yml
+
       - name: Run unit tests (QEMU)
         working-directory: platformio
         env:
