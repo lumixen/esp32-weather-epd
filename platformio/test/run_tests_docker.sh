@@ -24,11 +24,18 @@ fi
 # Everything runs inside the container: PlatformIO's own packages dir is
 # persisted in a named volume (so toolchains are downloaded only once), while
 # QEMU itself is baked into the image at /opt/qemu.
-VOLUME="esp32-weather-epd-pio"
+# PIO_HOST_DIR overrides the named volume with a host directory (used in CI
+# where the volume cannot persist between runs); local usage is unchanged.
+if [ -n "${PIO_HOST_DIR:-}" ]; then
+    mkdir -p "$PIO_HOST_DIR"
+    PIO_VOLUME="-v $PIO_HOST_DIR:/root/.platformio"
+else
+    PIO_VOLUME="-v esp32-weather-epd-pio:/root/.platformio"
+fi
 
 exec docker run --rm --platform "$PLATFORM" \
     -v "$ROOT:/project" \
-    -v "$VOLUME:/root/.platformio" \
+    $PIO_VOLUME \
     -w /project/platformio \
     "$IMAGE" \
     pio test -e lolin_d32_qemu --without-uploading "$@"

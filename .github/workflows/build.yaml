@@ -1,33 +1,38 @@
-name: PlatformIO CI
+name: Build
 
 on:
   push:
-    branches: [ main, develop ]
   pull_request:
-    branches: [ main, develop ]
 
 jobs:
   build:
-
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        locations: [platformio]
+    timeout-minutes: 30
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/cache@v3
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
         with:
           path: |
-            ~/.cache/pip
-            ~/.platformio/.cache
-          key: ${{ runner.os }}-pio
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
+            ~/.platformio
+            platformio/.pio
+          key: ${{ runner.os }}-pio-build-${{ hashFiles('platformio/platformio.ini', 'platformio/sdkconfig.defaults', 'partitions/huge_app.csv') }}
+          restore-keys: |
+            ${{ runner.os }}-pio-build-
+
       - name: Install PlatformIO Core
-        run: pip install --upgrade platformio
+        run: pip install platformio
 
       - name: Build PlatformIO Project
-        run: pio run -d ${{ matrix.locations }}
+        working-directory: platformio
+        run: pio run -e lolin_d32
