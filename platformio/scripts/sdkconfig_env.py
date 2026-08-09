@@ -48,6 +48,6 @@ if raw_custom.strip() or base_content.strip():
     existing_args = board.get("build.cmake_extra_args", "")
     
     if "SDKCONFIG_DEFAULTS" not in existing_args:
-        new_arg = f"-DSDKCONFIG_DEFAULTS={combined_file.resolve()}"
+        new_arg = f"-DSDKCONFIG_DEFAULTS={combined_file.resolve().as_posix()}"
         updated_args = f"{existing_args} {new_arg}".strip()
         board.update("build.cmake_extra_args", updated_args)
