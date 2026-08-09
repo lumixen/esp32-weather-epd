@@ -35,3 +35,8 @@ CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP=y
 # mode is enabled in mbedTLS.
 CONFIG_MBEDTLS_PSK_MODES=y
 CONFIG_MBEDTLS_KEY_EXCHANGE_PSK=y
+
+# Only WARNING and above; drops ESP-IDF I (INFO) log noise at runtime and in
+# the bootloader. Arduino core logs are already limited separately.
+CONFIG_LOG_DEFAULT_LEVEL_WARN=y
+CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y
