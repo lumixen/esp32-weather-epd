@@ -175,10 +175,6 @@ int httpGetWithRetry(WiFiClient &client, const String &host, uint16_t port, cons
     HTTPClient http;
     http.setConnectTimeout(timeoutMs);
     http.setTimeout(timeoutMs);
-    const char *kDiagnosticHeaderKeys[] = {"Content-Length", "Content-Type", "Content-Encoding",
-                                                 "Transfer-Encoding", "Location"};
-    http.collectHeaders(kDiagnosticHeaderKeys,
-                        sizeof(kDiagnosticHeaderKeys) / sizeof(kDiagnosticHeaderKeys[0]));
     if (useHttp10) {
       http.useHTTP10(true);
     }
@@ -199,10 +195,6 @@ int httpGetWithRetry(WiFiClient &client, const String &host, uint16_t port, cons
       if (jsonErr) {
         // -256 offset distinguishes these errors from httpClient errors
         httpResponse = -256 - static_cast<int>(jsonErr.code());
-        Serial.println("  http headers: Content-Length='" + http.header("Content-Length") + "' Content-Type='" +
-                       http.header("Content-Type") + "' Content-Encoding='" + http.header("Content-Encoding") +
-                       "' Transfer-Encoding='" + http.header("Transfer-Encoding") + "' Location='" +
-                       http.header("Location") + "'");
         Serial.println("  stream: read timeout " + String(http.getStream().getTimeout()) + " ms, advertised size " +
                        String(size) + " B, http.connected()=" + String(http.connected()) +
                        ", live stream ptr=" + String(http.getStreamPtr() != nullptr));
