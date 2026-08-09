@@ -36,8 +36,10 @@
 #include "icons/icons.h"
 
 /* Returns battery voltage in millivolts (mv).
+ * Returns false if the reading could not be obtained; the output parameter is
+ * left untouched in that case.
  */
-uint32_t readBatteryVoltage() {
+bool readBatteryVoltage(uint32_t &batteryVoltage) {
   // The ADC oneshot unit and its calibration handle are initialized on first
   // call and kept for the whole run (readBatteryVoltage() is called once per
   // display refresh, so this is not a hot path).
@@ -48,14 +50,14 @@ uint32_t readBatteryVoltage() {
   if (adc_unit == NULL) {
     adc_unit_t unit_id;
     if (adc_oneshot_io_to_channel(PIN_BAT_ADC, &unit_id, &adc_channel) != ESP_OK) {
-      return 0;
+      return false;
     }
     adc_oneshot_unit_init_cfg_t unit_cfg = {
         .unit_id = unit_id,
         .ulp_mode = ADC_ULP_MODE_DISABLE,
     };
     if (adc_oneshot_new_unit(&unit_cfg, &adc_unit) != ESP_OK) {
-      return 0;
+      return false;
     }
     // The Esp32-E V1.0's ADC is 12 bit, and uses 11db attenuation, which gives
     // it a measurable input voltage range of 150mV to 2450mV.
@@ -64,7 +66,7 @@ uint32_t readBatteryVoltage() {
         .bitwidth = ADC_BITWIDTH_12,
     };
     if (adc_oneshot_config_channel(adc_unit, adc_channel, &chan_cfg) != ESP_OK) {
-      return 0;
+      return false;
     }
 #if DEBUG_LEVEL >= 1
     // We use the eFuse ADC calibration bits to get accurate voltage readings.
@@ -86,22 +88,22 @@ uint32_t readBatteryVoltage() {
         .default_vref = 1100,
     };
     if (adc_cali_create_scheme_line_fitting(&cali_cfg, &adc_cali) != ESP_OK) {
-      return 0;
+      return false;
     }
   }
 
   int adc_val = 0;
   if (adc_oneshot_read(adc_unit, adc_channel, &adc_val) != ESP_OK) {
-    return 0;
+    return false;
   }
   int voltage_mv = 0;
   if (adc_cali_raw_to_voltage(adc_cali, adc_val, &voltage_mv) != ESP_OK) {
-    return 0;
+    return false;
   }
-  uint32_t batteryVoltage = voltage_mv;
+  batteryVoltage = voltage_mv;
   // Assuming equal resistor values in voltage divider (1M + 1M or 100k + 100k).
   batteryVoltage *= 2;
-  return batteryVoltage;
+  return true;
 }  // end readBatteryVoltage
 
 /* Returns battery percentage, rounded to the nearest integer.
