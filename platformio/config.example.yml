@@ -1,0 +1,112 @@
+# Example configuration for the ESP32 weather e-paper display.
+#
+# Copy this file to config.yml and adjust the values to your setup.
+# The weather/air-quality providers (Open-Meteo) work without any API keys;
+# the MeteoAlarm alerts provider only needs the country slug below.
+#
+# NOTE: the unit test suite in test/src links
+# MeteoAlarmAlertProvider::parseFeed, so CI builds must keep alertsAPI
+# provider MeteoAlarm (or provide their own config.yml).
+epdPanel: GENERIC_BW_V2
+epdDriver: Good Display DESPI-C02
+locale: en_GB
+
+weatherAPI:
+  provider: Open-Meteo
+  transport: HTTPS_VERIFY
+
+airQualityAPI:
+  provider: Open-Meteo
+  transport: HTTPS_VERIFY
+
+alertsAPI:
+  provider: MeteoAlarm
+  country: netherlands
+
+ntp:
+  server_1: pool.ntp.org
+  server_2: time.nist.gov
+  syncIntervalWakeups: 6
+  timeout: 20000
+
+pin:
+  batAdc: 35
+  epdBusy: 14
+  epdCS: 13
+  epdRst: 21
+  epdDC: 22
+  epdSCK: 18
+  epdMISO: 19
+  epdMOSI: 23
+  epdPwr: 26
+
+useImperialUnitsAsDefault: false
+unitsTemp: Celsius
+unitsSpeed: km/h
+unitsPres: hPa
+unitsDistance: km
+unitsHourlyPrecip: probability of precipitation
+unitsDailyPrecip: mm
+windDirectionIndicator: arrow
+windArrowPrecision: secondary intercardinal
+font: FreeSans
+displayDailyPrecip: smart
+displayHourlyIcons: true
+batteryMonitoring: true
+statusBarExtrasBatVoltage: false
+statusBarExtrasWifiRSSI: false
+debugLevel: 0
+
+wifi:
+  ssid: your-wifi-ssid
+  password: your-wifi-password
+  timeout: 10000
+  scan: false
+
+latitude: "51.5072"
+longitude: "-0.1276"
+city: London
+timezone: Europe/London
+timeFormat: "%H:%M"
+hourFormat: "%H"
+dateFormat: "%x"
+refreshTimeFormat: "%x %H:%M"
+sleepDuration: 30
+bedTime: 0
+wakeTime: 6
+hourlyGraphMax: 24
+moonPhaseStyle: primary
+
+bme:
+  type: NONE
+
+leftPanelLayout:
+  SUNRISE: 0
+  SUNSET: 1
+  MOONRISE: 2
+  MOONSET: 3
+  MOONPHASE: 4
+  HUMIDITY: 5
+  WIND: 6
+  PRESSURE: 7
+  AIR_QUALITY: 8
+  VISIBILITY: 9
+
+homeAssistantMqtt:
+  enabled: false
+
+colors:
+  outlookLowThresholdTemperature: 0
+  outlookHighThresholdTemperature: 35
+  outlookTemperatureLowColor: black
+  outlookTemperatureNormalColor: black
+  outlookTemperatureHighColor: black
+  outlookConditionsIconAccent: black
+  city: black
+  date: black
+  alert: black
+  errorIcon: black
+  statusBarBatteryWarning: black
+  statusBarWeakWifi: black
+  statusBarMessage: black
+  forecastPrecipitation: black

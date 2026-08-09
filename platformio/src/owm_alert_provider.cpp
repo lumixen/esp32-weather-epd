@@ -47,7 +47,7 @@ int OWMAlertProvider::fetch(std::vector<weather_alert_t> &alerts) {
 
   uri += "&appid=" + OWM_APIKEY;
 
-  return httpGetWithRetry(client, OWM_ENDPOINT, port, uri, sanitizedUri, false,
+  return httpGetWithRetry(client, OWM_ENDPOINT, port, uri, sanitizedUri, false, HTTP_CLIENT_TCP_TIMEOUT,
                           [&alerts](Stream &json, size_t) { return deserializeAlerts(json, alerts); });
 }  // OWMAlertProvider::fetch
 

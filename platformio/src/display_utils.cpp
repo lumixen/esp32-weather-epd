@@ -21,8 +21,9 @@
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
 #include <WiFi.h>
-#include <driver/adc.h>
-#include <esp_adc_cal.h>
+#include <esp_adc/adc_cali.h>
+#include <esp_adc/adc_cali_scheme.h>
+#include <esp_adc/adc_oneshot.h>
 
 #include <aqi.h>
 
@@ -35,36 +36,74 @@
 #include "icons/icons.h"
 
 /* Returns battery voltage in millivolts (mv).
+ * Returns false if the reading could not be obtained; the output parameter is
+ * left untouched in that case.
  */
-uint32_t readBatteryVoltage() {
-  esp_adc_cal_characteristics_t adc_chars;
-  // __attribute__((unused)) disables compiler warnings about this variable
-  // being unused (Clang, GCC) which is the case when DEBUG_LEVEL == 0.
-  esp_adc_cal_value_t val_type __attribute__((unused));
-  adc_power_acquire();
-  uint16_t adc_val = analogRead(PIN_BAT_ADC);
-  adc_power_release();
+bool readBatteryVoltage(uint32_t &batteryVoltage) {
+  // The ADC oneshot unit and its calibration handle are initialized on first
+  // call and kept for the whole run (readBatteryVoltage() is called once per
+  // display refresh, so this is not a hot path).
+  static adc_oneshot_unit_handle_t adc_unit = NULL;
+  static adc_channel_t adc_channel = ADC_CHANNEL_0;
+  static adc_cali_handle_t adc_cali = NULL;
 
-  // We will use the eFuse ADC calibration bits, to get accurate voltage
-  // readings. The Esp32-E V1.0's ADC is 12 bit, and uses
-  // 11db attenuation, which gives it a measurable input voltage range of 150mV
-  // to 2450mV.
-  val_type = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_11db, ADC_WIDTH_BIT_12, 1100, &adc_chars);
-
+  if (adc_unit == NULL) {
+    adc_unit_t unit_id;
+    if (adc_oneshot_io_to_channel(PIN_BAT_ADC, &unit_id, &adc_channel) != ESP_OK) {
+      return false;
+    }
+    adc_oneshot_unit_init_cfg_t unit_cfg = {
+        .unit_id = unit_id,
+        .ulp_mode = ADC_ULP_MODE_DISABLE,
+    };
+    if (adc_oneshot_new_unit(&unit_cfg, &adc_unit) != ESP_OK) {
+      return false;
+    }
+    // The Esp32-E V1.0's ADC is 12 bit, and uses 11db attenuation, which gives
+    // it a measurable input voltage range of 150mV to 2450mV.
+    adc_oneshot_chan_cfg_t chan_cfg = {
+        .atten = ADC_ATTEN_DB_12,
+        .bitwidth = ADC_BITWIDTH_12,
+    };
+    if (adc_oneshot_config_channel(adc_unit, adc_channel, &chan_cfg) != ESP_OK) {
+      return false;
+    }
 #if DEBUG_LEVEL >= 1
-  if (val_type == ESP_ADC_CAL_VAL_EFUSE_VREF) {
-    Serial.println("[debug] ADC Cal eFuse Vref");
-  } else if (val_type == ESP_ADC_CAL_VAL_EFUSE_TP) {
-    Serial.println("[debug] ADC Cal Two Point");
-  } else {
-    Serial.println("[debug] ADC Cal Default");
-  }
+    // We use the eFuse ADC calibration bits to get accurate voltage readings.
+    adc_cali_scheme_ver_t scheme_mask = 0;
+    if (adc_cali_check_scheme(&scheme_mask) != ESP_OK) {
+      Serial.println("[debug] ADC Cal scheme check failed");
+    } else if (scheme_mask & ADC_CALI_SCHEME_VER_LINE_FITTING) {
+      Serial.println("[debug] ADC Cal line fitting scheme");
+    } else if (scheme_mask & ADC_CALI_SCHEME_VER_CURVE_FITTING) {
+      Serial.println("[debug] ADC Cal curve fitting scheme");
+    } else {
+      Serial.println("[debug] ADC Cal unsupported scheme");
+    }
 #endif
+    adc_cali_line_fitting_config_t cali_cfg = {
+        .unit_id = unit_id,
+        .atten = ADC_ATTEN_DB_12,
+        .bitwidth = ADC_BITWIDTH_12,
+        .default_vref = 1100,
+    };
+    if (adc_cali_create_scheme_line_fitting(&cali_cfg, &adc_cali) != ESP_OK) {
+      return false;
+    }
+  }
 
-  uint32_t batteryVoltage = esp_adc_cal_raw_to_voltage(adc_val, &adc_chars);
+  int adc_val = 0;
+  if (adc_oneshot_read(adc_unit, adc_channel, &adc_val) != ESP_OK) {
+    return false;
+  }
+  int voltage_mv = 0;
+  if (adc_cali_raw_to_voltage(adc_cali, adc_val, &voltage_mv) != ESP_OK) {
+    return false;
+  }
+  batteryVoltage = voltage_mv;
   // Assuming equal resistor values in voltage divider (1M + 1M or 100k + 100k).
   batteryVoltage *= 2;
-  return batteryVoltage;
+  return true;
 }  // end readBatteryVoltage
 
 /* Returns battery percentage, rounded to the nearest integer.

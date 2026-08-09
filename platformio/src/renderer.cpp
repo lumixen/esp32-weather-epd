@@ -203,6 +203,15 @@ void drawMultiLnString(int16_t x, int16_t y, const String &text, alignment_t ali
 void initDisplay() {
   pinMode(PIN_EPD_PWR, OUTPUT);
   digitalWrite(PIN_EPD_PWR, HIGH);
+  // GxEPD2's init() presets the RST/DC/CS pins with digitalWrite before its
+  // own pinMode() calls; configure them first so Arduino core 3.x does not
+  // log "IO not set as GPIO" for those preset writes (idle level HIGH).
+  pinMode(PIN_EPD_RST, OUTPUT);
+  digitalWrite(PIN_EPD_RST, HIGH);
+  pinMode(PIN_EPD_DC, OUTPUT);
+  digitalWrite(PIN_EPD_DC, HIGH);
+  pinMode(PIN_EPD_CS, OUTPUT);
+  digitalWrite(PIN_EPD_CS, HIGH);
 #ifdef EPD_DRIVER_WAVESHARE
   display.init(115200, true, 2, false);
 #endif

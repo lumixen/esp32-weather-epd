@@ -55,7 +55,7 @@ enum conditions_accent {
   NOT_WORTH_ACCENTING
 };
 
-uint32_t readBatteryVoltage();
+bool readBatteryVoltage(uint32_t &batteryVoltage);
 uint8_t calcBatPercent(uint32_t v, uint32_t minv, uint32_t maxv);
 const uint8_t *getBatBitmap24(uint32_t batPercent);
 void getDateStr(String &s, tm *timeInfo);

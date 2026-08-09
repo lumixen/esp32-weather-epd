@@ -49,7 +49,7 @@ int OpenMeteoWeatherProvider::fetch(forecast_t &forecast) {
   // This string is printed to terminal to help with debugging.
   String sanitizedUri = OM_ENDPOINT + uri;
 
-  return httpGetWithRetry(client, OM_ENDPOINT, port, uri, sanitizedUri, true,
+  return httpGetWithRetry(client, OM_ENDPOINT, port, uri, sanitizedUri, true, HTTP_CLIENT_TCP_TIMEOUT,
                           [&forecast](Stream &json, size_t) { return deserializeCall(json, forecast); });
 }  // OpenMeteoWeatherProvider::fetch
 

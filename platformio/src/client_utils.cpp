@@ -157,7 +157,7 @@ void killWiFi() {
  * distinguishes JSON deserialization errors from httpClient errors.
  */
 int httpGetWithRetry(WiFiClient &client, const String &host, uint16_t port, const String &uri,
-                     const String &sanitizedUri, bool useHttp10,
+                     const String &sanitizedUri, bool useHttp10, uint32_t timeoutMs,
                      std::function<DeserializationError(Stream &, size_t)> parse) {
   int attempts = 0;
   bool rxSuccess = false;
@@ -173,8 +173,8 @@ int httpGetWithRetry(WiFiClient &client, const String &host, uint16_t port, cons
     }
 
     HTTPClient http;
-    http.setConnectTimeout(HTTP_CLIENT_TCP_TIMEOUT);  // default 5000ms
-    http.setTimeout(HTTP_CLIENT_TCP_TIMEOUT);         // default 5000ms
+    http.setConnectTimeout(timeoutMs);
+    http.setTimeout(timeoutMs);
     if (useHttp10) {
       http.useHTTP10(true);
     }
@@ -186,10 +186,18 @@ int httpGetWithRetry(WiFiClient &client, const String &host, uint16_t port, cons
       // closed) connection.
       const int size = http.getSize();
       const size_t expectedLen = size > 0 ? static_cast<size_t>(size) : 0;
+      // Make the parser's per-byte read window match the configured timeout:
+      // HTTPClient::setTimeout only forwards to the client while connected,
+      // so the Stream the parser reads from would otherwise keep its default
+      // 1 s window (too short for large, intermittently delivered bodies).
+      http.getStream().setTimeout(timeoutMs);
       DeserializationError jsonErr = parse(http.getStream(), expectedLen);
       if (jsonErr) {
         // -256 offset distinguishes these errors from httpClient errors
         httpResponse = -256 - static_cast<int>(jsonErr.code());
+        Serial.println("  stream: read timeout " + String(http.getStream().getTimeout()) + " ms, advertised size " +
+                       String(size) + " B, http.connected()=" + String(http.connected()) +
+                       ", live stream ptr=" + String(http.getStreamPtr() != nullptr));
       }
       rxSuccess = !jsonErr;
     }

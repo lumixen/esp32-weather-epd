@@ -294,7 +294,9 @@ int MeteoAlarmAlertProvider::fetch(std::vector<weather_alert_t> &alerts) {
     lon = strtod(D_LONGITUDE, nullptr);
   }
 
-  return httpGetWithRetry(client, METEOALARM_ENDPOINT, port, uri, sanitizedUri, false,
+  // The feed can be several hundred KB (each warning repeats its polygon in
+  // many variants), which needs far more than the default 2s read window.
+  return httpGetWithRetry(client, METEOALARM_ENDPOINT, port, uri, sanitizedUri, false, 30000,
                           [&alerts, lat, lon](Stream &xml, size_t expectedLen) {
                             return parseFeed(xml, alerts, time(nullptr), lat, lon, expectedLen);
                           });
@@ -325,6 +327,38 @@ int MeteoAlarmAlertProvider::fetch(std::vector<weather_alert_t> &alerts) {
  * read is attempted, so a connection closed by the server right after the
  * body does not surface as a read error.
  */
+
+/* Reads up to `length` bytes from `stream`, waiting for the next byte while
+ * the stream reports no data. The wait is bounded by the stream's configured
+ * read timeout (getTimeout), and each delivered byte refreshes the deadline:
+ * 30s of silence fails, a slow-but-steady stream never does.
+ *
+ * Stream::readBytes cannot be used directly: on the TLS client the virtual
+ * NetworkClient::readBytes treats the non-blocking read()'s -1 ("no data
+ * right now") as a hard error and returns instantly, truncating the feed at
+ * the first TCP/TLS burst boundary; the base Stream::readBytes busy-spins in
+ * timedRead instead, which starves the idle task and trips the task watchdog
+ * during long stalls. Polling with delay(1) yields to the idle task while
+ * waiting.
+ */
+static size_t readBytesYielding(Stream &stream, char *buffer, size_t length) {
+  size_t count = 0;
+  unsigned long deadline = millis() + stream.getTimeout();
+  while (count < length) {
+    const int c = stream.read();
+    if (c >= 0) {
+      buffer[count++] = static_cast<char>(c);
+      deadline = millis() + stream.getTimeout();
+      continue;
+    }
+    if (millis() > deadline) {
+      break;  // no data arrived within the read timeout
+    }
+    delay(1);  // yield so other tasks (and the watchdog) can run
+  }
+  return count;
+}
+
 DeserializationError MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector<weather_alert_t> &alerts,
                                                         int64_t now, double lat, double lon, size_t expectedLen) {
   enum class St { TEXT, ENTITY, TAG_NAME, TAG_ATTR, TAG_ATTR_QUOTED, SKIP };
@@ -343,6 +377,9 @@ DeserializationError MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector
   char buf[128];
   size_t total = 0;  // bytes read from the response body
   bool atExpectedEnd = false;
+  char tail[64];      // rolling buffer with the last bytes read, for diagnostics
+  size_t tailPos = 0;
+  unsigned long parseStartMillis = millis();
   while (true) {
     if (expectedLen > 0 && total >= expectedLen) {
       // The whole advertised body was consumed; do not read past it (the
@@ -358,13 +395,18 @@ DeserializationError MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector
     if (expectedLen > 0 && expectedLen - total < want) {
       want = expectedLen - total;
     }
-    const size_t n = xml.readBytes(buf, want);
+    // Wait up to the stream timeout for the next byte, yielding in between
+    // (see readBytesYielding): pauses between TCP/TLS bursts (window refills,
+    // slow server first bytes) must not truncate the feed.
+    const size_t n = readBytesYielding(xml, buf, want);
     if (n == 0) {
       break;  // end of stream (or read timeout)
     }
     total += n;
     for (size_t i = 0; i < n; ++i) {
       const char c = buf[i];
+      tail[tailPos] = c;
+      tailPos = (tailPos + 1) % sizeof(tail);
 
       switch (state) {
         case St::TEXT: {
@@ -513,6 +555,26 @@ DeserializationError MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector
   // truncated by a timeout. A break at the advertised content length is
   // expected and fine.
   if (!atExpectedEnd && (inEntry || !capture.isEmpty())) {
+    Serial.println("[error] MeteoAlarm: feed ended early, " + String(total) + " of " +
+                   String(expectedLen) + " bytes read, scanner in state " + String(static_cast<int>(state)) +
+                   " (inEntry=" + String(inEntry) + ", capture='" + capture + "', tagName='" + tagName + "')");
+    Serial.println("[error]   parse loop took " + String(millis() - parseStartMillis) +
+                   " ms, stream read timeout " + String(xml.getTimeout()) + " ms, available " +
+                   String(xml.available()));
+#if DEBUG_LEVEL >= 1
+    const size_t avail = total < sizeof(tail) ? total : sizeof(tail);
+    const size_t start = total < sizeof(tail) ? 0 : tailPos;
+    Serial.print("[debug] last " + String(avail) + " body bytes: ");
+    for (size_t i = 0; i < avail; ++i) {
+      const char c = tail[(start + i) % sizeof(tail)];
+      if (c >= 0x20 && c <= 0x7E) {
+        Serial.print(c);
+      } else {
+        Serial.printf("\\x%02X", static_cast<uint8_t>(c));
+      }
+    }
+    Serial.println();
+#endif
     return DeserializationError::InvalidInput;
   }
   return DeserializationError::Ok;

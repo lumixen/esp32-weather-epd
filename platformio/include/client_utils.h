@@ -37,7 +37,11 @@ void killWiFi();
  * response into the output model. `expectedLen` is the response content
  * length in bytes (0 if unknown); providers may use it to stop reading
  * exactly at the end of the body instead of reading until EOF.
+ *
+ * `timeoutMs` sets both the TCP connect timeout and the read timeout of the
+ * response stream. Providers with large responses (e.g. the MeteoAlarm feed
+ * is hundreds of KB) must pass a value large enough to stream the whole body.
  */
 int httpGetWithRetry(WiFiClient &client, const String &host, uint16_t port, const String &uri,
-                     const String &sanitizedUri, bool useHttp10,
+                     const String &sanitizedUri, bool useHttp10, uint32_t timeoutMs,
                      std::function<DeserializationError(Stream &, size_t expectedLen)> parse);

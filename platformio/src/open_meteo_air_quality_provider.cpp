@@ -38,7 +38,7 @@ int OpenMeteoAirQualityProvider::fetch(air_quality_t &airQuality) {
                "past_days=1&forecast_days=1&timeformat=unixtime";
   String sanitizedUri = OM_AIR_QUALITY_ENDPOINT + uri;
 
-  return httpGetWithRetry(client, OM_AIR_QUALITY_ENDPOINT, port, uri, sanitizedUri, true,
+  return httpGetWithRetry(client, OM_AIR_QUALITY_ENDPOINT, port, uri, sanitizedUri, true, HTTP_CLIENT_TCP_TIMEOUT,
                           [&airQuality](Stream &json, size_t) { return deserializeAirQuality(json, airQuality); });
 }  // OpenMeteoAirQualityProvider::fetch
 

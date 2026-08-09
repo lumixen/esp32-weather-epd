@@ -41,9 +41,13 @@ SUMMARY_WORDS = ("Tests", "Failures", "Ignored")
 
 def build_flash_image(args):
     flash = os.path.join(args.build_dir, "qemu_flash.bin")
-    merge = [
-        sys.executable,
-        args.esptool,
+    merge = [args.esptool]
+    # Plain .py scripts need an interpreter; console-script binaries (e.g.
+    # the PlatformIO venv's esptool, which has the deps of esptool v5) run
+    # directly.
+    if args.esptool.endswith(".py"):
+        merge = [sys.executable] + merge
+    merge += [
         "--chip",
         "esp32",
         "merge_bin",

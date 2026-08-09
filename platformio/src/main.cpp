@@ -217,50 +217,60 @@ void setup() {
   prefs.begin(NVS_NAMESPACE, false);
 
 #if BATTERY_MONITORING
-  uint32_t batteryVoltage = readBatteryVoltage();
-  uint8_t batteryPercent = calcBatPercent(batteryVoltage, MIN_BATTERY_VOLTAGE, MAX_BATTERY_VOLTAGE);
-  Serial.print(TXT_BATTERY_VOLTAGE);
-  Serial.println(": " + String(batteryVoltage) + "mv");
+  uint32_t batteryVoltage = 0;
+  bool batteryVoltageValid = readBatteryVoltage(batteryVoltage);
+  uint8_t batteryPercent;
+  if (batteryVoltageValid) {
+    batteryPercent = calcBatPercent(batteryVoltage, MIN_BATTERY_VOLTAGE, MAX_BATTERY_VOLTAGE);
+    Serial.print(TXT_BATTERY_VOLTAGE);
+    Serial.println(": " + String(batteryVoltage) + "mv");
 
-  // When the battery is low, the display should be updated to reflect that, but
-  // only the first time we detect low voltage. The next time the display will
-  // refresh is when voltage is no longer low. To keep track of that we will
-  // make use of non-volatile storage.
-  bool lowBat = prefs.getBool("lowBat", false);
+    // When the battery is low, the display should be updated to reflect that, but
+    // only the first time we detect low voltage. The next time the display will
+    // refresh is when voltage is no longer low. To keep track of that we will
+    // make use of non-volatile storage.
+    bool lowBat = prefs.getBool("lowBat", false);
 
-  // low battery, deep sleep now
-  if (batteryVoltage <= LOW_BATTERY_VOLTAGE) {
-    if (lowBat == false) {  // battery is now low for the first time
-      prefs.putBool("lowBat", true);
-      prefs.end();
-      initDisplay();
-      do {
-        drawError(battery_alert_0deg_196x196, TXT_LOW_BATTERY);
-      } while (display.nextPage());
-      powerOffDisplay();
+    // low battery, deep sleep now
+    if (batteryVoltage <= LOW_BATTERY_VOLTAGE) {
+      if (lowBat == false) {  // battery is now low for the first time
+        prefs.putBool("lowBat", true);
+        prefs.end();
+        initDisplay();
+        do {
+          drawError(battery_alert_0deg_196x196, TXT_LOW_BATTERY);
+        } while (display.nextPage());
+        powerOffDisplay();
+      }
+
+      if (batteryVoltage <= CRIT_LOW_BATTERY_VOLTAGE) {  // critically low battery
+        // don't set esp_sleep_enable_timer_wakeup();
+        // We won't wake up again until someone manually presses the RST button.
+        Serial.println(TXT_CRIT_LOW_BATTERY_VOLTAGE);
+        Serial.println(TXT_HIBERNATING_INDEFINITELY_NOTICE);
+      } else if (batteryVoltage <= VERY_LOW_BATTERY_VOLTAGE) {  // very low battery
+        esp_sleep_enable_timer_wakeup(VERY_LOW_BATTERY_SLEEP_INTERVAL * 60ULL * 1000000ULL);
+        Serial.println(TXT_VERY_LOW_BATTERY_VOLTAGE);
+        Serial.print(TXT_ENTERING_DEEP_SLEEP_FOR);
+        Serial.println(" " + String(VERY_LOW_BATTERY_SLEEP_INTERVAL) + "min");
+      } else {  // low battery
+        esp_sleep_enable_timer_wakeup(LOW_BATTERY_SLEEP_INTERVAL * 60ULL * 1000000ULL);
+        Serial.println(TXT_LOW_BATTERY_VOLTAGE);
+        Serial.print(TXT_ENTERING_DEEP_SLEEP_FOR);
+        Serial.println(" " + String(LOW_BATTERY_SLEEP_INTERVAL) + "min");
+      }
+      esp_deep_sleep_start();
     }
-
-    if (batteryVoltage <= CRIT_LOW_BATTERY_VOLTAGE) {  // critically low battery
-      // don't set esp_sleep_enable_timer_wakeup();
-      // We won't wake up again until someone manually presses the RST button.
-      Serial.println(TXT_CRIT_LOW_BATTERY_VOLTAGE);
-      Serial.println(TXT_HIBERNATING_INDEFINITELY_NOTICE);
-    } else if (batteryVoltage <= VERY_LOW_BATTERY_VOLTAGE) {  // very low battery
-      esp_sleep_enable_timer_wakeup(VERY_LOW_BATTERY_SLEEP_INTERVAL * 60ULL * 1000000ULL);
-      Serial.println(TXT_VERY_LOW_BATTERY_VOLTAGE);
-      Serial.print(TXT_ENTERING_DEEP_SLEEP_FOR);
-      Serial.println(" " + String(VERY_LOW_BATTERY_SLEEP_INTERVAL) + "min");
-    } else {  // low battery
-      esp_sleep_enable_timer_wakeup(LOW_BATTERY_SLEEP_INTERVAL * 60ULL * 1000000ULL);
-      Serial.println(TXT_LOW_BATTERY_VOLTAGE);
-      Serial.print(TXT_ENTERING_DEEP_SLEEP_FOR);
-      Serial.println(" " + String(LOW_BATTERY_SLEEP_INTERVAL) + "min");
+    // battery is no longer low, reset variable in non-volatile storage
+    if (lowBat == true) {
+      prefs.putBool("lowBat", false);
     }
-    esp_deep_sleep_start();
-  }
-  // battery is no longer low, reset variable in non-volatile storage
-  if (lowBat == true) {
-    prefs.putBool("lowBat", false);
+  } else {
+    // No valid reading: a transient ADC failure must not trigger the low-
+    // battery shutdown, which would hibernate a charged device indefinitely.
+    Serial.println("[error] Failed to read battery voltage, skipping low-battery check");
+    batteryVoltage = UINT32_MAX;
+    batteryPercent = UINT8_MAX;
   }
 #else
   uint32_t batteryVoltage = UINT32_MAX;
@@ -335,10 +345,10 @@ void setup() {
     // which case no additional HTTP request is made
     rxStatus = alertProvider->fetch(alerts);
     if (rxStatus != HTTP_CODE_OK) {
-      statusStr = "Alerts API";
-      tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
-      handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
-                         wifiRSSI);
+      // Alerts are a non-essential source: log the failure and continue
+      // without them instead of taking over the whole display.
+      Serial.println("[error] Alerts API: " + String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus));
+      alerts.clear();
     }
   }
 
