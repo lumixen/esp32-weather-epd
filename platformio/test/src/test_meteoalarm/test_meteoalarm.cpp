@@ -247,10 +247,12 @@ static void test_garbage(void) {
 
 /* No more than 2 alerts are kept (the renderer displays at most 2), and
  * parsing stops as soon as that many have been collected: the remaining body
- * is not read, cutting the download short. */
+ * is not read, cutting the download short. The feed is sized well above the
+ * parser's read buffer (4096 bytes) so the first chunk does not already
+ * contain the whole document. */
 static void test_alert_cap(void) {
   String feed = "<feed xmlns=\"http://www.w3.org/2005/Atom\" xmlns:cap=\"urn:oasis:names:tc:emergency:cap:1.2\">";
-  for (int i = 0; i < 9; ++i) {
+  for (int i = 0; i < 64; ++i) {
     feed += "<entry><cap:areaDesc>Area " + String(i) + "</cap:areaDesc><cap:event>Wind warning</cap:event>";
     feed += "<cap:effective>2026-08-07T10:44:21+00:00</cap:effective>";
     feed += "<cap:expires>2026-08-07T18:00:00+00:00</cap:expires><cap:severity>Moderate</cap:severity></entry>";
