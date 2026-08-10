@@ -13,10 +13,8 @@
 #include "client_utils.h"
 #include "meteoalarm_alert_provider.h"
 
-// Limit the number of parsed alerts. The renderer (drawAlerts) displays at
-// most 2 alerts, so parsing stops as soon as 2 matching warnings have been
-// collected: the remaining body is not read, cutting the (window-limited)
-// download short.
+// The renderer displays at most 2 alerts: parsing stops once that many
+// matching warnings were collected, cutting the download short.
 #define METEOALARM_NUM_ALERTS 2
 
 static const char *METEOALARM_ENDPOINT = "feeds.meteoalarm.org";
@@ -54,12 +52,9 @@ static int64_t daysFromCivil(int y, unsigned m, unsigned d) {
   return static_cast<int64_t>(era) * 146097 + static_cast<int64_t>(doe) - 719468;
 }
 
-/* Add an entry to the alert list if it covers the configured location and
- * has not expired yet.
- *
- * A location (lat/lon, e.g. parsed from D_LATITUDE/D_LONGITUDE) is optional:
- * if given, an alert with a polygon that does not contain the location is
- * skipped. Alerts without a polygon can not be evaluated and are kept. */
+/* Add an entry to the alerts if it has not expired yet and its polygon, if
+ * any, contains the configured location (alerts without a polygon are
+ * kept). */
 void addEntry(entry_data_t &e, std::vector<weather_alert_t> &alerts, int64_t now, double lat,
               double lon) {
   if (!e.any) {
@@ -97,15 +92,10 @@ void addEntry(entry_data_t &e, std::vector<weather_alert_t> &alerts, int64_t now
 
 }  // namespace
 
-/* Returns true if (lat, lon) is inside the closed polygon given as
- * space-separated "lat,lon" pairs in WGS84 decimal degrees (CAP format).
- *
- * Implements the ray casting algorithm; the ring is assumed to be closed
- * (last point repeats the first), as emitted by MeteoAlarm. A polygon with
- * fewer than 3 valid points can not be evaluated and is treated as
- * non-matching-safe: true is returned so the alert is kept. Points on the
- * boundary count as inside.
- */
+/* Returns true if (lat, lon) lies inside the polygon given as space-separated
+ * "lat,lon" pairs in WGS84 decimal degrees (CAP format, ray casting, closed
+ * ring). A polygon with fewer than 3 valid points can not be evaluated: true
+ * is returned so the alert is kept. Boundary points count as inside. */
 bool MeteoAlarmAlertProvider::pointInPolygon(double lat, double lon, const String &polygon) {
   const char *p = polygon.c_str();
   const char *end = p + polygon.length();
@@ -267,15 +257,9 @@ String MeteoAlarmAlertProvider::colorFromSeverity(const String &severity) {
   return "Yellow";  // Minor and Moderate
 }  // MeteoAlarmAlertProvider::colorFromSeverity
 
-/* Perform an HTTP GET request to feeds.meteoalarm.org requesting the legacy
- * Atom feed of the configured country, and map the alert summary repeated in
- * each entry into the generic alert model.
- *
- * The feed is always fetched over HTTPS with certificate verification; the
- * feed server rejects plain HTTP with a 302 redirect to HTTPS.
- *
- * Returns the HTTP Status Code.
- */
+/* Fetch the legacy Atom feed of the configured country over HTTPS (plain
+ * HTTP is 302-redirected) and map its entries into the alert model.
+ * Returns the HTTP status code. */
 int MeteoAlarmAlertProvider::fetch(std::vector<weather_alert_t> &alerts) {
   WiFiClientSecure client;
   client.setCACert(cert_GEANT_TLS_RSA_1);
@@ -287,8 +271,7 @@ int MeteoAlarmAlertProvider::fetch(std::vector<weather_alert_t> &alerts) {
   String uri = "/feeds/meteoalarm-legacy-atom-" + METEOALARM_COUNTRY;
   String sanitizedUri = String(METEOALARM_ENDPOINT) + uri;
 
-  // The configured location is used to filter warnings by their geographic
-  // polygon; NaN means "not configured" (filter disabled).
+  // Optional configured location; NaN means the polygon filter is disabled.
   double lat = NAN;
   double lon = NAN;
   if (strlen(D_LATITUDE) > 0 && strlen(D_LONGITUDE) > 0) {
@@ -296,69 +279,41 @@ int MeteoAlarmAlertProvider::fetch(std::vector<weather_alert_t> &alerts) {
     lon = strtod(D_LONGITUDE, nullptr);
   }
 
-  // The feed can be several hundred KB (each warning repeats its polygon in
-  // many variants), which needs far more than the default 2s read window.
+  // The feed (up to several hundred KB) needs far more than the default 2s
+  // read window.
   const uint32_t t0 = millis();
   const int code = httpGetWithRetry(client, METEOALARM_ENDPOINT, port, uri, sanitizedUri, false, 30000,
                                     [&alerts, lat, lon, t0, &client](Stream &xml, size_t expectedLen) {
-                                      Serial.printf("[TIME] Meteoalarm fetch: headers at +%u ms\n",
+#if DEBUG_LEVEL >= 1
+                                      Serial.printf("[METEOALARM] fetch: headers at +%u ms\n",
                                                     static_cast<unsigned>(millis() - t0));
+#endif
                                       return parseFeed(xml, alerts, time(nullptr), lat, lon, expectedLen, &client);
                                     });
-  Serial.printf("[TIME] Meteoalarm fetch total=%u ms status=%d\n", static_cast<unsigned>(millis() - t0), code);
+#if DEBUG_LEVEL >= 1
+  Serial.printf("[METEOALARM] fetch total=%u ms status=%d\n", static_cast<unsigned>(millis() - t0), code);
+#endif
   return code;
 }  // MeteoAlarmAlertProvider::fetch
 
-/* Streaming XML scanner for the MeteoAlarm Atom feed.
+/* Streaming XML scanner for the MeteoAlarm Atom feed. Each <entry> repeats
+ * the CAP summary of a warning; only event, severity, effective, onset,
+ * expires and polygon are captured, everything else is skipped, so the
+ * document is parsed as a stream without buffering it.
  *
- * The feed is a machine generated Atom document in which each <entry>
- * repeats the CAP summary of a warning:
- *
- *   <entry>
- *     <cap:event>...</cap:event>
- *     <cap:severity>...</cap:severity>
- *     <cap:effective>...</cap:effective>
- *     <cap:onset>...</cap:onset>
- *     <cap:expires>...</cap:expires>
- *     <cap:polygon>...</cap:polygon>
- *   </entry>
- *
- * Only the elements above are captured (the polygon is used to check whether
- * the configured location is affected), everything else (links, titles,
- * geocodes, area lists, ...) is skipped, so the document can be parsed as a
- * stream without buffering it in memory.
- *
- * Parsing stops as soon as METEOALARM_NUM_ALERTS matching warnings have been
- * collected (the renderer can not display more), and when `expectedLen` bytes
- * have been read the response body is considered fully consumed: no further
- * read is attempted, so a connection closed by the server right after the
- * body does not surface as a read error.
- */
+ * Parsing stops once METEOALARM_NUM_ALERTS matching warnings were collected
+ * and once `expectedLen` bytes were read the body is considered fully
+ * consumed: no read past it, so a connection closed right after the body
+ * never surfaces as a read error. */
 
-/* Reads up to `length` bytes from `stream`, waiting for the next data while
- * the stream reports none. The wait is bounded by the stream's configured
- * read timeout (getTimeout), and each delivered byte refreshes the deadline:
- * 30s of silence fails, a slow-but-steady stream never does.
- *
- * Data is fetched in bulk: the TLS client (NetworkClient/NetworkClientSecure)
- * implements a block read() and serves up to 4KB per call from mbedTLS's
- * decrypted plaintext buffer, instead of one call (and an available() probe)
- * per byte on the 80MHz MCU. Other Stream implementations (unit test feeds)
- * fall back to single-byte reads.
- *
- * Stream::readBytes cannot be used directly: on the TLS client the virtual
- * NetworkClient::readBytes treats the non-blocking read()'s -1 ("no data
- * right now") as a hard error and returns instantly, truncating the feed at
- * the first TCP/TLS burst boundary; the base Stream::readBytes busy-spins in
- * timedRead instead, which starves the idle task and trips the task watchdog
- * during long stalls. Polling with delay(1) yields to the idle task while
- * waiting.
- *
- * For diagnostics, the number of dry-read waits and their accumulated
- * duration are reported through `stallMs`/`stalls` (a stall is measured
- * between the first -1 read of a waiting period and the next delivered
- * byte). A stall-dominated body read points at the network/TCP stack rather
- * than the XML parser; a stall-free slow read points at the parser.
+/* Reads up to `length` bytes from `stream`, waiting for each within the
+ * stream's read timeout (a delivered byte refreshes the deadline). The TLS
+ * client's block read() serves multi-KB mbedTLS plaintext per call; other
+ * streams (unit test feeds) fall back to single-byte reads. Stream::readBytes
+ * cannot be used: it treats the non-blocking -1 as a hard error (truncating
+ * at TCP/TLS burst boundaries) or busy-spins in timedRead (starving the idle
+ * task), so poll with delay(1) instead. `stallMs`/`stalls` count dry-read
+ * waits: a stall-dominated read points at the network stack, not the parser.
  */
 static size_t readBytesYielding(Stream &stream, NetworkClient *bulkClient, char *buffer, size_t length,
                                 unsigned long &stallMs, unsigned long &stalls) {
@@ -367,8 +322,7 @@ static size_t readBytesYielding(Stream &stream, NetworkClient *bulkClient, char 
   unsigned long stallStart = 0;
   while (count < length) {
     if (bulkClient != nullptr) {
-      // Bulk path (production TLS client): serve a whole mbedTLS plaintext
-      // chunk per call; the return value is the number of bytes read.
+      // Bulk path (production TLS client): read() returns the byte count.
       const int r = bulkClient->read(reinterpret_cast<uint8_t *>(buffer) + count, length - count);
       if (r > 0) {
         if (stallStart != 0) {
@@ -381,8 +335,7 @@ static size_t readBytesYielding(Stream &stream, NetworkClient *bulkClient, char 
         continue;
       }
     } else {
-      // Single-byte path (unit test feeds): read() delivers one byte per
-      // call; the value is the byte itself, store it.
+      // Single-byte path (unit test feeds): read() returns one byte value.
       const int c = stream.read();
       if (c >= 0) {
         if (stallStart != 0) {
@@ -395,14 +348,14 @@ static size_t readBytesYielding(Stream &stream, NetworkClient *bulkClient, char 
         continue;
       }
     }
-    // r < 0: no data right now (non-blocking TLS client / exhausted feed).
+    // No data right now (non-blocking TLS client / exhausted feed).
     if (millis() > deadline) {
-      break;  // no data arrived within the read timeout
+      break;  // read timeout expired
     }
     if (stallStart == 0) {
       stallStart = millis();
     }
-    delay(1);  // yield so other tasks (and the watchdog) can run
+    delay(1);  // yield to other tasks / the watchdog
   }
   return count;
 }
@@ -417,34 +370,37 @@ DeserializationError MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector
   bool endTag = false;
   bool selfClosing = false;
   char quote = 0;
-  String tagName;   // tag name of the tag currently being parsed
-  String capture;   // entry element whose text is currently being accumulated
-  String text;      // accumulated text of the captured element
-  String entity;    // pending entity reference "&...;"
+  String tagName;   // tag currently being parsed
+  String capture;   // entry element currently accumulating text
+  String text;      // captured text so far
+  String entity;    // pending "&...;" reference
   entry_data_t entry;
 
+#if DEBUG_LEVEL >= 1
   const uint32_t tStart = millis();
-  Serial.printf("[TIME] Meteoalarm feed: headers at +%u ms (body %u B, heap %u)\n",
+  Serial.printf("[METEOALARM] feed: headers at +%u ms (body %u B, heap %u)\n",
                 static_cast<unsigned>(millis() - tStart), static_cast<unsigned>(expectedLen),
                 static_cast<unsigned>(ESP.getFreeHeap()));
+#endif
 
   std::unique_ptr<char[]> buf(new char[4096]);
   size_t total = 0;  // bytes read from the response body
   bool atExpectedEnd = false;
-  char tail[64];      // rolling buffer with the last bytes read, for diagnostics
+  char tail[64];      // rolling buffer of the last bytes read, for diagnostics
   size_t tailPos = 0;
   unsigned long parseStartMillis = millis();
   unsigned long stallMs = 0;
   unsigned long stalls = 0;
-  uint64_t readUs = 0;    // µs spent inside stream reads (network/TLS waits)
-  uint64_t parseUs = 0;   // µs spent in the XML scanner on delivered bytes
+#if DEBUG_LEVEL >= 1
+  uint64_t readUs = 0;    // µs spent in stream reads (network/TLS waits)
+  uint64_t parseUs = 0;   // µs spent in the XML scanner
   uint64_t entryUs = 0;   // µs spent in addEntry/pointInPolygon at entry close
   uint32_t tFirstByte = 0;
   auto logTiming = [&](const char *reason) {
     const uint32_t tEnd = millis();
     const uint32_t firstByte = (tFirstByte != 0) ? tFirstByte - tStart : 0;
     const uint32_t body = (tFirstByte != 0) ? tEnd - tFirstByte : 0;
-    Serial.printf("[TIME] Meteoalarm feed: %s firstByte=%u ms body=%u ms parse=%u ms "
+    Serial.printf("[METEOALARM] feed: %s firstByte=%u ms body=%u ms parse=%u ms "
                   "readUs=%lu ms parseUs=%lu ms entryUs=%lu ms bytes=%u alerts=%u "
                   "stalls=%lu stallMs=%lu ms rssi=%d heap=%u\n",
                   reason, static_cast<unsigned>(firstByte), static_cast<unsigned>(body),
@@ -453,35 +409,40 @@ DeserializationError MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector
                   static_cast<unsigned>(total), static_cast<unsigned>(alerts.size()), stalls, stallMs, WiFi.RSSI(),
                   static_cast<unsigned>(ESP.getFreeHeap()));
   };
+#endif
   while (true) {
     if (expectedLen > 0 && total >= expectedLen) {
-      // The whole advertised body was consumed; do not read past it (the
-      // server may have closed the connection right after the response).
+      // Body consumed; do not read past it (the server may close right after).
       atExpectedEnd = true;
       break;
     }
-    // Request at most the bytes that remain in the body: readBytes stops as
-    // soon as its count is reached, so an exact final chunk never probes the
-    // connection past the end of the response (a server closing the socket
-    // right after the body would otherwise surface as a TLS read error).
+    // Never request beyond the remaining body: a server closing the socket
+    // right after it would otherwise surface as a TLS read error.
     size_t want = 4096;
     if (expectedLen > 0 && expectedLen - total < want) {
       want = expectedLen - total;
     }
-    // Wait up to the stream timeout for the next byte, yielding in between
-    // (see readBytesYielding): pauses between TCP/TLS bursts (window refills,
-    // slow server first bytes) must not truncate the feed.
+    // Wait up to the stream timeout for each chunk, yielding in between (see
+    // readBytesYielding): TCP/TLS pauses must not truncate the feed.
+#if DEBUG_LEVEL >= 1
     const int64_t tRead0 = esp_timer_get_time();
+#endif
     const size_t n = readBytesYielding(xml, bulkClient, buf.get(), want, stallMs, stalls);
+#if DEBUG_LEVEL >= 1
     readUs += static_cast<uint64_t>(esp_timer_get_time() - tRead0);
+#endif
     if (n == 0) {
       break;  // end of stream (or read timeout)
     }
     total += n;
+#if DEBUG_LEVEL >= 1
     if (tFirstByte == 0) {
       tFirstByte = millis();
     }
+#endif
+    #if DEBUG_LEVEL >= 1
     const int64_t tParse0 = esp_timer_get_time();
+#endif
     for (size_t i = 0; i < n; ++i) {
       const char c = buf[i];
       tail[tailPos] = c;
@@ -582,13 +543,19 @@ DeserializationError MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector
       if (endTag) {
         if (local == "entry") {
           if (inEntry) {
+            #if DEBUG_LEVEL >= 1
             const int64_t tEntry0 = esp_timer_get_time();
+#endif
             addEntry(entry, alerts, now, lat, lon);
+#if DEBUG_LEVEL >= 1
             entryUs += static_cast<uint64_t>(esp_timer_get_time() - tEntry0);
+#endif
             inEntry = false;
             entry.reset();
             if (alerts.size() >= METEOALARM_NUM_ALERTS) {
+              #if DEBUG_LEVEL >= 1
               logTiming("early-exit");
+#endif
               return DeserializationError::Ok;
             }
           }
@@ -614,11 +581,17 @@ DeserializationError MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector
         if (local == "entry") {
           if (inEntry) {
             // previous entry closed implicitly by a new one
+            #if DEBUG_LEVEL >= 1
             const int64_t tEntry0 = esp_timer_get_time();
+#endif
             addEntry(entry, alerts, now, lat, lon);
+#if DEBUG_LEVEL >= 1
             entryUs += static_cast<uint64_t>(esp_timer_get_time() - tEntry0);
+#endif
             if (alerts.size() >= METEOALARM_NUM_ALERTS) {
+              #if DEBUG_LEVEL >= 1
               logTiming("early-exit");
+#endif
               return DeserializationError::Ok;
             }
           }
@@ -634,12 +607,13 @@ DeserializationError MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector
         }
       }
     }
+    #if DEBUG_LEVEL >= 1
     parseUs += static_cast<uint64_t>(esp_timer_get_time() - tParse0);
+#endif
   }
 
-  // End of stream reached while still inside an entry: the feed was
-  // truncated by a timeout. A break at the advertised content length is
-  // expected and fine.
+  // End of stream while still inside an entry: the feed was truncated by a
+  // timeout (a break at the advertised content length is expected).
   if (!atExpectedEnd && (inEntry || !capture.isEmpty())) {
     Serial.println("[error] MeteoAlarm: feed ended early, " + String(total) + " of " +
                    String(expectedLen) + " bytes read, scanner in state " + String(static_cast<int>(state)) +
@@ -661,10 +635,14 @@ DeserializationError MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector
     }
     Serial.println();
 #endif
+    #if DEBUG_LEVEL >= 1
     logTiming("truncated");
+#endif
     return DeserializationError::InvalidInput;
   }
+  #if DEBUG_LEVEL >= 1
   logTiming(atExpectedEnd ? "complete" : "end-of-stream");
+#endif
   return DeserializationError::Ok;
 }  // MeteoAlarmAlertProvider::parseFeed
 

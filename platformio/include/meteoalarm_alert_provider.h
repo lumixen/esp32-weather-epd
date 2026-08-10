@@ -16,27 +16,13 @@ class MeteoAlarmAlertProvider : public AlertProvider {
  public:
   int fetch(std::vector<weather_alert_t> &alerts) override;
 
-  /* Stream the Atom feed and collect the active alerts. `now` is the current
-   * Unix time used to drop already expired warnings.
-   *
-   * An optional location (`lat`/`lon`, e.g. parsed from D_LATITUDE/
-   * D_LONGITUDE) filters warnings by their geographic polygon: an alert whose
-   * polygon does not contain the location is dropped. Pass NaN (default) to
-   * disable the polygon filter; alerts without a polygon are always kept.
-   *
-   * Parsing stops once METEOALARM_NUM_ALERTS (2, what the renderer displays)
-   * matching warnings have been collected; the remaining body is not read.
-   * `expectedLen` is the response content length in bytes (0 = unknown): when
-   * it is reached the body is considered fully consumed and no further read is
-   * attempted, so a connection closed by the server right after the response
-   * does not surface as a read error.
-   *
-   * Public for unit testing; the provider itself passes the system clock and
-   * the configured location. `bulkClient` (optional) is the TLS client the
-   * response streams from: its block read() serves the body in multi-KB
-   * chunks from mbedTLS's plaintext buffer, far cheaper per byte than the
-   * single-byte Stream fallback used when it is null (unit test feeds).
-   */
+  /* Stream the Atom feed and collect alerts that have not expired (`now` is
+   * the current Unix time) and cover the optional location (lat/lon, NaN =
+   * no polygon filter; alerts without a polygon are always kept). Parsing
+   * stops after METEOALARM_NUM_ALERTS warnings; `expectedLen` (0 = unknown)
+   * bounds the read. Public for unit testing. `bulkClient` (optional), the
+   * TLS client the response streams from, enables multi-KB block reads
+   * (single-byte fallback when null, used by the unit test feeds). */
   static DeserializationError parseFeed(Stream &xml, std::vector<weather_alert_t> &alerts,
                                         int64_t now, double lat = NAN, double lon = NAN,
                                         size_t expectedLen = 0, NetworkClient *bulkClient = nullptr);

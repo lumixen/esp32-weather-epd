@@ -70,7 +70,7 @@ bool readBatteryVoltage(uint32_t &batteryVoltage) {
     }
 #if DEBUG_LEVEL >= 1
     // We use the eFuse ADC calibration bits to get accurate voltage readings.
-    adc_cali_scheme_ver_t scheme_mask = 0;
+    adc_cali_scheme_ver_t scheme_mask;
     if (adc_cali_check_scheme(&scheme_mask) != ESP_OK) {
       Serial.println("[debug] ADC Cal scheme check failed");
     } else if (scheme_mask & ADC_CALI_SCHEME_VER_LINE_FITTING) {
