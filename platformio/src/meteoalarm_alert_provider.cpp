@@ -315,15 +315,15 @@ int MeteoAlarmAlertProvider::fetch(std::vector<weather_alert_t> &alerts) {
  * task), so poll with delay(1) instead. `stallMs`/`stalls` count dry-read
  * waits: a stall-dominated read points at the network stack, not the parser.
  */
-static size_t readBytesYielding(Stream &stream, NetworkClient *bulkClient, char *buffer, size_t length,
+static size_t readBytesYielding(Stream &stream, NetworkClient *networkClient, char *buffer, size_t length,
                                 unsigned long &stallMs, unsigned long &stalls) {
   size_t count = 0;
   unsigned long deadline = millis() + stream.getTimeout();
   unsigned long stallStart = 0;
   while (count < length) {
-    if (bulkClient != nullptr) {
+    if (networkClient != nullptr) {
       // Bulk path (production TLS client): read() returns the byte count.
-      const int r = bulkClient->read(reinterpret_cast<uint8_t *>(buffer) + count, length - count);
+      const int r = networkClient->read(reinterpret_cast<uint8_t *>(buffer) + count, length - count);
       if (r > 0) {
         if (stallStart != 0) {
           stallMs += millis() - stallStart;
@@ -362,7 +362,7 @@ static size_t readBytesYielding(Stream &stream, NetworkClient *bulkClient, char 
 
 DeserializationError MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector<weather_alert_t> &alerts,
                                                         int64_t now, double lat, double lon, size_t expectedLen,
-                                                        NetworkClient *bulkClient) {
+                                                        NetworkClient *networkClient) {
   enum class St { TEXT, ENTITY, TAG_NAME, TAG_ATTR, TAG_ATTR_QUOTED, SKIP };
 
   St state = St::TEXT;
@@ -427,7 +427,7 @@ DeserializationError MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector
 #if DEBUG_LEVEL >= 1
     const int64_t tRead0 = esp_timer_get_time();
 #endif
-    const size_t n = readBytesYielding(xml, bulkClient, buf.get(), want, stallMs, stalls);
+    const size_t n = readBytesYielding(xml, networkClient, buf.get(), want, stallMs, stalls);
 #if DEBUG_LEVEL >= 1
     readUs += static_cast<uint64_t>(esp_timer_get_time() - tRead0);
 #endif
