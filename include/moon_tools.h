@@ -11,3 +11,4 @@ typedef struct moon_state {
 } moon_state_t;
 
 moon_state_t getMoonState(float latitude, float longitude);
+moon_state_t getMoonState(float latitude, float longitude, time_t now);
