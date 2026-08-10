@@ -7,7 +7,6 @@ ESP32 e-paper weather display (PlatformIO, pioarduino platform: Arduino core 3.3
 PlatformIO is NOT on `PATH`; use the project virtualenv binary:
 
 ```sh
-cd platformio
 ~/.platformio/penv/bin/pio run -e lolin_d32
 ```
 
@@ -18,7 +17,7 @@ cd platformio
 ## ESP-IDF configuration
 
 - The platform (`framework = arduino, espidf`) builds Arduino as an ESP-IDF component, so ESP-IDF options are configurable.
-- `platformio/sdkconfig.defaults` is the source of truth for the ESP-IDF side (CPU frequency, flash size, partition table, mbedTLS options, Arduino autostart/variant); the full expanded config lands in the generated `sdkconfig.<env>` (build artifact).
+- `sdkconfig.defaults` is the source of truth for the ESP-IDF side (CPU frequency, flash size, partition table, mbedTLS options, Arduino autostart/variant); the full expanded config lands in the generated `sdkconfig.<env>` (build artifact).
 - Change options in `sdkconfig.defaults`, or interactively with `~/.platformio/penv/bin/pio run -e lolin_d32 -t menuconfig`.
 - Gotchas: `CONFIG_MBEDTLS_PSK_MODES=y` + `CONFIG_MBEDTLS_KEY_EXCHANGE_PSK=y` are required by Arduino 3.x `NetworkClientSecure` (its `ssl_client.cpp` compiles out otherwise → undefined references at link). `CONFIG_ARDUINO_VARIANT="d32"` supplies board-specific defines (`LED_BUILTIN` etc.).
 
@@ -27,19 +26,18 @@ cd platformio
 Unit tests run on the ESP32 QEMU emulator inside Docker — no hardware needed:
 
 ```sh
-cd platformio
 bash test/run_tests_docker.sh
 ```
 
 - Suite: `lolin_d32_qemu` env; tests live in `test/src/test_meteoalarm/` (Unity); the run must end with all test cases succeeding.
 - The env compiles `src/` together with the tests (`test_build_src = yes`); `main.cpp` is excluded via `#if !defined(PIO_UNIT_TESTING)`. New suites: create `test/src/<suite>/test_<suite>.cpp`; `test_dir = test/src` keeps the rest of `test/` (Docker/QEMU infra) out of the build.
 - `PIO_UNIT_TESTING` is set via `build_src_flags` in the qemu env: pioarduino compiles `src/` through the IDF build, which does not receive the macro PlatformIO's test runner adds for libraries.
-- Mechanics: repo bind-mounted read-write at `/project` → build artifacts land in `platformio/.pio/` on the host. PlatformIO toolchains are cached in the named Docker volume `esp32-weather-epd-pio` (`/root/.platformio` in-container; `docker volume rm esp32-weather-epd-pio` forces re-download). QEMU is baked into the image at `/opt/qemu`; the `esp32-weather-epd-test` image is rebuilt only when missing (`docker rmi` to force).
+- Mechanics: repo bind-mounted read-write at `/project` → build artifacts land in `.pio/` on the host. PlatformIO toolchains are cached in the named Docker volume `esp32-weather-epd-pio` (`/root/.platformio` in-container; `docker volume rm esp32-weather-epd-pio` forces re-download). QEMU is baked into the image at `/opt/qemu`; the `esp32-weather-epd-test` image is rebuilt only when missing (`docker rmi` to force).
 - The broker uses the PlatformIO venv's esptool (`~/.platformio/penv/bin/esptool`): the tool-esptoolpy package ships esptool v5, whose Python deps the container image does not provide.
 
 ## Configuration pipeline
 
-- `platformio/config.yml` is the user configuration source of truth (WiFi, API keys, units, layout, colors, locale).
+- `config.yml` is the user configuration source of truth (WiFi, API keys, units, layout, colors, locale).
 - `scripts/config.py` (registered as `extra_scripts`) validates `config.yml` against `scripts/schema.py` (pydantic) and generates `include/config.h` at build time. The header holds compile-time selection macros (`EPD_PANEL_*`, `UNITS_*`, `BME_TYPE_*`, `COLORS_*`, ...) plus typed constants (`inline constexpr` for numbers/strings, `inline const String` for Arduino Strings — C++17 `inline` keeps the header ODR-safe). The old hand-written `config.h` + `config.cpp` and the generated `defines.h` are merged into this one file; non-user-configurable values (endpoints, battery thresholds, HTTP timeout, `NVS_NAMESPACE`) are baked in by the generator.
 - **Never edit `include/config.h` manually** — it is auto-generated (gitignored); change `config.yml` instead. Config changes take effect on the next build.
 - Layout macros like `POS_MOONRISE` come from `leftPanelLayout` in `config.yml`.

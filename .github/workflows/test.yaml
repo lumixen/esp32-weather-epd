@@ -17,7 +17,7 @@ jobs:
       - name: Build test image
         uses: docker/build-push-action@v6
         with:
-          context: platformio/test
+          context: test
           push: false
           load: true
           tags: esp32-weather-epd-test
@@ -28,25 +28,23 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .ci/pio
-          key: pio-packages-${{ hashFiles('platformio/platformio.ini', 'platformio/test/Dockerfile') }}
+          key: pio-packages-${{ hashFiles('platformio.ini', 'test/Dockerfile') }}
           restore-keys: |
             pio-packages-
 
       - name: Cache PlatformIO build
         uses: actions/cache@v4
         with:
-          path: platformio/.pio
-          key: pio-build-${{ hashFiles('platformio/platformio.ini', 'platformio/test/Dockerfile') }}
+          path: .pio
+          key: pio-build-${{ hashFiles('platformio.ini', 'test/Dockerfile') }}
           restore-keys: |
             pio-build-
 
       - name: Create config from example
-        working-directory: platformio
         shell: bash
         run: cp -n config.example.yml config.yml
 
       - name: Run unit tests (QEMU)
-        working-directory: platformio
         env:
           PIO_HOST_DIR: ${{ github.workspace }}/.ci/pio
         run: bash test/run_tests_docker.sh
