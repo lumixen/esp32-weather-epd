@@ -10,20 +10,20 @@
 
 // Configuration (discovery) Topics
 static const char HOME_ASSISTANT_MQTT_BATTERY_VOLTAGE_TOPIC[] PROGMEM =
-    D_HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/sensor/${clientId}/battery_voltage/config";
+    HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/sensor/${clientId}/battery_voltage/config";
 static const char HOME_ASSISTANT_MQTT_BATTERY_PERCENT_TOPIC[] PROGMEM =
-    D_HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/sensor/${clientId}/battery_percent/config";
+    HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/sensor/${clientId}/battery_percent/config";
 static const char HOME_ASSISTANT_MQTT_WIFI_RSSI_TOPIC[] PROGMEM =
-    D_HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/sensor/${clientId}/wifi_rssi/config";
+    HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/sensor/${clientId}/wifi_rssi/config";
 static const char HOME_ASSISTANT_MQTT_API_ACTIVITY_DURATION_TOPIC[] PROGMEM =
-    D_HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/sensor/${clientId}/api_activity_duration/config";
+    HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/sensor/${clientId}/api_activity_duration/config";
 #ifndef BME_TYPE_NONE
 static const char HOME_ASSISTANT_MQTT_TEMPERATURE_TOPIC[] PROGMEM =
-    D_HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/sensor/${clientId}/temperature/config";
+    HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/sensor/${clientId}/temperature/config";
 static const char HOME_ASSISTANT_MQTT_HUMIDITY_TOPIC[] PROGMEM =
-    D_HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/sensor/${clientId}/humidity/config";
+    HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/sensor/${clientId}/humidity/config";
 static const char HOME_ASSISTANT_MQTT_PRESSURE_TOPIC[] PROGMEM =
-    D_HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/sensor/${clientId}/pressure/config";
+    HOME_ASSISTANT_MQTT_DISCOVERY_PREFIX "/sensor/${clientId}/pressure/config";
 #endif  // BME_TYPE_NONE
 
 // State Topics
@@ -42,10 +42,10 @@ static const char MQTT_STATE_TOPIC_PRESSURE[] PROGMEM = MQTT_STATE_BASE_TOPIC "$
 #define MQTT_DEVICE_INFO \
   "\"device\":{" \
   "\"ids\":\"${clientId}\"," \
-  "\"name\":\"" D_HOME_ASSISTANT_MQTT_DEVICE_NAME "\"," \
+  "\"name\":\"" HOME_ASSISTANT_MQTT_DEVICE_NAME "\"," \
   "\"mf\":\"lumixen\"," \
   "\"mdl\":\"ESP32 Weather EPD\"," \
-  "\"sw\":\"" D_BUILD_VERSION "\"" \
+  "\"sw\":\"" BUILD_VERSION "\"" \
   "}"
 
 // Sensor Discovery Payloads

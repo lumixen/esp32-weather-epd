@@ -1,4 +1,4 @@
-#include "defines.h"
+#include "config.h"
 #include "moon_tools.h"
 
 MoonPhase moonPhase;

@@ -91,8 +91,8 @@ void sendMQTTStatus(const mqtt_status_params_t &params) {
   String macSuffix = macAddress.substring(macAddress.length() - 6);
   String clientIdStr = "esp32_weather_display_" + macSuffix;
   const char *clientId = clientIdStr.c_str();
-  haMqttClient.setURL(D_HOME_ASSISTANT_MQTT_SERVER, HOME_ASSISTANT_MQTT_PORT, D_HOME_ASSISTANT_MQTT_USERNAME,
-                      D_HOME_ASSISTANT_MQTT_PASSWORD);
+  haMqttClient.setURL(HOME_ASSISTANT_MQTT_SERVER, HOME_ASSISTANT_MQTT_PORT, HOME_ASSISTANT_MQTT_USERNAME,
+                      HOME_ASSISTANT_MQTT_PASSWORD);
   haMqttClient.setMaxPacketSize(768);
   haMqttClient.setMqttClientName(clientId);
   haMqttClient.setAutoReconnect(false);

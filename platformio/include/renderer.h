@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "defines.h"
+#include "config.h"
 #include <vector>
 #include <Arduino.h>
 #include <time.h>
@@ -24,7 +24,6 @@
 #ifdef EPD_PANEL_DKE_3C_86BF
 #include <GxEPD2_750c_86BF.h>
 #endif
-#include "config.h"
 #include "moon_tools.h"
 
 #ifdef EPD_PANEL_GENERIC_BW_V2

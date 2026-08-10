@@ -40,14 +40,14 @@ bash test/run_tests_docker.sh
 ## Configuration pipeline
 
 - `platformio/config.yml` is the user configuration source of truth (WiFi, API keys, units, layout, colors, locale).
-- `scripts/config.py` (registered as `extra_scripts`) validates `config.yml` against `scripts/schema.py` (pydantic) and generates `include/defines.h` at build time.
-- **Never edit `include/defines.h` manually** — it is auto-generated; change `config.yml` instead. Config changes take effect on the next build.
+- `scripts/config.py` (registered as `extra_scripts`) validates `config.yml` against `scripts/schema.py` (pydantic) and generates `include/config.h` at build time. The header holds compile-time selection macros (`EPD_PANEL_*`, `UNITS_*`, `BME_TYPE_*`, `COLORS_*`, ...) plus typed constants (`inline constexpr` for numbers/strings, `inline const String` for Arduino Strings — C++17 `inline` keeps the header ODR-safe). The old hand-written `config.h` + `config.cpp` and the generated `defines.h` are merged into this one file; non-user-configurable values (endpoints, battery thresholds, HTTP timeout, `NVS_NAMESPACE`) are baked in by the generator.
+- **Never edit `include/config.h` manually** — it is auto-generated (gitignored); change `config.yml` instead. Config changes take effect on the next build.
 - Layout macros like `POS_MOONRISE` come from `leftPanelLayout` in `config.yml`.
 
 ## Source layout
 
 - `src/` — implementation (`main.cpp`, `renderer.cpp`, `display_utils.cpp`, weather/air-quality/alert providers, `moon_tools.cpp`).
-- `include/` — headers and data models (`data_models.h` = provider-agnostic forecast models, `defines.h` = generated config, `renderer.h`, `display_utils.h`, `moon_tools.h`).
+- `include/` — headers and data models (`data_models.h` = provider-agnostic forecast models, `config.h` = generated config, `renderer.h`, `display_utils.h`, `moon_tools.h`).
 - `lib/` — custom local libraries.
 - `icons/`, `fonts/` — asset generation tooling (SVG → header pipelines), not part of the build.
 - Moon rise/set/phase are computed locally (`moon_tools.cpp`, libs `MoonRise` + `moonPhase-esp32`) and passed to the renderer as a standalone `moon_state_t`; providers do not supply moon data.

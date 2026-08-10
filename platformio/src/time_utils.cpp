@@ -16,7 +16,7 @@ bool configureTime(tm *timeInfo) {
   // TIME SYNCHRONIZATION
   // Sync periodically based on configured interval (NTP_SYNC_INTERVAL_WAKEUPS) and wake-up counter.
   // If RTC time is not valid (e.g., after reset or power loss), force an immediate sync.
-  setenv("TZ", D_TIMEZONE, 1);
+  setenv("TZ", TIMEZONE, 1);
   tzset();
 
   bool timeConfigured = false;
@@ -37,7 +37,7 @@ bool configureTime(tm *timeInfo) {
     ntpSyncSemaphore = xSemaphoreCreateBinary();
     sntp_set_time_sync_notification_cb(timeSyncNotificationCallback);
     Serial.println("[TIME] Synchronizing time...");
-    configTzTime(D_TIMEZONE, D_NTP_SERVER_1, D_NTP_SERVER_2);
+    configTzTime(TIMEZONE, NTP_SERVER_1, NTP_SERVER_2);
     if (xSemaphoreTake(ntpSyncSemaphore, pdMS_TO_TICKS(NTP_TIMEOUT)) == pdTRUE) {
       unsigned long syncEnd = millis();
       getLocalTime(timeInfo);
