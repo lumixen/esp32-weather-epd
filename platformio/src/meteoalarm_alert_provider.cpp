@@ -274,9 +274,9 @@ int MeteoAlarmAlertProvider::fetch(std::vector<weather_alert_t> &alerts) {
   // Optional configured location; NaN means the polygon filter is disabled.
   double lat = NAN;
   double lon = NAN;
-  if (strlen(D_LATITUDE) > 0 && strlen(D_LONGITUDE) > 0) {
-    lat = strtod(D_LATITUDE, nullptr);
-    lon = strtod(D_LONGITUDE, nullptr);
+  if (LAT.length() > 0 && LON.length() > 0) {
+    lat = strtod(LAT.c_str(), nullptr);
+    lon = strtod(LON.c_str(), nullptr);
   }
 
   // The feed (up to several hundred KB) needs far more than the default 2s

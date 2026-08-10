@@ -53,33 +53,30 @@ wl_status_t startWiFi(int8_t &wifiRSSI) {
   WiFi.mode(WIFI_STA);
   Serial.printf("%s '%s'", TXT_CONNECTING_TO, WIFI_SSID);
 
-#ifdef D_WIFI_STATIC_IP_IP
+#ifdef WIFI_STATIC_IP_ENABLED
   // Configure static IP before connecting
   IPAddress local_IP;
   IPAddress gateway;
   IPAddress subnet;
-#ifdef D_WIFI_STATIC_IP_DNS1
   IPAddress primaryDNS;
-#ifdef D_WIFI_STATIC_IP_DNS2
   IPAddress secondaryDNS;
-#endif
-#endif
 
-  local_IP.fromString(D_WIFI_STATIC_IP_IP);
-  gateway.fromString(D_WIFI_STATIC_IP_GATEWAY);
-  subnet.fromString(D_WIFI_STATIC_IP_SUBNET);
+  local_IP.fromString(WIFI_STATIC_IP_IP);
+  gateway.fromString(WIFI_STATIC_IP_GATEWAY);
+  subnet.fromString(WIFI_STATIC_IP_SUBNET);
 
-#ifdef D_WIFI_STATIC_IP_DNS1
-  primaryDNS.fromString(D_WIFI_STATIC_IP_DNS1);
-#ifdef D_WIFI_STATIC_IP_DNS2
-  secondaryDNS.fromString(D_WIFI_STATIC_IP_DNS2);
-  if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) {
-#else
-  if (!WiFi.config(local_IP, gateway, subnet, primaryDNS)) {
-#endif
-#else
-  if (!WiFi.config(local_IP, gateway, subnet)) {
-#endif
+  bool ok;
+  if (strlen(WIFI_STATIC_IP_DNS1) > 0 && strlen(WIFI_STATIC_IP_DNS2) > 0) {
+    primaryDNS.fromString(WIFI_STATIC_IP_DNS1);
+    secondaryDNS.fromString(WIFI_STATIC_IP_DNS2);
+    ok = WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS);
+  } else if (strlen(WIFI_STATIC_IP_DNS1) > 0) {
+    primaryDNS.fromString(WIFI_STATIC_IP_DNS1);
+    ok = WiFi.config(local_IP, gateway, subnet, primaryDNS);
+  } else {
+    ok = WiFi.config(local_IP, gateway, subnet);
+  }
+  if (!ok) {
     Serial.println("Failed to configure static IP");
   } else {
     Serial.printf("Static IP configured: %s\n", local_IP.toString().c_str());
@@ -107,16 +104,15 @@ wl_status_t startWiFi(int8_t &wifiRSSI) {
     }
   }
   if (foundNetwork) {
-    WiFi.begin(WIFI_SSID, D_WIFI_PASSWORD, 0, bestBSSID);
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD, 0, bestBSSID);
   } else {
-    WiFi.begin(WIFI_SSID, D_WIFI_PASSWORD);
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   }
 #else
-#ifdef WIFI_BSSID
-  const uint8_t bssid[] = WIFI_BSSID;
-  WiFi.begin(WIFI_SSID, D_WIFI_PASSWORD, 0, bssid);
+#ifdef WIFI_HAS_BSSID
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD, 0, WIFI_BSSID);
 #else
-  WiFi.begin(WIFI_SSID, D_WIFI_PASSWORD);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 #endif
 #endif
 

@@ -3,7 +3,7 @@
 #include <Arduino.h>
 #include <esp_sntp.h>
 #include <time.h>
-#include "defines.h"
+#include "config.h"
 #include "_locale.h"
 
 bool configureTime(tm *timeInfo);
