@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <ArduinoJson.h>
+#include <WiFiClient.h>
 #include "alert_provider.h"
 
 /* MeteoAlarm (EUMETNET) national weather alert provider.
@@ -31,11 +32,14 @@ class MeteoAlarmAlertProvider : public AlertProvider {
    * does not surface as a read error.
    *
    * Public for unit testing; the provider itself passes the system clock and
-   * the configured location.
+   * the configured location. `bulkClient` (optional) is the TLS client the
+   * response streams from: its block read() serves the body in multi-KB
+   * chunks from mbedTLS's plaintext buffer, far cheaper per byte than the
+   * single-byte Stream fallback used when it is null (unit test feeds).
    */
   static DeserializationError parseFeed(Stream &xml, std::vector<weather_alert_t> &alerts,
                                         int64_t now, double lat = NAN, double lon = NAN,
-                                        size_t expectedLen = 0);
+                                        size_t expectedLen = 0, NetworkClient *bulkClient = nullptr);
 
   /* Parse an ISO 8601 timestamp ("YYYY-MM-DDTHH:MM:SSZ" or "±HH:MM") to Unix
    * epoch seconds in UTC. Returns -1 on failure. */
