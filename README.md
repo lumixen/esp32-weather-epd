@@ -40,7 +40,7 @@ Enclosure files and assembly instructions are available at [printables](https://
    - Make sure you have [PlatformIO](https://platformio.org/) installed in VS Code.
 
 3. **Configure the Software**
-   - Create a `config.yml` file in the `platformio` folder.
+   - Create a `config.yml` file in the project root.
    - Copy and edit the [example configuration](#configuration) to match your hardware and preferences (WiFi credentials, location, panel type, etc.).
 
 4. **Compile and Upload**
@@ -68,7 +68,7 @@ Wiring is specific for Lolin D32 board:
 
 ### Configuration
 
-To configure the build, create a new `config.yml` file in the `platformio` folder with the configuration variables. For example:
+To configure the build, create a new `config.yml` file in the project root with the configuration variables. For example:
 ```yaml
 epdPanel: DKE_3C_86BF
 epdDriver: Waveshare
@@ -194,7 +194,7 @@ colors:
   forecastPrecipitation: red
 ```
 
-The full list of actual available options can be found in [schema.py](platformio/scripts/schema.py).
+The full list of actual available options can be found in [schema.py](scripts/schema.py).
 
 ### Home Assistant integration through MQTT
 

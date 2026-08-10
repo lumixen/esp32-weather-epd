@@ -6,8 +6,8 @@
 set -euo pipefail
 
 # Root of the git repo: the container mounts it read-write at /project, so
-# build artifacts land in platformio/.pio/ on the host.
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+# build artifacts land in .pio/ on the host.
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 IMAGE="${IMAGE:-esp32-weather-epd-test}"
 
@@ -18,7 +18,7 @@ esac
 
 if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
     echo "Building test image $IMAGE ..."
-    docker build --platform "$PLATFORM" -t "$IMAGE" "$ROOT/platformio/test"
+    docker build --platform "$PLATFORM" -t "$IMAGE" "$ROOT/test"
 fi
 
 # Everything runs inside the container: PlatformIO's own packages dir is
@@ -36,6 +36,6 @@ fi
 exec docker run --rm --platform "$PLATFORM" \
     -v "$ROOT:/project" \
     "${PIO_VOLUME_ARGS[@]}" \
-    -w /project/platformio \
+    -w /project \
     "$IMAGE" \
     pio test -e lolin_d32_qemu --without-uploading "$@"

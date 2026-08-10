@@ -24,8 +24,8 @@ jobs:
         with:
           path: |
             ~/.platformio
-            platformio/.pio
-          key: ${{ runner.os }}-pio-build-${{ hashFiles('platformio/platformio.ini', 'platformio/sdkconfig.defaults', 'platformio/partitions/huge_app.csv') }}
+            .pio
+          key: ${{ runner.os }}-pio-build-${{ hashFiles('platformio.ini', 'sdkconfig.defaults', 'partitions/huge_app.csv') }}
           restore-keys: |
             ${{ runner.os }}-pio-build-
 
@@ -33,10 +33,8 @@ jobs:
         run: pip install platformio
 
       - name: Create config from example
-        working-directory: platformio
         shell: bash
         run: cp -n config.example.yml config.yml
 
       - name: Build PlatformIO Project
-        working-directory: platformio
         run: pio run -e lolin_d32
