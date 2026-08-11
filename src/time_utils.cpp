@@ -1,4 +1,5 @@
 #include "time_utils.h"
+#include "logger.h"
 
 static SemaphoreHandle_t ntpSyncSemaphore = nullptr;
 
@@ -30,13 +31,14 @@ bool configureTime(tm *timeInfo) {
   bool timerTriggered = cyclesSinceLastNtpSync >= cyclesPerInterval;
 
   if (driftIsHuge || timerTriggered) {
-    Serial.print("[TIME] Time before synchronization: ");
-    Serial.println(timeInfo, "%A, %B %d, %Y %H:%M:%S,");
+    char timeBeforeSync[64];
+    strftime(timeBeforeSync, sizeof(timeBeforeSync), "%A, %B %d, %Y %H:%M:%S", timeInfo);
+    LOG_DEBUG("Time before synchronization: %s", timeBeforeSync);
     unsigned long syncStart = millis();
 
     ntpSyncSemaphore = xSemaphoreCreateBinary();
     sntp_set_time_sync_notification_cb(timeSyncNotificationCallback);
-    Serial.println("[TIME] Synchronizing time...");
+    LOG_INFO("Synchronizing time...");
     configTzTime(TIMEZONE, NTP_SERVER_1, NTP_SERVER_2);
     if (xSemaphoreTake(ntpSyncSemaphore, pdMS_TO_TICKS(NTP_TIMEOUT)) == pdTRUE) {
       unsigned long syncEnd = millis();
@@ -44,9 +46,9 @@ bool configureTime(tm *timeInfo) {
 
       timeConfigured = true;
 
-      Serial.printf("[TIME] Sync duration: %lu ms\n", syncEnd - syncStart);
+      LOG_INFO("Sync duration: %lu ms", syncEnd - syncStart);
     } else {
-      Serial.println(TXT_FAILED_TO_GET_TIME);
+      LOG_WARNING("%s", TXT_FAILED_TO_GET_TIME);
     }
     vSemaphoreDelete(ntpSyncSemaphore);
     ntpSyncSemaphore = nullptr;
@@ -54,8 +56,7 @@ bool configureTime(tm *timeInfo) {
       cyclesSinceLastNtpSync = 0;  // Reset counter after successful sync
     }
   } else {
-    Serial.println("[TIME] Using internal RTC time. (Wake #" + String(cyclesSinceLastNtpSync) + "/" +
-                   String(cyclesPerInterval) + ")");
+    LOG_INFO("Using internal RTC time. (Wake #%u/%u)", cyclesSinceLastNtpSync, cyclesPerInterval);
     timeConfigured = true;
   }
 
@@ -65,8 +66,9 @@ bool configureTime(tm *timeInfo) {
     cyclesSinceLastNtpSync = cyclesPerInterval;
   }
   if (timeConfigured) {
-    Serial.print("[TIME] ");
-    Serial.println(timeInfo, "%A, %B %d, %Y %H:%M:%S");
+    char timeAfterSync[64];
+    strftime(timeAfterSync, sizeof(timeAfterSync), "%A, %B %d, %Y %H:%M:%S", timeInfo);
+    LOG_INFO("%s", timeAfterSync);
   }
   return timeConfigured;
 }

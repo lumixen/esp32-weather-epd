@@ -135,6 +135,17 @@ class DisplayDailyPrecip(str, Enum):
     SMART = "smart"
 
 
+class LogLevel(str, Enum):
+    """Log verbosity threshold; messages below this level are suppressed"""
+
+    TRACE = "trace"
+    DEBUG = "debug"
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"
+    CRITICAL = "critical"
+
+
 class Locale(str, Enum):
     DE_DE = "de_DE"
     EN_GB = "en_GB"
@@ -485,7 +496,7 @@ class ConfigSchema(BaseModel):
     statusBarExtrasBatVoltage: bool = False
     statusBarExtrasWifiRSSI: bool = False
     batteryMonitoring: bool = True
-    debugLevel: int = 0  # TODO: From 0 to 2
+    logLevel: LogLevel = LogLevel.INFO
     pin: PinsConfig = Field(default_factory=PinsConfig)
     wifi: Wifi = Field(default_factory=Wifi)
     owmApikey: str | None = None

@@ -32,6 +32,7 @@
 #include "data_models.h"
 #include "display_utils.h"
 #include "icons/icons_196x196.h"
+#include "logger.h"
 #include "provider_factory.h"
 #include "renderer.h"
 #include "moon_tools.h"
@@ -70,7 +71,7 @@ void toggleBuiltinLED(bool state) {
  */
 void beginDeepSleep(unsigned long startTime, tm *timeInfo) {
   if (!getLocalTime(timeInfo)) {
-    Serial.println(TXT_REFERENCING_OLDER_TIME_NOTICE);
+    LOG_WARNING("%s", TXT_REFERENCING_OLDER_TIME_NOTICE);
   }
 
   // To simplify sleep time calculations, the current time stored by timeInfo
@@ -113,17 +114,13 @@ void beginDeepSleep(unsigned long startTime, tm *timeInfo) {
     sleepDuration = hoursUntilWake * 3600ULL - (timeInfo->tm_min * 60ULL + timeInfo->tm_sec);
   }
 
-#if DEBUG_LEVEL >= 1
   printHeapUsage();
-#endif
 
   toggleBuiltinLED(false);
 
   esp_sleep_enable_timer_wakeup(sleepDuration * 1000000ULL);
-  Serial.print(TXT_AWAKE_FOR);
-  Serial.println(" " + String((millis() - startTime) / 1000.0, 3) + "s");
-  Serial.print(TXT_ENTERING_DEEP_SLEEP_FOR);
-  Serial.println(" " + String(sleepDuration) + "s");
+  LOG_INFO("%s %ss", TXT_AWAKE_FOR, String((millis() - startTime) / 1000.0, 3).c_str());
+  LOG_INFO("%s %llus", TXT_ENTERING_DEEP_SLEEP_FOR, sleepDuration);
   esp_deep_sleep_start();
 }  // end beginDeepSleep
 
@@ -142,7 +139,7 @@ sensor_readings getSensorReadings() {
     vSemaphoreDelete(sensorReadingDoneSemaphore);
     sensorReadingDoneSemaphore = nullptr;
   } else {
-    Serial.println("[error] Timeout waiting for sensor reading to complete");
+    LOG_CRITICAL("Timeout waiting for sensor reading to complete");
   }
 #endif
   return {.temperature = inTempSafeCopy, .humidity = inHumiditySafeCopy, .pressure = inPressureSafeCopy};
@@ -189,10 +186,10 @@ void envSensorReadingTask(void *pvParameters) {
     inHumidity = sensor->getHumidity();
     inPressure = sensor->getPressure();
 
-    Serial.println("Temp: " + String(inTemp.value_or(NAN)) + "°C, Humidity: " + String(inHumidity.value_or(NAN)) +
-                   "%, Pressure: " + String(inPressure.value_or(NAN)) + " hPa");
+    LOG_INFO("Temp: %s°C, Humidity: %s%%, Pressure: %s hPa", String(inTemp.value_or(NAN)).c_str(),
+             String(inHumidity.value_or(NAN)).c_str(), String(inPressure.value_or(NAN)).c_str());
   } else {
-    Serial.println("[error] Failed to initialize BME sensor");
+    LOG_CRITICAL("Failed to initialize BME sensor");
   }
   delete sensor;
   xSemaphoreGive(sensorReadingDoneSemaphore);  // Signal completion
@@ -209,9 +206,7 @@ void setup() {
   Serial.begin(115200);
   toggleBuiltinLED(true);
 
-#if DEBUG_LEVEL >= 1
   printHeapUsage();
-#endif
 
   // Open namespace for read/write to non-volatile storage
   prefs.begin(NVS_NAMESPACE, false);
@@ -222,8 +217,7 @@ void setup() {
   uint8_t batteryPercent;
   if (batteryVoltageValid) {
     batteryPercent = calcBatPercent(batteryVoltage, MIN_BATTERY_VOLTAGE, MAX_BATTERY_VOLTAGE);
-    Serial.print(TXT_BATTERY_VOLTAGE);
-    Serial.println(": " + String(batteryVoltage) + "mv");
+    LOG_INFO("%s: %umv", TXT_BATTERY_VOLTAGE, batteryVoltage);
 
     // When the battery is low, the display should be updated to reflect that, but
     // only the first time we detect low voltage. The next time the display will
@@ -246,18 +240,16 @@ void setup() {
       if (batteryVoltage <= CRIT_LOW_BATTERY_VOLTAGE) {  // critically low battery
         // don't set esp_sleep_enable_timer_wakeup();
         // We won't wake up again until someone manually presses the RST button.
-        Serial.println(TXT_CRIT_LOW_BATTERY_VOLTAGE);
-        Serial.println(TXT_HIBERNATING_INDEFINITELY_NOTICE);
+        LOG_CRITICAL("%s", TXT_CRIT_LOW_BATTERY_VOLTAGE);
+        LOG_CRITICAL("%s", TXT_HIBERNATING_INDEFINITELY_NOTICE);
       } else if (batteryVoltage <= VERY_LOW_BATTERY_VOLTAGE) {  // very low battery
         esp_sleep_enable_timer_wakeup(VERY_LOW_BATTERY_SLEEP_INTERVAL * 60ULL * 1000000ULL);
-        Serial.println(TXT_VERY_LOW_BATTERY_VOLTAGE);
-        Serial.print(TXT_ENTERING_DEEP_SLEEP_FOR);
-        Serial.println(" " + String(VERY_LOW_BATTERY_SLEEP_INTERVAL) + "min");
+        LOG_WARNING("%s", TXT_VERY_LOW_BATTERY_VOLTAGE);
+        LOG_WARNING("%s %umin", TXT_ENTERING_DEEP_SLEEP_FOR, VERY_LOW_BATTERY_SLEEP_INTERVAL);
       } else {  // low battery
         esp_sleep_enable_timer_wakeup(LOW_BATTERY_SLEEP_INTERVAL * 60ULL * 1000000ULL);
-        Serial.println(TXT_LOW_BATTERY_VOLTAGE);
-        Serial.print(TXT_ENTERING_DEEP_SLEEP_FOR);
-        Serial.println(" " + String(LOW_BATTERY_SLEEP_INTERVAL) + "min");
+        LOG_WARNING("%s", TXT_LOW_BATTERY_VOLTAGE);
+        LOG_WARNING("%s %umin", TXT_ENTERING_DEEP_SLEEP_FOR, LOW_BATTERY_SLEEP_INTERVAL);
       }
       esp_deep_sleep_start();
     }
@@ -268,7 +260,7 @@ void setup() {
   } else {
     // No valid reading: a transient ADC failure must not trigger the low-
     // battery shutdown, which would hibernate a charged device indefinitely.
-    Serial.println("[error] Failed to read battery voltage, skipping low-battery check");
+    LOG_ERROR("Failed to read battery voltage, skipping low-battery check");
     batteryVoltage = UINT32_MAX;
     batteryPercent = UINT8_MAX;
   }
@@ -304,12 +296,12 @@ void setup() {
     killWiFi();
     initDisplay();
     if (wifiStatus == WL_NO_SSID_AVAIL) {
-      Serial.println(TXT_NETWORK_NOT_AVAILABLE);
+      LOG_WARNING("%s", TXT_NETWORK_NOT_AVAILABLE);
       do {
         drawError(wifi_x_196x196, TXT_NETWORK_NOT_AVAILABLE);
       } while (display.nextPage());
     } else {
-      Serial.println(TXT_WIFI_CONNECTION_FAILED);
+      LOG_WARNING("%s", TXT_WIFI_CONNECTION_FAILED);
       do {
         drawError(wifi_x_196x196, TXT_WIFI_CONNECTION_FAILED);
       } while (display.nextPage());
@@ -321,7 +313,7 @@ void setup() {
   bool timeConfigured = configureTime(&timeInfo);
 
   if (!timeConfigured) {
-    Serial.println(TXT_TIME_SYNCHRONIZATION_FAILED);
+    LOG_WARNING("%s", TXT_TIME_SYNCHRONIZATION_FAILED);
     handleNetworkError(wi_time_4_196x196, TXT_TIME_SYNCHRONIZATION_FAILED, "", startTime, &timeInfo, batteryVoltage,
                        batteryPercent, wifiRSSI);
   }
@@ -347,7 +339,7 @@ void setup() {
     if (rxStatus != HTTP_CODE_OK) {
       // Alerts are a non-essential source: log the failure and continue
       // without them instead of taking over the whole display.
-      Serial.println("[error] Alerts API: " + String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus));
+      LOG_ERROR("Alerts API: %d: %s", rxStatus, getHttpResponsePhrase(rxStatus));
       alerts.clear();
     }
   }
@@ -367,7 +359,7 @@ void setup() {
 
   killWiFi();  // WiFi no longer needed
   long networkDuration = millis() - networkStartTime;
-  Serial.println("Network operations took " + String(networkDuration / 1000.0, 3) + " s");
+  LOG_INFO("Network operations took %ss", String(networkDuration / 1000.0, 3).c_str());
 
   moon_state_t moon = getMoonState(LAT.toDouble(), LON.toDouble());
 
@@ -382,13 +374,13 @@ void setup() {
   initDisplay();
   do {
     drawCurrentConditions(environment_data.current, air_pollution, sensorReadings.pressure, moon);
-    Serial.println("Drawing current conditions");
+    LOG_INFO("Drawing current conditions");
     drawOutlookGraph(environment_data.hourly, environment_data.daily, timeInfo, moon);
-    Serial.println("Drawing outlook graph");
+    LOG_INFO("Drawing outlook graph");
     drawForecast(environment_data.daily, timeInfo);
-    Serial.println("Drawing forecast");
+    LOG_INFO("Drawing forecast");
     drawLocationDate(CITY_STRING, dateStr);
-    Serial.println("Drawing location and date");
+    LOG_INFO("Drawing location and date");
     drawAlerts(alerts, CITY_STRING, dateStr);
     drawStatusBar(statusStr, refreshTimeStr, wifiRSSI, batteryVoltage);
   } while (display.nextPage());

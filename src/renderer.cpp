@@ -22,6 +22,7 @@
 #include "conversions.h"
 #include "data_models.h"
 #include "display_utils.h"
+#include "logger.h"
 #include "moon_tools.h"
 
 // fonts
@@ -60,18 +61,10 @@ GxEPD2_BW<GxEPD2_750, GxEPD2_750::HEIGHT> display(GxEPD2_750(PIN_EPD_CS, PIN_EPD
 
 // Callback function for light sleep while epaper driver is busy.
 void beginLightSleep(const void *) {
-#if DEBUG_LEVEL >= 1
-  Serial.print("[debug] Entering light sleep at ");
-  Serial.print(millis() / 1000.0);
-  Serial.println(" seconds");
+  LOG_DEBUG("Entering light sleep at %ss", String(millis() / 1000.0, 1).c_str());
   Serial.flush();  // Ensure all serial output is sent before sleeping
-#endif
   esp_light_sleep_start();
-#if DEBUG_LEVEL >= 1
-  Serial.print("[debug] Woke up from light sleep at ");
-  Serial.print(millis() / 1000.0);
-  Serial.println(" seconds");
-#endif
+  LOG_DEBUG("Woke up from light sleep at %ss", String(millis() / 1000.0, 1).c_str());
 }
 
 /* Returns the string width in pixels
@@ -233,7 +226,7 @@ void initDisplay() {
   if (esp_sleep_enable_ext0_wakeup((gpio_num_t) PIN_EPD_BUSY, !BUSY_LEVEL) == ESP_OK) {
     display.epd2.setBusyCallback(beginLightSleep);  // Set busy callback for light sleep during rendering
   } else {
-    Serial.println("[error] Failed to configure wakeup source for light sleep");
+    LOG_CRITICAL("Failed to configure wakeup source for light sleep");
   }
   return;
 }  // end initDisplay
@@ -985,9 +978,7 @@ void drawCurrentVisibility(const current_t &current) {
    * Up to 2 alerts can be drawn.
    */
   void drawAlerts(std::vector<weather_alert_t> & alerts, const String &city, const String &date) {
-#if DEBUG_LEVEL >= 1
-    Serial.println("[debug] alerts.size()    : " + String(alerts.size()));
-#endif
+    LOG_DEBUG("alerts.size()    : %u", alerts.size());
     if (alerts.size() == 0) {  // no alerts to draw
       return;
     }
@@ -995,7 +986,7 @@ void drawCurrentVisibility(const current_t &current) {
     int *ignore_list = (int *) calloc(alerts.size(), sizeof(*ignore_list));
     int *alert_indices = (int *) calloc(alerts.size(), sizeof(*alert_indices));
     if (!ignore_list || !alert_indices) {
-      Serial.println("Error: Failed to allocate memory while handling alerts.");
+      LOG_ERROR("Failed to allocate memory while handling alerts.");
       free(ignore_list);
       free(alert_indices);
       return;
@@ -1015,21 +1006,16 @@ void drawCurrentVisibility(const current_t &current) {
 
     // find indices of valid alerts
     int num_valid_alerts = 0;
-#if DEBUG_LEVEL >= 1
-    Serial.print("[debug] ignore_list      : [ ");
-#endif
+    String ignoreList = "[ ";
     for (int i = 0; i < alerts.size(); ++i) {
-#if DEBUG_LEVEL >= 1
-      Serial.print(String(ignore_list[i]) + " ");
-#endif
+      ignoreList += String(ignore_list[i]) + " ";
       if (!ignore_list[i]) {
         alert_indices[num_valid_alerts] = i;
         ++num_valid_alerts;
       }
     }
-#if DEBUG_LEVEL >= 1
-    Serial.println("]\n[debug] num_valid_alerts : " + String(num_valid_alerts));
-#endif
+    LOG_DEBUG("ignore_list      : %s]", ignoreList.c_str());
+    LOG_DEBUG("num_valid_alerts : %d", num_valid_alerts);
 
     if (num_valid_alerts == 1) {  // 1 alert
       // adjust max width to for 48x48 icons

@@ -1,4 +1,5 @@
 #include "config.h"
+#include "logger.h"
 #include "moon_tools.h"
 
 MoonPhase moonPhase;
@@ -23,18 +24,14 @@ moon_state_t getMoonState(float latitude, float longitude, time_t now) {
   mr.calculate(latitude, longitude, now);
   time_t moonrise = mr.riseTime;
   time_t moonset = mr.setTime;
-#if DEBUG_LEVEL >= 1
-  Serial.println("[debug] Moon rise azimuth: " + String(mr.riseAz) + " Moon set azimuth: " + String(mr.setAz));
-  Serial.println("[debug] Moonrise: " + String(moonrise) + " Moonset: " + String(moonset));
-#endif
+  LOG_DEBUG("Moon rise azimuth: %s Moon set azimuth: %s", String(mr.riseAz).c_str(), String(mr.setAz).c_str());
+  LOG_DEBUG("Moonrise: %ld Moonset: %ld", static_cast<long>(moonrise), static_cast<long>(moonset));
   if (mr.hasRise && moonset <= moonrise) {
     for (int step = 0; step < MAX_SEARCH_STEPS; ++step) {
       mr.calculate(latitude, longitude, moonrise + HALF_LUNAR_DAY + step * LUNAR_DAY);
       if (mr.hasSet && mr.setTime > moonrise) {
         moonset = mr.setTime;
-#if DEBUG_LEVEL >= 1
-        Serial.println("[debug] Moonset corrected to follow moonrise: " + String(moonset));
-#endif
+        LOG_DEBUG("Moonset corrected to follow moonrise: %ld", static_cast<long>(moonset));
         break;
       }
     }
@@ -46,8 +43,6 @@ moon_state_t getMoonState(float latitude, float longitude, time_t now) {
   // 180 deg = 0.5 (Full)
   // 270 deg = 0.75 (Third Quarter)
   float currentMoonPhase = moon.angleDeg / 360.0f;
-#if DEBUG_LEVEL >= 1
-  Serial.println("[debug] Moon phase: " + String(currentMoonPhase, 4));
-#endif
+  LOG_DEBUG("Moon phase: %s", String(currentMoonPhase, 4).c_str());
   return moon_state_t{moonrise, moonset, currentMoonPhase};
 }

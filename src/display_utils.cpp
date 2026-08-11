@@ -31,6 +31,7 @@
 #include "_strftime.h"
 #include "config.h"
 #include "display_utils.h"
+#include "logger.h"
 
 // icon header files
 #include "icons/icons.h"
@@ -68,19 +69,17 @@ bool readBatteryVoltage(uint32_t &batteryVoltage) {
     if (adc_oneshot_config_channel(adc_unit, adc_channel, &chan_cfg) != ESP_OK) {
       return false;
     }
-#if DEBUG_LEVEL >= 1
     // We use the eFuse ADC calibration bits to get accurate voltage readings.
     adc_cali_scheme_ver_t scheme_mask;
     if (adc_cali_check_scheme(&scheme_mask) != ESP_OK) {
-      Serial.println("[debug] ADC Cal scheme check failed");
+      LOG_DEBUG("ADC Cal scheme check failed");
     } else if (scheme_mask & ADC_CALI_SCHEME_VER_LINE_FITTING) {
-      Serial.println("[debug] ADC Cal line fitting scheme");
+      LOG_DEBUG("ADC Cal line fitting scheme");
     } else if (scheme_mask & ADC_CALI_SCHEME_VER_CURVE_FITTING) {
-      Serial.println("[debug] ADC Cal curve fitting scheme");
+      LOG_DEBUG("ADC Cal curve fitting scheme");
     } else {
-      Serial.println("[debug] ADC Cal unsupported scheme");
+      LOG_DEBUG("ADC Cal unsupported scheme");
     }
-#endif
     adc_cali_line_fitting_config_t cali_cfg = {
         .unit_id = unit_id,
         .atten = ADC_ATTEN_DB_12,

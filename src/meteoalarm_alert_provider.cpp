@@ -1,4 +1,5 @@
 #include "config.h"
+#include "logger.h"
 
 #if defined(ALERTS_API_PROVIDER_METEOALARM)
 
@@ -284,15 +285,11 @@ int MeteoAlarmAlertProvider::fetch(std::vector<weather_alert_t> &alerts) {
   const uint32_t t0 = millis();
   const int code = httpGetWithRetry(client, METEOALARM_ENDPOINT, port, uri, sanitizedUri, false, 30000,
                                     [&alerts, lat, lon, t0, &client](Stream &xml, size_t expectedLen) {
-#if DEBUG_LEVEL >= 1
-                                      Serial.printf("[METEOALARM] fetch: headers at +%u ms\n",
-                                                    static_cast<unsigned>(millis() - t0));
-#endif
+                                      LOG_DEBUG("fetch: headers at +%u ms",
+                                                static_cast<unsigned>(millis() - t0));
                                       return parseFeed(xml, alerts, time(nullptr), lat, lon, expectedLen, &client);
                                     });
-#if DEBUG_LEVEL >= 1
-  Serial.printf("[METEOALARM] fetch total=%u ms status=%d\n", static_cast<unsigned>(millis() - t0), code);
-#endif
+  LOG_DEBUG("fetch total=%u ms status=%d", static_cast<unsigned>(millis() - t0), code);
   return code;
 }  // MeteoAlarmAlertProvider::fetch
 
@@ -376,12 +373,9 @@ DeserializationError MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector
   String entity;    // pending "&...;" reference
   entry_data_t entry;
 
-#if DEBUG_LEVEL >= 1
   const uint32_t tStart = millis();
-  Serial.printf("[METEOALARM] feed: headers at +%u ms (body %u B, heap %u)\n",
-                static_cast<unsigned>(millis() - tStart), static_cast<unsigned>(expectedLen),
-                static_cast<unsigned>(ESP.getFreeHeap()));
-#endif
+  LOG_DEBUG("feed: headers at +%u ms (body %u B, heap %u)", static_cast<unsigned>(millis() - tStart),
+            static_cast<unsigned>(expectedLen), static_cast<unsigned>(ESP.getFreeHeap()));
 
   std::unique_ptr<char[]> buf(new char[4096]);
   size_t total = 0;  // bytes read from the response body
@@ -391,7 +385,6 @@ DeserializationError MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector
   unsigned long parseStartMillis = millis();
   unsigned long stallMs = 0;
   unsigned long stalls = 0;
-#if DEBUG_LEVEL >= 1
   uint64_t readUs = 0;    // µs spent in stream reads (network/TLS waits)
   uint64_t parseUs = 0;   // µs spent in the XML scanner
   uint64_t entryUs = 0;   // µs spent in addEntry/pointInPolygon at entry close
@@ -400,16 +393,14 @@ DeserializationError MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector
     const uint32_t tEnd = millis();
     const uint32_t firstByte = (tFirstByte != 0) ? tFirstByte - tStart : 0;
     const uint32_t body = (tFirstByte != 0) ? tEnd - tFirstByte : 0;
-    Serial.printf("[METEOALARM] feed: %s firstByte=%u ms body=%u ms parse=%u ms "
-                  "readUs=%lu ms parseUs=%lu ms entryUs=%lu ms bytes=%u alerts=%u "
-                  "stalls=%lu stallMs=%lu ms rssi=%d heap=%u\n",
-                  reason, static_cast<unsigned>(firstByte), static_cast<unsigned>(body),
-                  static_cast<unsigned>(tEnd - tStart), static_cast<unsigned long>(readUs / 1000),
-                  static_cast<unsigned long>(parseUs / 1000), static_cast<unsigned long>(entryUs / 1000),
-                  static_cast<unsigned>(total), static_cast<unsigned>(alerts.size()), stalls, stallMs, WiFi.RSSI(),
-                  static_cast<unsigned>(ESP.getFreeHeap()));
+    LOG_DEBUG("feed: %s firstByte=%u ms body=%u ms parse=%u ms readUs=%lu ms parseUs=%lu ms entryUs=%lu ms "
+              "bytes=%u alerts=%u stalls=%lu stallMs=%lu ms rssi=%d heap=%u",
+              reason, static_cast<unsigned>(firstByte), static_cast<unsigned>(body),
+              static_cast<unsigned>(tEnd - tStart), static_cast<unsigned long>(readUs / 1000),
+              static_cast<unsigned long>(parseUs / 1000), static_cast<unsigned long>(entryUs / 1000),
+              static_cast<unsigned>(total), static_cast<unsigned>(alerts.size()), stalls, stallMs, WiFi.RSSI(),
+              static_cast<unsigned>(ESP.getFreeHeap()));
   };
-#endif
   while (true) {
     if (expectedLen > 0 && total >= expectedLen) {
       // Body consumed; do not read past it (the server may close right after).
@@ -424,25 +415,17 @@ DeserializationError MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector
     }
     // Wait up to the stream timeout for each chunk, yielding in between (see
     // readBytesYielding): TCP/TLS pauses must not truncate the feed.
-#if DEBUG_LEVEL >= 1
     const int64_t tRead0 = esp_timer_get_time();
-#endif
     const size_t n = readBytesYielding(xml, networkClient, buf.get(), want, stallMs, stalls);
-#if DEBUG_LEVEL >= 1
     readUs += static_cast<uint64_t>(esp_timer_get_time() - tRead0);
-#endif
     if (n == 0) {
       break;  // end of stream (or read timeout)
     }
     total += n;
-#if DEBUG_LEVEL >= 1
     if (tFirstByte == 0) {
       tFirstByte = millis();
     }
-#endif
-    #if DEBUG_LEVEL >= 1
     const int64_t tParse0 = esp_timer_get_time();
-#endif
     for (size_t i = 0; i < n; ++i) {
       const char c = buf[i];
       tail[tailPos] = c;
@@ -543,19 +526,13 @@ DeserializationError MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector
       if (endTag) {
         if (local == "entry") {
           if (inEntry) {
-            #if DEBUG_LEVEL >= 1
             const int64_t tEntry0 = esp_timer_get_time();
-#endif
             addEntry(entry, alerts, now, lat, lon);
-#if DEBUG_LEVEL >= 1
             entryUs += static_cast<uint64_t>(esp_timer_get_time() - tEntry0);
-#endif
             inEntry = false;
             entry.reset();
             if (alerts.size() >= METEOALARM_NUM_ALERTS) {
-              #if DEBUG_LEVEL >= 1
               logTiming("early-exit");
-#endif
               return DeserializationError::Ok;
             }
           }
@@ -581,17 +558,11 @@ DeserializationError MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector
         if (local == "entry") {
           if (inEntry) {
             // previous entry closed implicitly by a new one
-            #if DEBUG_LEVEL >= 1
             const int64_t tEntry0 = esp_timer_get_time();
-#endif
             addEntry(entry, alerts, now, lat, lon);
-#if DEBUG_LEVEL >= 1
             entryUs += static_cast<uint64_t>(esp_timer_get_time() - tEntry0);
-#endif
             if (alerts.size() >= METEOALARM_NUM_ALERTS) {
-              #if DEBUG_LEVEL >= 1
               logTiming("early-exit");
-#endif
               return DeserializationError::Ok;
             }
           }
@@ -607,42 +578,35 @@ DeserializationError MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector
         }
       }
     }
-    #if DEBUG_LEVEL >= 1
     parseUs += static_cast<uint64_t>(esp_timer_get_time() - tParse0);
-#endif
   }
 
   // End of stream while still inside an entry: the feed was truncated by a
   // timeout (a break at the advertised content length is expected).
   if (!atExpectedEnd && (inEntry || !capture.isEmpty())) {
-    Serial.println("[error] MeteoAlarm: feed ended early, " + String(total) + " of " +
-                   String(expectedLen) + " bytes read, scanner in state " + String(static_cast<int>(state)) +
-                   " (inEntry=" + String(inEntry) + ", capture='" + capture + "', tagName='" + tagName + "')");
-    Serial.println("[error]   parse loop took " + String(millis() - parseStartMillis) +
-                   " ms, stream read timeout " + String(xml.getTimeout()) + " ms, available " +
-                   String(xml.available()));
-#if DEBUG_LEVEL >= 1
+    LOG_ERROR("MeteoAlarm: feed ended early, %u of %u bytes read, scanner in state %d (inEntry=%u, capture='%s', "
+              "tagName='%s')",
+              static_cast<unsigned>(total), static_cast<unsigned>(expectedLen), static_cast<int>(state), inEntry,
+              capture.c_str(), tagName.c_str());
+    LOG_ERROR("parse loop took %lu ms, stream read timeout %u ms, available %d", millis() - parseStartMillis,
+              xml.getTimeout(), xml.available());
     const size_t avail = total < sizeof(tail) ? total : sizeof(tail);
     const size_t start = total < sizeof(tail) ? 0 : tailPos;
-    Serial.print("[debug] last " + String(avail) + " body bytes: ");
+    char dump[sizeof(tail) * 4 + 1] = {};
+    size_t pos = 0;
     for (size_t i = 0; i < avail; ++i) {
       const char c = tail[(start + i) % sizeof(tail)];
       if (c >= 0x20 && c <= 0x7E) {
-        Serial.print(c);
+        dump[pos++] = c;
       } else {
-        Serial.printf("\\x%02X", static_cast<uint8_t>(c));
+        pos += snprintf(dump + pos, sizeof(dump) - pos, "\\x%02X", static_cast<uint8_t>(c));
       }
     }
-    Serial.println();
-#endif
-    #if DEBUG_LEVEL >= 1
+    LOG_DEBUG("last %u body bytes: %s", static_cast<unsigned>(avail), dump);
     logTiming("truncated");
-#endif
     return DeserializationError::InvalidInput;
   }
-  #if DEBUG_LEVEL >= 1
   logTiming(atExpectedEnd ? "complete" : "end-of-stream");
-#endif
   return DeserializationError::Ok;
 }  // MeteoAlarmAlertProvider::parseFeed
 

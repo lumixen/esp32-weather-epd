@@ -34,6 +34,7 @@
 #include "client_utils.h"
 #include "config.h"
 #include "display_utils.h"
+#include "logger.h"
 
 /* Power-on and connect WiFi.
  * Takes int parameter to store WiFi RSSI, or “Received Signal Strength
@@ -51,7 +52,7 @@ wl_status_t startWiFi(int8_t &wifiRSSI) {
   WiFi.setHostname(hostname.c_str());
 
   WiFi.mode(WIFI_STA);
-  Serial.printf("%s '%s'", TXT_CONNECTING_TO, WIFI_SSID);
+  LOG_INFO("%s '%s'", TXT_CONNECTING_TO, WIFI_SSID);
 
 #ifdef WIFI_STATIC_IP_ENABLED
   // Configure static IP before connecting
@@ -77,16 +78,16 @@ wl_status_t startWiFi(int8_t &wifiRSSI) {
     ok = WiFi.config(local_IP, gateway, subnet);
   }
   if (!ok) {
-    Serial.println("Failed to configure static IP");
+    LOG_WARNING("Failed to configure static IP");
   } else {
-    Serial.printf("Static IP configured: %s\n", local_IP.toString().c_str());
+    LOG_INFO("Static IP configured: %s", local_IP.toString().c_str());
   }
 #endif
 
 #if WIFI_SCAN
   // Scan for networks, if there are multiple with the same SSID, connect to the one
   // with the best RSSI.
-  Serial.print("\nScanning for WiFi networks...");
+  LOG_INFO("Scanning for WiFi networks...");
   int numNetworks = WiFi.scanNetworks();
   int bestRSSI = -100;
   uint8_t bestBSSID[6];
@@ -97,8 +98,8 @@ wl_status_t startWiFi(int8_t &wifiRSSI) {
       if (WiFi.RSSI(i) > bestRSSI) {
         bestRSSI = WiFi.RSSI(i);
         memcpy(bestBSSID, WiFi.BSSID(i), 6);
-        Serial.printf("\n  Found SSID '%s', BSSID %02X:%02X:%02X:%02X:%02X:%02X with RSSI %d dBm", WIFI_SSID,
-                      bestBSSID[0], bestBSSID[1], bestBSSID[2], bestBSSID[3], bestBSSID[4], bestBSSID[5], WiFi.RSSI(i));
+        LOG_DEBUG("Found SSID '%s', BSSID %02X:%02X:%02X:%02X:%02X:%02X with RSSI %d dBm", WIFI_SSID, bestBSSID[0],
+                  bestBSSID[1], bestBSSID[2], bestBSSID[3], bestBSSID[4], bestBSSID[5], WiFi.RSSI(i));
         foundNetwork = true;
       }
     }
@@ -120,19 +121,18 @@ wl_status_t startWiFi(int8_t &wifiRSSI) {
   unsigned long timeout = millis() + WIFI_TIMEOUT;
   wl_status_t connection_status = WiFi.status();
 
+  LOG_DEBUG("Waiting for WiFi connection (timeout %d ms)", WIFI_TIMEOUT);
   while ((connection_status != WL_CONNECTED) && (millis() < timeout)) {
-    Serial.print(".");
     delay(50);
     connection_status = WiFi.status();
   }
-  Serial.println();
 
   if (connection_status == WL_CONNECTED) {
     wifiRSSI = WiFi.RSSI();  // get WiFi signal strength now, because the WiFi
                              // will be turned off to save power!
-    Serial.println("IP: " + WiFi.localIP().toString());
+    LOG_INFO("IP: %s", WiFi.localIP().toString().c_str());
   } else {
-    Serial.printf("%s '%s'\n", TXT_COULD_NOT_CONNECT_TO, WIFI_SSID);
+    LOG_WARNING("%s '%s'", TXT_COULD_NOT_CONNECT_TO, WIFI_SSID);
   }
   return connection_status;
 }  // startWiFi
@@ -158,8 +158,7 @@ int httpGetWithRetry(WiFiClient &client, const String &host, uint16_t port, cons
   int attempts = 0;
   bool rxSuccess = false;
 
-  Serial.print(TXT_ATTEMPTING_HTTP_REQ);
-  Serial.println(": " + sanitizedUri);
+  LOG_INFO("%s: %s", TXT_ATTEMPTING_HTTP_REQ, sanitizedUri.c_str());
   int httpResponse = 0;
   while (!rxSuccess && attempts < 3) {
     wl_status_t connection_status = WiFi.status();
@@ -191,15 +190,14 @@ int httpGetWithRetry(WiFiClient &client, const String &host, uint16_t port, cons
       if (jsonErr) {
         // -256 offset distinguishes these errors from httpClient errors
         httpResponse = -256 - static_cast<int>(jsonErr.code());
-        Serial.println("  stream: read timeout " + String(http.getStream().getTimeout()) + " ms, advertised size " +
-                       String(size) + " B, http.connected()=" + String(http.connected()) +
-                       ", live stream ptr=" + String(http.getStreamPtr() != nullptr));
+        LOG_WARNING("stream: read timeout %u ms, advertised size %d B, http.connected()=%u, live stream ptr=%u",
+                    http.getStream().getTimeout(), size, http.connected(), http.getStreamPtr() != nullptr);
       }
       rxSuccess = !jsonErr;
     }
     client.stop();
     http.end();
-    Serial.println("  " + String(httpResponse, DEC) + " " + getHttpResponsePhrase(httpResponse));
+    LOG_INFO("%d %s", httpResponse, getHttpResponsePhrase(httpResponse));
     ++attempts;
     if (!rxSuccess) {
       delay(100);
@@ -212,9 +210,6 @@ int httpGetWithRetry(WiFiClient &client, const String &host, uint16_t port, cons
 /* Prints debug information about heap usage.
  */
 void printHeapUsage() {
-  Serial.println("[debug] Heap Size       : " + String(ESP.getHeapSize()) + " B");
-  Serial.println("[debug] Available Heap  : " + String(ESP.getFreeHeap()) + " B");
-  Serial.println("[debug] Min Free Heap   : " + String(ESP.getMinFreeHeap()) + " B");
-  Serial.println("[debug] Max Allocatable : " + String(ESP.getMaxAllocHeap()) + " B");
-  return;
+  LOG_DEBUG("Heap Size: %u B, Available: %u B, Min Free: %u B, Max Allocatable: %u B", ESP.getHeapSize(),
+            ESP.getFreeHeap(), ESP.getMinFreeHeap(), ESP.getMaxAllocHeap());
 }

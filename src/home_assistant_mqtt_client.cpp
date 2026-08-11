@@ -2,6 +2,7 @@
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
 #include <WiFi.h>
 #include <ESP32MQTTClient.h>
+#include "logger.h"
 
 ESP32MQTTClient haMqttClient;
 SemaphoreHandle_t haMqttConnectSemaphore = NULL;
@@ -58,10 +59,10 @@ bool publishMQTTSensorDiscovery(const char *sensorName, const char *clientId, co
   std::string discoveryPayload = formatMQTTString(discoveryPayloadTemplate, clientId);
 
   if (haMqttClient.publish(discoveryTopic.c_str(), discoveryPayload.c_str(), 0, true)) {
-    Serial.printf("Published %s discovery\n", sensorName);
+    LOG_INFO("Published %s discovery", sensorName);
     return true;
   } else {
-    Serial.printf("Warning: Failed to publish %s discovery\n", sensorName);
+    LOG_WARNING("Failed to publish %s discovery", sensorName);
     return false;
   }
 }
@@ -71,10 +72,10 @@ bool publishMQTTSensorState(const char *sensorName, const char *clientId, const 
   std::string stateTopic = formatMQTTString(stateTopicTemplate, clientId);
 
   if (haMqttClient.publish(stateTopic.c_str(), stateValue, 0, true)) {
-    Serial.printf("Published %s state\n", sensorName);
+    LOG_INFO("Published %s state", sensorName);
     return true;
   } else {
-    Serial.printf("Warning: Failed to publish %s state\n", sensorName);
+    LOG_WARNING("Failed to publish %s state", sensorName);
     return false;
   }
 }
@@ -98,15 +99,14 @@ void sendMQTTStatus(const mqtt_status_params_t &params) {
   haMqttClient.setAutoReconnect(false);
   haMqttClient.loopStart();
 
-  Serial.print("Connecting to MQTT with ID: ");
-  Serial.println(clientId);
+  LOG_INFO("Connecting to MQTT with ID: %s", clientId);
 
   if (xSemaphoreTake(haMqttConnectSemaphore, pdMS_TO_TICKS(10000)) == pdTRUE) {
-    Serial.println("MQTT connected");
+    LOG_INFO("MQTT connected");
 
     bool publishSuccess = true;
     if (!publishedMqttConfig) {
-      Serial.println("Publishing discovery messages...");
+      LOG_INFO("Publishing discovery messages...");
 // Publish discovery messages only once per power cycle
 #if BATTERY_MONITORING
       publishSuccess &=
@@ -131,11 +131,11 @@ void sendMQTTStatus(const mqtt_status_params_t &params) {
 #endif  // BME_TYPE_NONE
       publishedMqttConfig = publishSuccess;
     } else {
-      Serial.println("Discovery messages already published, skipping...");
+      LOG_INFO("Discovery messages already published, skipping...");
     }
 
     if (publishedMqttConfig) {
-      Serial.println("Publishing sensor states...");
+      LOG_INFO("Publishing sensor states...");
       char valueStr[12];
 #if BATTERY_MONITORING
       // 1. Publish Battery Voltage
@@ -173,14 +173,14 @@ void sendMQTTStatus(const mqtt_status_params_t &params) {
 #endif
     }
     if (!(haMqttClient.loopStop())) {
-      Serial.println("Warning: MQTT loop did not stop cleanly.");
+      LOG_WARNING("MQTT loop did not stop cleanly.");
     }
-    Serial.println("MQTT publish complete.");
+    LOG_INFO("MQTT publish complete.");
   } else {
-    Serial.println("Error: MQTT connection timed out.");
+    LOG_ERROR("MQTT connection timed out.");
     haMqttClient.loopStop();
   }
-  Serial.println("MQTT total time: " + String((millis() - startTime) / 1000.0, 3) + "s");
+  LOG_INFO("MQTT total time: %ss", String((millis() - startTime) / 1000.0, 3).c_str());
   vSemaphoreDelete(haMqttConnectSemaphore);
   haMqttConnectSemaphore = NULL;
 }
