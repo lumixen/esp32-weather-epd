@@ -237,7 +237,7 @@ def resolve_config_path(value=None):
         value = os.environ.get("ESP32_EPD_CONFIG")
     if not value:
         return "config.yml"
-    if "/" not in value and os.sep not in value and not value.endswith(".yml"):
+    if "/" not in value and os.sep not in value:
         return os.path.join("devices", f"{value}.yml")
     return value
 
@@ -256,7 +256,13 @@ def generate(config_path, header_path, write_header=True):
         )
 
     with open(config_path, "r", encoding="utf-8") as config_file:
-        user_config = yaml.safe_load(config_file)
+        try:
+            user_config = yaml.safe_load(config_file)
+        except yaml.YAMLError as exc:
+            raise SystemExit(f"Invalid configuration in {config_path}:\n{exc}") from exc
+    if not isinstance(user_config, dict):
+        got = type(user_config).__name__ if user_config is not None else "empty file"
+        raise SystemExit(f"Invalid configuration in {config_path}: expected a YAML mapping, got {got}")
     try:
         config = ConfigSchema(**user_config)
     except ValidationError as exc:
