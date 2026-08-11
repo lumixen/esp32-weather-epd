@@ -45,11 +45,22 @@ def format_bssid(bssid_str):
     return f"{{{formatted}}}"
 
 
+# Numeric value per log level name, matching the LogLevel enum in logger.h.
+_LOG_LEVEL_NUMBERS = {
+    "TRACE": 0,
+    "DEBUG": 1,
+    "INFO": 2,
+    "WARNING": 3,
+    "ERROR": 4,
+    "CRITICAL": 5,
+}
+
+
 # C++ types emitted for runtime configuration values.
 #
 # Values that only take part in preprocessor conditionals (#if / #ifdef /
 # token pasting / string literal concatenation) are emitted as #define macros
-# (`EPD_PANEL_*`, `LOCALE`, `DEBUG_LEVEL`, `COLORS_*`, ...). Every other value
+# (`EPD_PANEL_*`, `LOCALE`, `LOG_LEVEL`, `COLORS_*`, ...). Every other value
 # becomes a typed constant: `inline constexpr` for plain data (C++17 `inline`
 # keeps the definitions ODR-safe in the header), `inline const String` where
 # consumers need an Arduino String.
@@ -278,7 +289,11 @@ with open("./config.yml", "r", encoding="utf-8") as config_file:
     emit_define(header_lines, "STATUS_BAR_EXTRAS_BAT_VOLTAGE", 1 if config.statusBarExtrasBatVoltage else 0)
     emit_define(header_lines, "STATUS_BAR_EXTRAS_WIFI_RSSI", 1 if config.statusBarExtrasWifiRSSI else 0)
     emit_define(header_lines, "BATTERY_MONITORING", 1 if config.batteryMonitoring else 0)
-    emit_define(header_lines, "DEBUG_LEVEL", config.debugLevel)
+
+    # log configuration
+    header_lines.append("// log configuration")
+    emit_define(header_lines, f"LOG_LEVEL_{config.logLevel.name}")
+    emit_define(header_lines, "LOG_LEVEL", _LOG_LEVEL_NUMBERS[config.logLevel.name])
 
     # pin configuration
     header_lines.append("// pin configuration")

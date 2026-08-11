@@ -130,7 +130,7 @@ displayHourlyIcons: true
 batteryMonitoring: true
 statusBarExtrasBatVoltage: true
 statusBarExtrasWifiRSSI: false
-debugLevel: 0
+logLevel: debug
 wifi:
   ssid: SSID
   password: PASSWORD

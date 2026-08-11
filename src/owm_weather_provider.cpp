@@ -1,4 +1,5 @@
 #include "config.h"
+#include "logger.h"
 
 #if defined(WEATHER_API_PROVIDER_OPEN_WEATHER_MAP)
 
@@ -109,12 +110,12 @@ DeserializationError OWMWeatherProvider::deserializeOneCall(Stream &json, foreca
   JsonDocument doc;
 
   DeserializationError error = deserializeJson(doc, json, DeserializationOption::Filter(filter));
-#if DEBUG_LEVEL >= 1
-  Serial.println("[debug] doc.overflowed() : " + String(doc.overflowed()));
-#endif
-#if DEBUG_LEVEL >= 2
-  serializeJsonPretty(doc, Serial);
-#endif
+  LOG_DEBUG("doc.overflowed() : %s", doc.overflowed() ? "true" : "false");
+  if (LogLevel::TRACE >= g_logLevel) {
+    LOG_TRACE("pretty JSON dump:");
+    serializeJsonPretty(doc, Serial);
+    Serial.println();
+  }
   if (error) {
     return error;
   }

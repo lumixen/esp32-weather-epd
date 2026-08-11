@@ -55,7 +55,7 @@ displayHourlyIcons: true
 batteryMonitoring: true
 statusBarExtrasBatVoltage: false
 statusBarExtrasWifiRSSI: false
-debugLevel: 0
+logLevel: debug
 
 wifi:
   ssid: your-wifi-ssid
