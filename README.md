@@ -3,7 +3,7 @@
 - [Open-Meteo](https://open-meteo.com/) as the primary weather API.
 - Set up for Lolin D32 board.
 - Improved support for multi-color e-paper displays.
-- Configuration is managed via a non-versioned YAML file.
+- Configuration is managed via non-versioned YAML files (`config.yml` for the default device, `devices/<name>.yml` per device).
 - Supports the DKE DEPG0750RWF86BF 3-color e-paper display.
 - Home Assistant integration through MQTT with auto-discovery.
 
@@ -40,13 +40,15 @@ Enclosure files and assembly instructions are available at [printables](https://
    - Make sure you have [PlatformIO](https://platformio.org/) installed in VS Code.
 
 3. **Configure the Software**
-   - Create a `config.yml` file in the project root.
    - Copy and edit the [example configuration](#configuration) to match your hardware and preferences (WiFi credentials, location, panel type, etc.).
+   - Single device: create a `config.yml` file in the project root.
+   - Multiple devices: copy `devices/kitchen.example.yml` to `devices/<name>.yml` for each device (see [Multiple devices](#multiple-devices)).
 
 4. **Compile and Upload**
    - Open the project in VS Code.
-   - Click the PlatformIO "Build" button to compile the firmware.
+   - Click the PlatformIO "Build" button to compile the firmware (uses `config.yml`).
    - Connect your ESP32 board via USB and click "Upload" to flash the firmware.
+   - Per-device builds instead: `./scripts/devices.sh flash <name>` (see below).
 
 ### Wiring Schematic (Lolin D32 Board)
 
@@ -68,7 +70,7 @@ Wiring is specific for Lolin D32 board:
 
 ### Configuration
 
-To configure the build, create a new `config.yml` file in the project root with the configuration variables. For example:
+To configure the build, create a `config.yml` file in the project root with the configuration variables. For example:
 ```yaml
 epdPanel: DKE_3C_86BF
 epdDriver: Waveshare
@@ -158,7 +160,7 @@ bedTime: 0
 wakeTime: 6
 hourlyGraphMax: 24
 moonPhaseStyle: alternative
-leftPanelPositions:
+leftPanelLayout:
   SUNRISE: 0
   SUNSET: 1
   MOONRISE: 2
@@ -195,6 +197,35 @@ colors:
 ```
 
 The full list of actual available options can be found in [schema.py](scripts/schema.py).
+
+### Multiple devices
+
+The firmware is compiled per device — one fully independent config per device lives in `devices/<name>.yml`. These files are gitignored (they contain credentials); only the `devices/*.example.yml` templates are tracked, so start from `devices/kitchen.example.yml`:
+
+```sh
+cp devices/kitchen.example.yml devices/kitchen.yml   # edit to match the device
+```
+
+`scripts/devices.sh` wraps PlatformIO and picks the device config for you (it finds the `pio` executable via `PIO_BIN`, `PATH`, or `~/.platformio/penv/bin/pio`):
+
+```sh
+./scripts/devices.sh list                          # devices/*.yml
+./scripts/devices.sh validate kitchen              # schema check, no build
+./scripts/devices.sh build kitchen                 # compile
+./scripts/devices.sh flash kitchen                 # compile + upload
+./scripts/devices.sh flash kitchen /dev/ttyUSB0    # explicit upload port
+./scripts/devices.sh monitor kitchen               # serial monitor
+./scripts/devices.sh build kitchen --env lolin_d32_qemu   # pick a platformio.ini env (default lolin_d32)
+./scripts/devices.sh list-envs                     # envs defined in platformio.ini
+```
+
+Without the wrapper, select the config with the `ESP32_EPD_CONFIG` environment variable — a bare name maps to `devices/<name>.yml`, anything with a path separator is used as a path:
+
+```sh
+ESP32_EPD_CONFIG=kitchen ~/.platformio/penv/bin/pio run -e lolin_d32 -t upload
+```
+
+When `ESP32_EPD_CONFIG` is unset, `config.yml` is used — that is what the VS Code PlatformIO buttons and the `lolin_d32_qemu` test environment build against.
 
 ### Home Assistant integration through MQTT
 

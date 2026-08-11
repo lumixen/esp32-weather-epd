@@ -42,6 +42,13 @@ bash test/run_tests_docker.sh
 - **Never edit `include/config.h` manually** — it is auto-generated (gitignored); change `config.yml` instead. Config changes take effect on the next build.
 - Layout macros like `POS_MOONRISE` come from `leftPanelLayout` in `config.yml`.
 
+### Multiple devices (`devices/`)
+
+- Per-device configs live in `devices/<name>.yml` (gitignored, may contain credentials; only `*.example.yml` templates are tracked). Each is a fully independent config (panel, pins, WiFi, location, MQTT) validated against the same schema. `config.yml` remains the default for plain `pio run` and the QEMU test env.
+- The build picks the config via the `ESP32_EPD_CONFIG` env var: a bare name → `devices/<name>.yml`; anything with a path separator → used as a path; unset → `config.yml`. `scripts/config.py` resolves this, fails fast on missing/invalid files, and emits `CONFIG_SOURCE`/`CONFIG_DEVICE_NAME` into the header.
+- `scripts/devices.sh` wraps pio (finds it via `PIO_BIN` → `PATH` → `~/.platformio/penv/bin/pio`): `./scripts/devices.sh flash <name>` (also `build`, `monitor`, `validate`, `list`, `list-envs`; `--env <name>` selects the platformio.ini env, default `lolin_d32`).
+- `scripts/config.py` can run standalone for validation without building: `python scripts/config.py --validate <name|path>`.
+
 ## Source layout
 
 - `src/` — implementation (`main.cpp`, `renderer.cpp`, `display_utils.cpp`, weather/air-quality/alert providers, `moon_tools.cpp`).

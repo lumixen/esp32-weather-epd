@@ -4,6 +4,9 @@ __pycache__/
 .pio
 .vscode
 config.yml
+# per-device configs (credentials); only *.example.yml templates are tracked
+/devices/*
+!/devices/*.example.yml
 /http
 /include/config.h
 /logs
