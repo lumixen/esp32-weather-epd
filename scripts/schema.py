@@ -396,6 +396,11 @@ class NTPConfig(BaseModel):
     server_1: str = "pool.ntp.org"
     server_2: str = "time.nist.gov"
     syncIntervalWakeups: int = 6
+    # Auto-correct the RTC slow-clock drift: the correction factor is learned
+    # from the deviation measured between consecutive NTP synchronizations and
+    # applied to the deep-sleep timer and the internal clock, so that the
+    # device wakes up (and displays) the correct time between NTP syncs.
+    rtcCorrection: bool = True
     # If you encounter the 'Failed To Fetch The Time' error, try increasing
     # NTP_TIMEOUT or select closer/lower latency time servers.
     timeout: int = 20000  # ms
