@@ -208,6 +208,12 @@ void setup() {
 
   printHeapUsage();
 
+  // Correct the wall clock for the slow-clock drift accumulated during the
+  // previous deep sleep. Must run before any path (low battery, WiFi
+  // failure, ...) can enter deep sleep again, or the recorded sleep duration
+  // is replaced without its interval ever being corrected.
+  rtcDriftApplyWakeupCorrection();
+
   // Open namespace for read/write to non-volatile storage
   prefs.begin(NVS_NAMESPACE, false);
 
@@ -309,10 +315,6 @@ void setup() {
     powerOffDisplay();
     beginDeepSleep(startTime, &timeInfo);
   }
-
-  // Correct the wall clock for the slow-clock drift accumulated during the
-  // deep sleep (only meaningful after a timer wakeup).
-  rtcDriftApplyWakeupCorrection();
 
   bool timeConfigured = configureTime(&timeInfo);
 
