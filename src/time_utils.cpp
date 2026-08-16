@@ -131,13 +131,6 @@ bool configureTime(tm *timeInfo) {
     LOG_DEBUG("Time before synchronization: %s", timeBeforeSync);
     unsigned long syncStart = millis();
 
-    // Capture the RTC time before the sync overwrites the system time; used
-    // to measure the slow-clock drift against the NTP reference.
-    uint64_t rtcUsBeforeSync = 0;
-    if (rtcDriftEnabled()) {
-      rtcUsBeforeSync = esp_rtc_get_time_us();
-    }
-
     ntpSyncSemaphore = xSemaphoreCreateBinary();
     sntp_set_time_sync_notification_cb(timeSyncNotificationCallback);
     LOG_INFO("Synchronizing time...");
@@ -149,7 +142,10 @@ bool configureTime(tm *timeInfo) {
       timeConfigured = true;
 
       if (rtcDriftEnabled()) {
-        rtcDriftOnNtpSync(rtcUsBeforeSync, time(nullptr));
+        // Sample the RTC time alongside the authoritative NTP time, both
+        // after the sync completed, so changes in sync latency do not show
+        // up as measured drift.
+        rtcDriftOnNtpSync(esp_rtc_get_time_us(), time(nullptr));
       }
 
       LOG_INFO("Sync duration: %lu ms", syncEnd - syncStart);

@@ -99,8 +99,9 @@ inline bool rtcDriftEnabled() {
 }
 
 // Learn the correction factor from a successful NTP synchronization:
-// `rtcUsNow` is the RTC time (esp_rtc_get_time_us) captured right before the
-// sync, `epochNow` the authoritative Unix time right after it.
+// `rtcUsNow` (esp_rtc_get_time_us) and `epochNow` (authoritative Unix time)
+// must be sampled together, after the sync completed, so that the elapsed
+// real time and the elapsed RTC time span the same interval.
 void rtcDriftOnNtpSync(uint64_t rtcUsNow, time_t epochNow);
 
 // Apply the wall-clock correction after waking from a deep sleep (timer
