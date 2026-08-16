@@ -1,19 +1,44 @@
-Import("env")
+try:
+    Import("env")  # noqa: F821 - provided by the PlatformIO build system
+except NameError:
+    env = None
+
+import os
+import sys
+
+try:
+    _script_dir = os.path.dirname(os.path.abspath(__file__))
+except NameError:
+    _script_dir = None
+if _script_dir is not None:
+    sys.path.insert(0, _script_dir)
 
 try:
     import pydantic
 except ImportError:
-    env.Execute("$PYTHONEXE -m pip install pydantic")
-
+    pydantic = None
 try:
     import yaml
 except ImportError:
-    env.Execute("$PYTHONEXE -m pip install pyyaml")
+    yaml = None
 
+if env is not None:
+    if pydantic is None:
+        env.Execute("$PYTHONEXE -m pip install pydantic")
+        import pydantic
+    if yaml is None:
+        env.Execute("$PYTHONEXE -m pip install pyyaml")
+        import yaml
+
+if pydantic is None:
+    raise SystemExit("pydantic is required: pip install pydantic")
+if yaml is None:
+    raise SystemExit("pyyaml is required: pip install pyyaml")
+
+from pydantic import ValidationError
 from schema import ConfigSchema, Color
 from re import sub
 from datetime import datetime
-import os
 
 
 def upper_snake(s: str):
@@ -77,6 +102,9 @@ NAME_OVERRIDES = {
 # C++ type per constant name; unspecified names default to `int` (numbers)
 # or `const char *` (strings).
 TYPED_TYPES = {
+    # device/config identity
+    "CONFIG_SOURCE": STRING,
+    "CONFIG_DEVICE_NAME": STRING,
     # ntp
     "NTP_SERVER_1": STRING,
     "NTP_SERVER_2": STRING,
@@ -199,27 +227,66 @@ def emit_define(lines, name, value=None):
     lines.append(f"#define {name}" if value is None else f"#define {name} {value}")
 
 
-# Generate header file
-header_lines = [
-    "// Auto-generated configuration header",
-    "// DO NOT EDIT - Generated from config.yml",
-    "",
-    "#pragma once",
-    "",
-    "#include <Arduino.h>",
-    "#include <cstdint>",
-    "",
-]
+def resolve_config_path(value=None):
+    """Resolve the config file from ESP32_EPD_CONFIG (or an explicit value).
 
-# Add build version with current date/time
-build_version = datetime.now().strftime("%Y.%m.%d %H:%M")
-header_lines.append("// Build Information")
-emit_define(header_lines, "BUILD_VERSION", f'"{build_version}"')
-header_lines.append("")
+    A bare device name (no path separator) is looked up in devices/; anything
+    else is treated as a path. Falls back to config.yml.
+    """
+    if value is None:
+        value = os.environ.get("ESP32_EPD_CONFIG")
+    if not value:
+        return "config.yml"
+    if "/" not in value and os.sep not in value:
+        return os.path.join("devices", f"{value}.yml")
+    return value
 
-with open("./config.yml", "r", encoding="utf-8") as config_file:
-    user_config = yaml.safe_load(config_file)
-    config = ConfigSchema(**user_config)
+
+def device_name(config_path):
+    """Derive the device name from the config file path (file stem)."""
+    return os.path.splitext(os.path.basename(config_path))[0]
+
+
+def generate(config_path, header_path, write_header=True):
+    """Validate a config file and generate the C++ configuration header."""
+    if not os.path.isfile(config_path):
+        raise SystemExit(
+            f"Configuration file not found: {config_path} "
+            "(set ESP32_EPD_CONFIG to a device name or path, or use config.yml)"
+        )
+
+    with open(config_path, "r", encoding="utf-8") as config_file:
+        try:
+            user_config = yaml.safe_load(config_file)
+        except yaml.YAMLError as exc:
+            raise SystemExit(f"Invalid configuration in {config_path}:\n{exc}") from exc
+    if not isinstance(user_config, dict):
+        got = type(user_config).__name__ if user_config is not None else "empty file"
+        raise SystemExit(f"Invalid configuration in {config_path}: expected a YAML mapping, got {got}")
+    try:
+        config = ConfigSchema(**user_config)
+    except ValidationError as exc:
+        raise SystemExit(f"Invalid configuration in {config_path}:\n{exc}") from exc
+
+    # Generate header file
+    header_lines = [
+        "// Auto-generated configuration header",
+        f"// DO NOT EDIT - Generated from {config_path}",
+        "",
+        "#pragma once",
+        "",
+        "#include <Arduino.h>",
+        "#include <cstdint>",
+        "",
+    ]
+
+    # Add build version with current date/time
+    build_version = datetime.now().strftime("%Y.%m.%d %H:%M")
+    header_lines.append("// Build Information")
+    emit_define(header_lines, "BUILD_VERSION", f'"{build_version}"')
+    emit_typed(header_lines, "CONFIG_SOURCE", config_path)
+    emit_typed(header_lines, "CONFIG_DEVICE_NAME", device_name(config_path))
+    header_lines.append("")
 
     # E-Paper display and locale
     header_lines.append("// Configuration")
@@ -397,13 +464,30 @@ with open("./config.yml", "r", encoding="utf-8") as config_file:
     header_lines.append('#define NVS_NAMESPACE "weather_epd"')
     header_lines.append("#endif")
 
-# Write header file to include directory
-header_path = os.path.join("include", "config.h")
-os.makedirs(os.path.dirname(header_path), exist_ok=True)
+    if not write_header:
+        print(f"Configuration valid: {config_path}")
+        return
 
-with open(header_path, "w", encoding="utf-8") as header_file:
-    header_file.write("\n".join(header_lines) + "\n")
+    os.makedirs(os.path.dirname(header_path), exist_ok=True)
+    with open(header_path, "w", encoding="utf-8") as header_file:
+        header_file.write("\n".join(header_lines) + "\n")
 
-print(f"Generated configuration header: {header_path}")
-print(f"Total defines: {len([l for l in header_lines if l.startswith('#define')])}")
-print(f"Total typed constants: {len([l for l in header_lines if l.startswith('inline const')])}")
+    print(f"Generated configuration header: {header_path}")
+    print(f"Total defines: {len([l for l in header_lines if l.startswith('#define')])}")
+    print(f"Total typed constants: {len([l for l in header_lines if l.startswith('inline const')])}")
+
+
+if env is not None:
+    # PlatformIO extra_scripts hook: generate the header for the active env.
+    config_path = resolve_config_path()
+    generate(config_path, os.path.join("include", "config.h"))
+else:
+    # Standalone use: python scripts/config.py [--validate] <device-name|path>
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Validate and/or generate the config header.")
+    parser.add_argument("config", help="device name (devices/<name>.yml) or path to a config YAML")
+    parser.add_argument("--validate", action="store_true", help="validate only, do not write the header")
+    args = parser.parse_args(sys.argv[1:])
+    config_path = resolve_config_path(args.config)
+    generate(config_path, os.path.join("include", "config.h"), write_header=not args.validate)

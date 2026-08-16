@@ -1,0 +1,154 @@
+# Per-device configuration template.
+#
+# Copy this file to devices/<name>.yml and edit it to match your device.
+# Each device file is a fully independent config: display panel, pinout,
+# WiFi credentials, location, MQTT and layout are all per device.
+#
+#   cp devices/kitchen.example.yml devices/kitchen.yml
+#   ./scripts/devices.sh flash kitchen
+#
+# devices/<name>.yml files are gitignored (they contain credentials);
+# only this *.example.yml template is tracked.
+#
+# All values below are valid schema defaults; replace them as needed.
+
+# E-paper display panel and driver (hardware-specific).
+epdPanel: DKE_3C_86BF
+epdDriver: Waveshare
+# Locale for date/time and labels (see schema.py Locale enum).
+locale: en_US
+
+# Weather data providers and transports.
+weatherAPI:
+  provider: Open-Meteo
+  transport: HTTP
+airQualityAPI:
+  provider: Open-Meteo
+  transport: HTTP
+
+# Severe weather alerts: None, OpenWeatherMap or MeteoAlarm.
+alertsAPI:
+  provider: MeteoAlarm
+  # MeteoAlarm country feed slug, e.g. ukraine or united-kingdom
+  # (https://www.meteoalarm.org/en/live/feed).
+  country: ukraine
+
+# NTP time servers (server_1 must be an IP for the old protocol fallback).
+ntp:
+  server_1: 192.168.41.1
+  server_2: pool.ntp.org
+  syncIntervalWakeups: 6
+
+# Wiring: GPIO pins for the e-paper display and battery ADC.
+pin:
+  epdBusy: 4
+  epdCS: 5
+  epdRst: 16
+  epdDC: 17
+  epdPwr: 2
+
+# Units (defaults to metric unless useImperialUnitsAsDefault is true).
+useImperialUnitsAsDefault: false
+unitsTemp: Celsius
+unitsSpeed: km/h
+unitsPres: mbar
+unitsDistance: km
+unitsHourlyPrecip: probability of precipitation
+unitsDailyPrecip: mm
+windDirectionIndicator: arrow
+windArrowPrecision: secondary intercardinal
+
+# Typography and display options.
+font: FreeSans
+displayDailyPrecip: smart
+displayHourlyIcons: true
+
+# Battery / status bar.
+batteryMonitoring: true
+statusBarExtrasBatVoltage: true
+statusBarExtrasWifiRSSI: false
+
+# Logging: trace, debug, info, warning, error or critical.
+logLevel: debug
+
+# WiFi network (per device).
+wifi:
+  ssid: your-ssid
+  password: your-password
+  # Optional: lock to a specific access point.
+  bssid: 4A:8F:5A:21:EB:72
+  # Optional static IP (omit for DHCP).
+  # staticIp:
+  #   ip: 192.168.1.50
+  #   gateway: 192.168.1.1
+  #   subnet: 255.255.255.0
+  #   dns1: 8.8.8.8
+  #   dns2: 8.8.4.4
+
+# OpenWeatherMap API key and API version (only used with the OWM provider).
+owmOnecallVersion: '3.0'
+# owmApikey: your-owm-api-key
+
+# Location (per device).
+latitude: '50.498878'
+longitude: '30.497396'
+city: Kyiv
+
+# Timezone (POSIX TZ string) and display formats.
+timezone: EET-2EEST,M3.5.0/3,M10.5.0/4
+timeFormat: '%H:%M'
+hourFormat: '%H'
+dateFormat: '%d/%m/%Y'
+refreshTimeFormat: '%x %H:%M'
+
+# Sleep: refresh interval in minutes, bed/wake hours (0 = disabled).
+sleepDuration: 30
+bedTime: 0
+wakeTime: 0
+hourlyGraphMax: 24
+
+# Moon phase icon style: alternative or default.
+moonPhaseStyle: alternative
+
+# Optional I2C BME280/BME680 environmental sensor.
+bme:
+  type: BME280
+
+# Left panel row order (POS_* layout macros).
+leftPanelLayout:
+  SUNRISE: 0
+  SUNSET: 1
+  MOONRISE: 2
+  MOONSET: 3
+  MOONPHASE: 4
+  HUMIDITY: 5
+  WIND: 6
+  INPRESSURE: 7
+  AIR_QUALITY: 8
+  VISIBILITY: 9
+
+# Optional Home Assistant MQTT integration (per device).
+homeAssistantMqtt:
+  enabled: true
+  server: 192.168.41.2
+  port: 1883
+  username: epd_weather
+  password: your-mqtt-password
+  discoveryPrefix: homeassistant
+
+# Color palette (COLORS_* macros).
+colors:
+  outlookLowThresholdTemperature: 0
+  outlookHighThresholdTemperature: 30
+  outlookTemperatureLowColor: red
+  outlookTemperatureNormalColor: black
+  outlookTemperatureHighColor: red
+  outlookConditionsIconAccent: red
+  city: black
+  date: red
+  alert: red
+  errorIcon: red
+  statusBarBatteryWarning: red
+  statusBarWeakWifi: red
+  statusBarMessage: red
+  forecastPrecipitation: red
