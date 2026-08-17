@@ -38,6 +38,8 @@ ntp:
   server_1: 192.168.41.1
   server_2: pool.ntp.org
   syncIntervalWakeups: 6
+  # Correct the RTC slow-clock drift (learned between NTP synchronizations).
+  rtcCorrection: true
 
 # Wiring: GPIO pins for the e-paper display and battery ADC.
 pin:

@@ -118,7 +118,7 @@ void beginDeepSleep(unsigned long startTime, tm *timeInfo) {
 
   toggleBuiltinLED(false);
 
-  esp_sleep_enable_timer_wakeup(sleepDuration * 1000000ULL);
+  esp_sleep_enable_timer_wakeup(rtcDriftScaleSleepUs(sleepDuration * 1000000ULL));
   LOG_INFO("%s %ss", TXT_AWAKE_FOR, String((millis() - startTime) / 1000.0, 3).c_str());
   LOG_INFO("%s %llus", TXT_ENTERING_DEEP_SLEEP_FOR, sleepDuration);
   esp_deep_sleep_start();
@@ -208,6 +208,12 @@ void setup() {
 
   printHeapUsage();
 
+  // Correct the wall clock for the slow-clock drift accumulated during the
+  // previous deep sleep. Must run before any path (low battery, WiFi
+  // failure, ...) can enter deep sleep again, or the recorded sleep duration
+  // is replaced without its interval ever being corrected.
+  rtcDriftApplyWakeupCorrection();
+
   // Open namespace for read/write to non-volatile storage
   prefs.begin(NVS_NAMESPACE, false);
 
@@ -243,11 +249,11 @@ void setup() {
         LOG_CRITICAL("%s", TXT_CRIT_LOW_BATTERY_VOLTAGE);
         LOG_CRITICAL("%s", TXT_HIBERNATING_INDEFINITELY_NOTICE);
       } else if (batteryVoltage <= VERY_LOW_BATTERY_VOLTAGE) {  // very low battery
-        esp_sleep_enable_timer_wakeup(VERY_LOW_BATTERY_SLEEP_INTERVAL * 60ULL * 1000000ULL);
+        esp_sleep_enable_timer_wakeup(rtcDriftScaleSleepUs(VERY_LOW_BATTERY_SLEEP_INTERVAL * 60ULL * 1000000ULL));
         LOG_WARNING("%s", TXT_VERY_LOW_BATTERY_VOLTAGE);
         LOG_WARNING("%s %umin", TXT_ENTERING_DEEP_SLEEP_FOR, VERY_LOW_BATTERY_SLEEP_INTERVAL);
       } else {  // low battery
-        esp_sleep_enable_timer_wakeup(LOW_BATTERY_SLEEP_INTERVAL * 60ULL * 1000000ULL);
+        esp_sleep_enable_timer_wakeup(rtcDriftScaleSleepUs(LOW_BATTERY_SLEEP_INTERVAL * 60ULL * 1000000ULL));
         LOG_WARNING("%s", TXT_LOW_BATTERY_VOLTAGE);
         LOG_WARNING("%s %umin", TXT_ENTERING_DEEP_SLEEP_FOR, LOW_BATTERY_SLEEP_INTERVAL);
       }

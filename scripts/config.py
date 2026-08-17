@@ -311,6 +311,7 @@ def generate(config_path, header_path, write_header=True):
     emit_typed(header_lines, "NTP_SERVER_2", config.ntp.server_2)
     emit_typed(header_lines, "NTP_SYNC_INTERVAL_WAKEUPS", config.ntp.syncIntervalWakeups)
     emit_typed(header_lines, "NTP_TIMEOUT", config.ntp.timeout)
+    emit_define(header_lines, "RTC_DRIFT_CORRECTION", 1 if config.ntp.rtcCorrection else 0)
 
     # bme configuration
     header_lines.append("// bme configuration")

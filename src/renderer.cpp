@@ -978,7 +978,7 @@ void drawCurrentVisibility(const current_t &current) {
    * Up to 2 alerts can be drawn.
    */
   void drawAlerts(std::vector<weather_alert_t> & alerts, const String &city, const String &date) {
-    LOG_DEBUG("alerts.size()    : %u", alerts.size());
+    LOG_DEBUG("Alerts size is %u", alerts.size());
     if (alerts.size() == 0) {  // no alerts to draw
       return;
     }
