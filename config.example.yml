@@ -21,6 +21,9 @@ airQualityAPI:
 
 alertsAPI:
   provider: MeteoAlarm
+  # MeteoAlarm Atom feed country slug, e.g. netherlands, ukraine or
+  # united-kingdom. Must be one of the feeds listed at
+  # https://feeds.meteoalarm.org/ (validated at build time).
   country: netherlands
 
 ntp:

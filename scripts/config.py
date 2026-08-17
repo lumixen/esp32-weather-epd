@@ -349,7 +349,7 @@ def generate(config_path, header_path, write_header=True):
     else:  # MeteoAlarm
         emit_define(header_lines, "ALERTS_API_PROVIDER_METEOALARM")
         header_lines.append("#if defined(ALERTS_API_PROVIDER_METEOALARM)")
-        emit_typed(header_lines, "METEOALARM_COUNTRY", config.alertsAPI.country)
+        emit_typed(header_lines, "METEOALARM_COUNTRY", config.alertsAPI.country.value)
         header_lines.append("#endif  // ALERTS_API_PROVIDER_METEOALARM")
 
     # status bar and debug configuration

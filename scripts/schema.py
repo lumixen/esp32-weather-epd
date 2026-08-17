@@ -197,6 +197,51 @@ class MoonPhaseStyle(str, Enum):
     ALTERNATIVE = "alternative"
 
 
+class MeteoAlarmCountry(DocEnum):
+    """Country slug of the MeteoAlarm Atom feed
+    (https://feeds.meteoalarm.org/)"""
+
+    ANDORRA = "andorra", "Andorra"
+    AUSTRIA = "austria", "Austria"
+    BELGIUM = "belgium", "Belgium"
+    BOSNIA_HERZEGOVINA = "bosnia-herzegovina", "Bosnia and Herzegovina"
+    BULGARIA = "bulgaria", "Bulgaria"
+    CROATIA = "croatia", "Croatia"
+    CYPRUS = "cyprus", "Cyprus"
+    CZECHIA = "czechia", "Czech Republic"
+    DENMARK = "denmark", "Denmark"
+    ESTONIA = "estonia", "Estonia"
+    FINLAND = "finland", "Finland"
+    FRANCE = "france", "France"
+    GERMANY = "germany", "Germany"
+    GREECE = "greece", "Greece"
+    HUNGARY = "hungary", "Hungary"
+    ICELAND = "iceland", "Iceland"
+    IRELAND = "ireland", "Ireland"
+    ISRAEL = "israel", "Israel"
+    ITALY = "italy", "Italy"
+    LATVIA = "latvia", "Latvia"
+    LITHUANIA = "lithuania", "Lithuania"
+    LUXEMBOURG = "luxembourg", "Luxembourg"
+    MALTA = "malta", "Malta"
+    MOLDOVA = "moldova", "Moldova"
+    MONTENEGRO = "montenegro", "Montenegro"
+    NETHERLANDS = "netherlands", "Netherlands"
+    NORTH_MACEDONIA = "republic-of-north-macedonia", "Republic of North Macedonia"
+    NORWAY = "norway", "Norway"
+    POLAND = "poland", "Poland"
+    PORTUGAL = "portugal", "Portugal"
+    ROMANIA = "romania", "Romania"
+    SERBIA = "serbia", "Serbia"
+    SLOVAKIA = "slovakia", "Slovakia"
+    SLOVENIA = "slovenia", "Slovenia"
+    SPAIN = "spain", "Spain"
+    SWEDEN = "sweden", "Sweden"
+    SWITZERLAND = "switzerland", "Switzerland"
+    UKRAINE = "ukraine", "Ukraine"
+    UNITED_KINGDOM = "united-kingdom", "United Kingdom (GB/NI)"
+
+
 # END ENUMS
 
 
@@ -243,10 +288,10 @@ class MeteoAlarmAlertConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     provider: Literal["MeteoAlarm"] = "MeteoAlarm"
-    # Feeds are fetched per country. The country name must match the slug
-    # used in the feed URL, e.g. "netherlands", "united-kingdom", "austria"
-    # (see https://feeds.meteoalarm.org/).
-    country: str = ""
+    # Country slug used in the Atom feed URL, e.g. "netherlands",
+    # "united-kingdom", "austria". The value is validated against the feeds
+    # listed at https://feeds.meteoalarm.org/.
+    country: MeteoAlarmCountry
 
     def provider_to_config_value(self):
         return "#define ALERTS_API_PROVIDER_METEOALARM"
@@ -544,11 +589,6 @@ class ConfigSchema(BaseModel):
             or self.alertsAPI.provider == AlertsAPI.OPEN_WEATHER_MAP
         ) and not self.owmApikey:
             raise ValueError("The API key is required on OpenWeatherMap")
-        if (
-            self.alertsAPI.provider == AlertsAPI.METEOALARM
-            and not self.alertsAPI.country
-        ):
-            raise ValueError("The country is required on MeteoAlarm")
         return self
 
     @model_validator(mode="after")

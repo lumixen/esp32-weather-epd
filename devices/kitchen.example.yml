@@ -29,8 +29,9 @@ airQualityAPI:
 # Severe weather alerts: None, OpenWeatherMap or MeteoAlarm.
 alertsAPI:
   provider: MeteoAlarm
-  # MeteoAlarm country feed slug, e.g. ukraine or united-kingdom
-  # (https://www.meteoalarm.org/en/live/feed).
+  # MeteoAlarm Atom feed country slug, e.g. ukraine or united-kingdom.
+  # Must be one of the feeds listed at https://feeds.meteoalarm.org/
+  # (validated at build time).
   country: ukraine
 
 # NTP time servers (server_1 must be an IP for the old protocol fallback).
