@@ -13,6 +13,7 @@
 #   devices.sh build <name|path> [--env <env>] [pio args...]
 #   devices.sh flash <name|path> [--env <env>] [port]
 #   devices.sh monitor <name|path> [--env <env>] [port]
+#   devices.sh flash-monitor <name|path> [--env <env>] [port]
 #   devices.sh run <pio args...>               pass-through to pio
 #
 # Environment:
@@ -35,6 +36,7 @@ Usage:
   devices.sh build <name|path> [--env <env>] [pio args...]
   devices.sh flash <name|path> [--env <env>] [port]
   devices.sh monitor <name|path> [--env <env>] [port]
+  devices.sh flash-monitor <name|path> [--env <env>] [port]
   devices.sh run <pio args...>
 EOF
     exit 1
@@ -177,6 +179,18 @@ case "$cmd" in
             echo "error: config file not found: $config_path" >&2
             exit 1
         fi
+        ESP32_EPD_CONFIG="$config_path" "$PIO" device monitor ${port:+-p "$port"} "${POS_ARGS[@]:2}"
+        ;;
+    flash-monitor)
+        parse_env "${@:2}"
+        [[ ${#POS_ARGS[@]} -ge 1 ]] || usage
+        config_path="$(resolve_config "${POS_ARGS[0]}")"
+        port="${POS_ARGS[1]:-}"
+        if [[ ! -f "$config_path" ]]; then
+            echo "error: config file not found: $config_path" >&2
+            exit 1
+        fi
+        ESP32_EPD_CONFIG="$config_path" "$PIO" run -e "$ENV_SELECTION" -t upload ${port:+--upload-port "$port"}
         ESP32_EPD_CONFIG="$config_path" "$PIO" device monitor ${port:+-p "$port"} "${POS_ARGS[@]:2}"
         ;;
     run)
