@@ -253,7 +253,7 @@ const std::vector<String> TERM_HURRICANE =
 const std::vector<String> TERM_DUST =
     {"dust", "sand"};
 const std::vector<String> TERM_STRONG_WIND =
-    {"wind", "monsoon"};
+    {"squall", "wind", "monsoon"};
 
 // AIR QUALITY INDEX
 extern "C" {
