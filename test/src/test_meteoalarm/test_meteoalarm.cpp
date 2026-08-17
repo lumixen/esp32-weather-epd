@@ -246,14 +246,16 @@ static void test_garbage(void) {
 }
 
 /* No more than 2 alerts are kept (the renderer displays at most 2), and
- * parsing stops as soon as that many have been collected: the remaining body
- * is not read, cutting the download short. The feed is sized well above the
- * parser's read buffer (4096 bytes) so the first chunk does not already
- * contain the whole document. */
+ * parsing stops as soon as that many distinct hazards have been collected:
+ * the remaining body is not read, cutting the download short. The feed is
+ * sized well above the parser's read buffer (4096 bytes) so the first chunk
+ * does not already contain the whole document. */
 static void test_alert_cap(void) {
   String feed = "<feed xmlns=\"http://www.w3.org/2005/Atom\" xmlns:cap=\"urn:oasis:names:tc:emergency:cap:1.2\">";
+  const char *hazards[] = {"Wind warning", "Rain warning", "Thunderstorm warning", "Hail warning"};
   for (int i = 0; i < 64; ++i) {
-    feed += "<entry><cap:areaDesc>Area " + String(i) + "</cap:areaDesc><cap:event>Wind warning</cap:event>";
+    feed += "<entry><cap:areaDesc>Area " + String(i) + "</cap:areaDesc><cap:event>" + hazards[i % 4]
+            + "</cap:event>";
     feed += "<cap:effective>2026-08-07T10:44:21+00:00</cap:effective>";
     feed += "<cap:expires>2026-08-07T18:00:00+00:00</cap:expires><cap:severity>Moderate</cap:severity></entry>";
   }
@@ -264,27 +266,32 @@ static void test_alert_cap(void) {
   DeserializationError err = MeteoAlarmAlertProvider::parseFeed(ss, alerts, kNow);
   TEST_ASSERT_TRUE(err == DeserializationError::Ok);
   TEST_ASSERT_EQUAL_UINT(2, alerts.size());
-  for (size_t i = 0; i < alerts.size(); ++i) {
-    TEST_ASSERT_EQUAL_STRING("Yellow Wind Warning", alerts[i].event.c_str());
-  }
-  // The parse stopped as soon as the second entry completed, long before the
-  // end of the document.
+  TEST_ASSERT_EQUAL_STRING("Yellow Wind Warning", alerts[0].event.c_str());
+  TEST_ASSERT_EQUAL_STRING("Yellow Rain Warning", alerts[1].event.c_str());
+  // The parse stopped as soon as the second distinct hazard completed, long
+  // before the end of the document.
   TEST_ASSERT(ss.bytesRead() < feed.length());
 }
 
-/* Severity colors: with more than 2 alerts only the first two in feed order
- * are kept (the renderer displays at most 2). The full color mapping is
- * covered by test_color_from_severity. */
+/* Severity colors: with more than 2 alerts only the first two distinct
+ * hazards in feed order are kept (the renderer displays at most 2). The full
+ * color mapping is covered by test_color_from_severity. */
 static void test_severity_colors(void) {
   String feed = "<feed xmlns=\"http://www.w3.org/2005/Atom\" xmlns:cap=\"urn:oasis:names:tc:emergency:cap:1.2\">";
-  const char *sevs[] = {"Severe", "Extreme", "Unknown", ""};
-  for (const char *sev : sevs) {
-    feed += "<entry><cap:areaDesc>Area</cap:areaDesc><cap:event>Thunderstormwarning</cap:event>";
+  struct {
+    const char *event;
+    const char *severity;
+  } sevs[] = {{"Thunderstormwarning", "Severe"}, {"Squall warning", "Extreme"},
+              {"Hail warning", "Unknown"}, {"Wind warning", ""}};
+  for (const auto &s : sevs) {
+    feed += "<entry><cap:areaDesc>Area</cap:areaDesc><cap:event>";
+    feed += s.event;
+    feed += "</cap:event>";
     feed += "<cap:effective>2026-08-07T10:44:21+00:00</cap:effective>";
     feed += "<cap:expires>2026-08-07T18:00:00+00:00</cap:expires>";
-    if (sev[0] != '\0') {
+    if (s.severity[0] != '\0') {
       feed += "<cap:severity>";
-      feed += sev;
+      feed += s.severity;
       feed += "</cap:severity>";
     }
     feed += "</entry>";
@@ -296,7 +303,7 @@ static void test_severity_colors(void) {
   TEST_ASSERT_TRUE(err == DeserializationError::Ok);
   TEST_ASSERT_EQUAL_UINT(2, alerts.size());
   TEST_ASSERT_EQUAL_STRING("Orange Thunderstorm Warning", alerts[0].event.c_str());
-  TEST_ASSERT_EQUAL_STRING("Red Thunderstorm Warning", alerts[1].event.c_str());
+  TEST_ASSERT_EQUAL_STRING("Red Squall Warning", alerts[1].event.c_str());
 }
 
 /* Point-in-polygon: ray casting on a square ring. The ring is closed in the
@@ -360,6 +367,120 @@ static void test_polygon_missing_kept(void) {
   TEST_ASSERT_EQUAL_UINT(1, alerts.size());
 }
 
+/* Same-hazard warnings with different time ranges (e.g. a squall today and
+ * another one tomorrow) are merged into a single alert whose validity span
+ * is the union of both windows. */
+static void test_merge_union_span(void) {
+  const char *feed = R"FEED(
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:cap="urn:oasis:names:tc:emergency:cap:1.2">
+  <entry>
+    <cap:areaDesc>Test region</cap:areaDesc>
+    <cap:event>Wind warning</cap:event>
+    <cap:effective>2026-08-07T10:44:21+00:00</cap:effective>
+    <cap:onset>2026-08-07T12:00:00+00:00</cap:onset>
+    <cap:expires>2026-08-07T21:00:00+00:00</cap:expires>
+    <cap:severity>Moderate</cap:severity>
+  </entry>
+  <entry>
+    <cap:areaDesc>Test region</cap:areaDesc>
+    <cap:event>Wind warning</cap:event>
+    <cap:effective>2026-08-07T10:44:21+00:00</cap:effective>
+    <cap:onset>2026-08-08T06:00:00+00:00</cap:onset>
+    <cap:expires>2026-08-08T18:00:00+00:00</cap:expires>
+    <cap:severity>Moderate</cap:severity>
+  </entry>
+</feed>
+)FEED";
+  std::vector<weather_alert_t> alerts;
+  DeserializationError err = parseFeed(feed, alerts, kNow);
+  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  TEST_ASSERT_EQUAL_UINT(1, alerts.size());
+  TEST_ASSERT_EQUAL_STRING("Yellow Wind Warning", alerts[0].event.c_str());
+  TEST_ASSERT_EQUAL_STRING("wind", alerts[0].tags.c_str());
+  TEST_ASSERT_EQUAL_INT64(1786104000LL, alerts[0].start);  // 2026-08-07T12:00:00Z
+  TEST_ASSERT_EQUAL_INT64(1786212000LL, alerts[0].end);    // 2026-08-08T18:00:00Z
+}
+
+/* A duplicated hazard must not consume one of the 2 alert slots: Squall
+ * (x2, different time windows) + Hail collect the same two slots as Squall
+ * + Hail, and parsing stops after the second distinct hazard. */
+static void test_merge_distinct_hazards(void) {
+  const char *feed = R"FEED(
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:cap="urn:oasis:names:tc:emergency:cap:1.2">
+  <entry>
+    <cap:areaDesc>Test region</cap:areaDesc>
+    <cap:event>Squall warning</cap:event>
+    <cap:effective>2026-08-07T10:44:21+00:00</cap:effective>
+    <cap:onset>2026-08-07T12:00:00+00:00</cap:onset>
+    <cap:expires>2026-08-07T21:00:00+00:00</cap:expires>
+    <cap:severity>Moderate</cap:severity>
+  </entry>
+  <entry>
+    <cap:areaDesc>Test region</cap:areaDesc>
+    <cap:event>Squall warning</cap:event>
+    <cap:effective>2026-08-07T10:44:21+00:00</cap:effective>
+    <cap:onset>2026-08-08T06:00:00+00:00</cap:onset>
+    <cap:expires>2026-08-08T18:00:00+00:00</cap:expires>
+    <cap:severity>Moderate</cap:severity>
+  </entry>
+  <entry>
+    <cap:areaDesc>Test region</cap:areaDesc>
+    <cap:event>Hail warning</cap:event>
+    <cap:effective>2026-08-07T10:44:21+00:00</cap:effective>
+    <cap:onset>2026-08-07T19:00:00+00:00</cap:onset>
+    <cap:expires>2026-08-08T06:00:00+00:00</cap:expires>
+    <cap:severity>Moderate</cap:severity>
+  </entry>
+</feed>
+)FEED";
+  std::vector<weather_alert_t> alerts;
+  DeserializationError err = parseFeed(feed, alerts, kNow);
+  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  TEST_ASSERT_EQUAL_UINT(2, alerts.size());
+  TEST_ASSERT_EQUAL_STRING("Yellow Squall Warning", alerts[0].event.c_str());
+  TEST_ASSERT_EQUAL_STRING("squall", alerts[0].tags.c_str());
+  TEST_ASSERT_EQUAL_INT64(1786104000LL, alerts[0].start);  // union of both windows
+  TEST_ASSERT_EQUAL_INT64(1786212000LL, alerts[0].end);
+  TEST_ASSERT_EQUAL_STRING("Yellow Hail Warning", alerts[1].event.c_str());
+  TEST_ASSERT_EQUAL_STRING("hail", alerts[1].tags.c_str());
+}
+
+/* When a later entry of the same hazard is more urgent, the merged alert
+ * adopts the higher severity color (span stays the union). */
+static void test_merge_severity_upgrade(void) {
+  const char *feed = R"FEED(
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:cap="urn:oasis:names:tc:emergency:cap:1.2">
+  <entry>
+    <cap:areaDesc>Test region</cap:areaDesc>
+    <cap:event>Thunderstormwarning</cap:event>
+    <cap:effective>2026-08-07T10:44:21+00:00</cap:effective>
+    <cap:onset>2026-08-07T12:00:00+00:00</cap:onset>
+    <cap:expires>2026-08-07T21:00:00+00:00</cap:expires>
+    <cap:severity>Moderate</cap:severity>
+  </entry>
+  <entry>
+    <cap:areaDesc>Test region</cap:areaDesc>
+    <cap:event>Thunderstormwarning</cap:event>
+    <cap:effective>2026-08-07T10:44:21+00:00</cap:effective>
+    <cap:onset>2026-08-08T06:00:00+00:00</cap:onset>
+    <cap:expires>2026-08-08T18:00:00+00:00</cap:expires>
+    <cap:severity>Severe</cap:severity>
+  </entry>
+</feed>
+)FEED";
+  std::vector<weather_alert_t> alerts;
+  DeserializationError err = parseFeed(feed, alerts, kNow);
+  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  TEST_ASSERT_EQUAL_UINT(1, alerts.size());
+  TEST_ASSERT_EQUAL_STRING("Orange Thunderstorm Warning", alerts[0].event.c_str());
+  TEST_ASSERT_EQUAL_STRING("thunderstorm", alerts[0].tags.c_str());
+  TEST_ASSERT_EQUAL_INT64(1786104000LL, alerts[0].start);  // union of both windows
+  TEST_ASSERT_EQUAL_INT64(1786212000LL, alerts[0].end);
+}
+
 /* Fresh real feed excerpt (2026-08-08, trimmed from 131 entries): of the
  * six entries, four cover a point in western Ukraine (51.1, 24.85) — Squall,
  * Hail and two Thunderstorm warnings — and two do not. Parsing stops at the
@@ -389,9 +510,10 @@ static void test_latest_feed_polygon_filter(void) {
 }
 
 /* Expiry at the boundary of the fresh fixture: three entries expire exactly
- * at kNow and drop at kNow+1. At kNow the first two entries in feed order
- * (two Squall warnings) are kept; at kNow+1 the two surviving entries are
- * the Heavy rain and Thunderstorm warnings. */
+ * at kNow and drop at kNow+1. At kNow the two Squall duplicates merge into
+ * the first slot (union of identical spans) and Hail fills the second; at
+ * kNow+1 the two surviving entries are the Heavy rain and Thunderstorm
+ * warnings. */
 static void test_latest_feed_expiry(void) {
   std::vector<weather_alert_t> alerts;
 
@@ -399,9 +521,11 @@ static void test_latest_feed_expiry(void) {
   TEST_ASSERT_TRUE(err == DeserializationError::Ok);
   TEST_ASSERT_EQUAL_UINT(2, alerts.size());
   TEST_ASSERT_EQUAL_STRING("Yellow Squall Warning", alerts[0].event.c_str());
+  TEST_ASSERT_EQUAL_STRING("squall", alerts[0].tags.c_str());
   TEST_ASSERT_EQUAL_INT64(kSquallStart, alerts[0].start);
   TEST_ASSERT_EQUAL_INT64(kNow, alerts[0].end);
-  TEST_ASSERT_EQUAL_STRING("Yellow Squall Warning", alerts[1].event.c_str());
+  TEST_ASSERT_EQUAL_STRING("Yellow Hail Warning", alerts[1].event.c_str());
+  TEST_ASSERT_EQUAL_STRING("hail", alerts[1].tags.c_str());
   TEST_ASSERT_EQUAL_INT64(kSquallStart, alerts[1].start);
   TEST_ASSERT_EQUAL_INT64(kNow, alerts[1].end);
 
@@ -684,6 +808,9 @@ void setup() {
   RUN_TEST(test_point_in_polygon);
   RUN_TEST(test_polygon_filter_fixture);
   RUN_TEST(test_polygon_missing_kept);
+  RUN_TEST(test_merge_union_span);
+  RUN_TEST(test_merge_distinct_hazards);
+  RUN_TEST(test_merge_severity_upgrade);
   RUN_TEST(test_latest_feed_polygon_filter);
   RUN_TEST(test_latest_feed_expiry);
   RUN_TEST(test_expected_len);
