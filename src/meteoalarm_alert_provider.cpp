@@ -15,8 +15,16 @@
 #include "meteoalarm_alert_provider.h"
 
 // The renderer displays at most 2 alerts: parsing stops once that many
-// matching warnings were collected, cutting the download short.
+// matching warnings of distinct hazards were collected, cutting the download
+// short (same-hazard entries are merged, see addEntry).
 #define METEOALARM_NUM_ALERTS 2
+
+// Severity rank of the MeteoAlarm awareness colors, used to keep the most
+// urgent occurrence when same-hazard warnings are merged (higher wins).
+#define METEOALARM_SEVERITY_RANK_NONE 0
+#define METEOALARM_SEVERITY_RANK_YELLOW 1
+#define METEOALARM_SEVERITY_RANK_ORANGE 2
+#define METEOALARM_SEVERITY_RANK_RED 3
 
 static const char *METEOALARM_ENDPOINT = "feeds.meteoalarm.org";
 
@@ -43,6 +51,22 @@ struct entry_data_t {
   }
 };
 
+/* Severity rank of an alert event text, derived from its leading awareness
+ * color word (see colorFromSeverity: "Red/Orange/Yellow <hazard> Warning",
+ * or "<hazard> Warning" when no color was mapped). */
+static int severityRankFromEvent(const String &event) {
+  if (event.startsWith("Red ")) {
+    return METEOALARM_SEVERITY_RANK_RED;
+  }
+  if (event.startsWith("Orange ")) {
+    return METEOALARM_SEVERITY_RANK_ORANGE;
+  }
+  if (event.startsWith("Yellow ")) {
+    return METEOALARM_SEVERITY_RANK_YELLOW;
+  }
+  return METEOALARM_SEVERITY_RANK_NONE;
+}
+
 /* Days from civil epoch (1970-01-01), from Howard Hinnant's date algorithms. */
 static int64_t daysFromCivil(int y, unsigned m, unsigned d) {
   y -= (m <= 2);
@@ -55,7 +79,12 @@ static int64_t daysFromCivil(int y, unsigned m, unsigned d) {
 
 /* Add an entry to the alerts if it has not expired yet and its polygon, if
  * any, contains the configured location (alerts without a polygon are
- * kept). */
+ * kept). Entries of the same hazard (e.g. separate time windows or oblast
+ * clusters of one warning) are merged into the existing alert rather than
+ * appended: the validity span becomes the union of both, and the text keeps
+ * the color of the most urgent severity. Merged entries do not count toward
+ * METEOALARM_NUM_ALERTS, so the cap is consumed by distinct hazards only.
+ */
 void addEntry(entry_data_t &e, std::vector<weather_alert_t> &alerts, int64_t now, double lat,
               double lon) {
   if (!e.any) {
@@ -87,6 +116,25 @@ void addEntry(entry_data_t &e, std::vector<weather_alert_t> &alerts, int64_t now
 
   alert.tags = hazard;
   alert.tags.toLowerCase();
+
+  // Merge same-hazard warnings: keep the most urgent color and expand the
+  // validity span to the union of both time ranges. The 2-alert cap is
+  // therefore filled with distinct hazards, not feed entries.
+  for (weather_alert_t &a : alerts) {
+    if (a.tags != alert.tags) {
+      continue;
+    }
+    if (severityRankFromEvent(alert.event) > severityRankFromEvent(a.event)) {
+      a.event = alert.event;
+    }
+    if (alert.start > 0 && (a.start <= 0 || alert.start < a.start)) {
+      a.start = alert.start;
+    }
+    if (alert.end > a.end) {
+      a.end = alert.end;
+    }
+    return;
+  }
 
   alerts.push_back(alert);
 }
