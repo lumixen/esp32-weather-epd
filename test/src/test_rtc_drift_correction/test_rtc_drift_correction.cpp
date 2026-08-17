@@ -1,10 +1,5 @@
 /* Unit tests for the RTC slow-clock drift auto-correction (time_utils.cpp).
  *
- * The pure math helpers in time_utils.h (namespace rtc_drift) are exercised
- * on the ESP32 QEMU emulator. The RTC-memory/NTP state machine around them
- * (rtcDriftOnNtpSync, rtcDriftApplyWakeupCorrection) depends on real
- * hardware behavior and is not covered here.
- *
  * GPL-3.0, see LICENSE.
  */
 
@@ -49,7 +44,7 @@ void test_scale_identity(void) {
 void test_scale_ratio(void) {
   const uint64_t us = 1800ULL * 1000000ULL;
   for (int i = 0; i <= 20; ++i) {
-    const double k = kMinFactor + (double)i * (kMaxFactor - kMinFactor) / 20.0;
+    const double k = RTC_DRIFT_MIN_FACTOR + (double)i * (RTC_DRIFT_MAX_FACTOR - RTC_DRIFT_MIN_FACTOR) / 20.0;
     const uint64_t scaled = scaleSleepUs(us, k);
     const double restored = (double)scaled * k;
     assertNear(restored, (double)us, 1e-6);
@@ -62,7 +57,7 @@ void test_scale_monotonic(void) {
   const uint64_t us = 60ULL * 1000000ULL;
   uint64_t prev = 0;
   for (int i = 20; i >= 0; --i) {
-    const double k = kMinFactor + (double)i * (kMaxFactor - kMinFactor) / 20.0;
+    const double k = RTC_DRIFT_MIN_FACTOR + (double)i * (RTC_DRIFT_MAX_FACTOR - RTC_DRIFT_MIN_FACTOR) / 20.0;
     const uint64_t scaled = scaleSleepUs(us, k);
     TEST_ASSERT_TRUE_MESSAGE(scaled >= prev, "scaled duration must be monotonic in 1/k");
     prev = scaled;
@@ -74,7 +69,7 @@ void test_scale_monotonic(void) {
 void test_wake_shift_consistency(void) {
   const uint64_t us = 10ULL * 3600ULL * 1000000ULL;  // 10 h, critical case
   for (int i = 0; i <= 20; ++i) {
-    const double k = kMinFactor + (double)i * (kMaxFactor - kMinFactor) / 20.0;
+    const double k = RTC_DRIFT_MIN_FACTOR + (double)i * (RTC_DRIFT_MAX_FACTOR - RTC_DRIFT_MIN_FACTOR) / 20.0;
     const uint64_t claimed = scaleSleepUs(us, k);
     const int64_t shift = wakeShiftUs(claimed, k);
     const double corrected = (double)claimed + (double)shift;
@@ -85,7 +80,7 @@ void test_wake_shift_consistency(void) {
 /* Absurd factors must not produce absurd shifts (clamp at 10%). */
 void test_wake_shift_clamp(void) {
   const uint64_t claimed = 3600ULL * 1000000ULL;  // 1 h
-  const int64_t bound = (int64_t)((double)claimed * kMaxShiftRatio);
+  const int64_t bound = (int64_t)((double)claimed * RTC_DRIFT_MAX_SHIFT_RATIO);
 
   const int64_t shiftSlow = wakeShiftUs(claimed, 0.5);
   TEST_ASSERT_TRUE_MESSAGE(shiftSlow < 0 && shiftSlow >= -bound, "slow-clock shift must be clamped");
@@ -104,23 +99,23 @@ void test_sample_factor(void) {
   assertNear(sampleFactor(-0.01), 1.0101010101, 1e-9);
 }
 
-/* EMA update with alpha = kLearnAlpha. */
+/* EMA update with alpha = RTC_DRIFT_LEARN_ALPHA. */
 void test_update_factor_ema(void) {
   const double sample = sampleFactor(0.01);  // 0.990099...
-  const double expected = 1.0 + kLearnAlpha * (sample - 1.0);
+  const double expected = 1.0 + RTC_DRIFT_LEARN_ALPHA * (sample - 1.0);
   assertNear(updateFactor(1.0, 0.01), expected, 1e-9);
 
   // k converges towards the sample factor.
   const double next = updateFactor(expected, 0.01);
-  assertNear(next, expected + kLearnAlpha * (sample - expected), 1e-9);
+  assertNear(next, expected + RTC_DRIFT_LEARN_ALPHA * (sample - expected), 1e-9);
   TEST_ASSERT_TRUE_MESSAGE(std::fabs(next - sample) < std::fabs(expected - sample),
                            "EMA must move towards the sample");
 }
 
-/* The learned factor is clamped to [kMinFactor, kMaxFactor]. */
+/* The learned factor is clamped to [RTC_DRIFT_MIN_FACTOR, RTC_DRIFT_MAX_FACTOR]. */
 void test_update_factor_clamp(void) {
-  assertNear(updateFactor(kMinFactor - 0.1, 0.0), kMinFactor, 1e-12);
-  assertNear(updateFactor(kMaxFactor + 0.1, 0.0), kMaxFactor, 1e-12);
+  assertNear(updateFactor(RTC_DRIFT_MIN_FACTOR - 0.1, 0.0), RTC_DRIFT_MIN_FACTOR, 1e-12);
+  assertNear(updateFactor(RTC_DRIFT_MAX_FACTOR + 0.1, 0.0), RTC_DRIFT_MAX_FACTOR, 1e-12);
 }
 
 /* Full learning loop: with a constant true slow-clock ratio (e.g. 0.9932,

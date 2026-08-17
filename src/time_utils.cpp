@@ -54,13 +54,13 @@ void rtcDriftOnNtpSync(uint64_t rtcUsNow, time_t epochNow) {
   rtcDrift.lastSyncRtcUs = rtcUsNow;
   rtcDrift.lastSyncEpoch = epochNow;
 
-  if (elapsedRealUs < (long long)rtc_drift::kMinLearnIntervalUs || elapsedRtcUs <= 0) {
+  if (elapsedRealUs < (long long)rtc_drift::RTC_DRIFT_MIN_LEARN_INTERVAL_US || elapsedRtcUs <= 0) {
     LOG_DEBUG("RTC drift correction: interval too short (%lld s), skipping sample", elapsedRealUs / 1000000LL);
     return;
   }
 
   const double rateError = ((double)elapsedRtcUs - (double)elapsedRealUs) / (double)elapsedRealUs;
-  if (std::fabs(rateError) > rtc_drift::kMaxRateError) {
+  if (std::fabs(rateError) > rtc_drift::RTC_DRIFT_MAX_RATE_ERROR) {
     // Outlier (NTP hiccup, timezone change, ...): re-baseline, do not learn.
     LOG_WARNING("RTC drift correction: rejecting outlier drift of %+.0f ppm", rateError * 1e6);
     return;

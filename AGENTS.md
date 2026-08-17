@@ -29,7 +29,7 @@ Unit tests run on the ESP32 QEMU emulator inside Docker — no hardware needed:
 bash test/run_tests_docker.sh
 ```
 
-- Suite: `lolin_d32_qemu` env; tests live in `test/src/test_meteoalarm/` (Unity); the run must end with all test cases succeeding.
+- Suite: `lolin_d32_qemu` env (Unity); the run must end with all test cases succeeding.
 - The env compiles `src/` together with the tests (`test_build_src = yes`); `main.cpp` is excluded via `#if !defined(PIO_UNIT_TESTING)`. New suites: create `test/src/<suite>/test_<suite>.cpp`; `test_dir = test/src` keeps the rest of `test/` (Docker/QEMU infra) out of the build.
 - `PIO_UNIT_TESTING` is set via `build_src_flags` in the qemu env: pioarduino compiles `src/` through the IDF build, which does not receive the macro PlatformIO's test runner adds for libraries.
 - Mechanics: repo bind-mounted read-write at `/project` → build artifacts land in `.pio/` on the host. PlatformIO toolchains are cached in the named Docker volume `esp32-weather-epd-pio` (`/root/.platformio` in-container; `docker volume rm esp32-weather-epd-pio` forces re-download). QEMU is baked into the image at `/opt/qemu`; the `esp32-weather-epd-test` image is rebuilt only when missing (`docker rmi` to force).
@@ -51,8 +51,8 @@ bash test/run_tests_docker.sh
 
 ## Source layout
 
-- `src/` — implementation (`main.cpp`, `renderer.cpp`, `display_utils.cpp`, weather/air-quality/alert providers, `moon_tools.cpp`).
-- `include/` — headers and data models (`data_models.h` = provider-agnostic forecast models, `config.h` = generated config, `renderer.h`, `display_utils.h`, `moon_tools.h`).
+- `src/` — implementation (`main.cpp`, `renderer.cpp`, `display_utils.cpp`, weather/air-quality/alert providers, `moon_tools.cpp`, `time_utils.cpp`).
+- `include/` — headers and data models (`data_models.h` = provider-agnostic forecast models, `config.h` = generated config, `renderer.h`, `display_utils.h`, `moon_tools.h`, `time_utils.h`).
 - `lib/` — custom local libraries.
 - `icons/`, `fonts/` — asset generation tooling (SVG → header pipelines), not part of the build.
 - Moon rise/set/phase are computed locally (`moon_tools.cpp`, libs `MoonRise` + `moonPhase-esp32`) and passed to the renderer as a standalone `moon_state_t`; providers do not supply moon data.
@@ -60,3 +60,4 @@ bash test/run_tests_docker.sh
 ## Conventions
 
 - Files carry the GPL-3.0 header (see existing files). Match the existing code style when editing.
+- Constants use `UPPER_SNAKE_CASE` (e.g. `NTP_SYNC_INTERVAL_WAKEUPS`, `RTC_DRIFT_LEARN_ALPHA`); types, functions and variables use camelCase. Prefer a domain prefix (`RTC_DRIFT_*`, `HTTP_CLIENT_*`) over bare generic names.
