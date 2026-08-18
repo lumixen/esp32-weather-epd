@@ -346,6 +346,7 @@ def generate(config_path, header_path, write_header=True):
         emit_define(header_lines, "ALERTS_API_PROVIDER_NONE")
     elif config.alertsAPI.provider == "OpenWeatherMap":
         emit_define(header_lines, "ALERTS_API_PROVIDER_OPEN_WEATHER_MAP")
+        emit_define(header_lines, f"ALERTS_API_TRANSPORT_{config.alertsAPI.transport.name}")
     else:  # MeteoAlarm
         emit_define(header_lines, "ALERTS_API_PROVIDER_METEOALARM")
         header_lines.append("#if defined(ALERTS_API_PROVIDER_METEOALARM)")

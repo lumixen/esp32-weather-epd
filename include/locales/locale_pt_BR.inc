@@ -447,7 +447,7 @@ const char *TXT_HTTP_RESPONSE_508 = "Loop Detectado";
 const char *TXT_HTTP_RESPONSE_510 = "N\343o Estendido";
 const char *TXT_HTTP_RESPONSE_511 = "Autentica\347\343o de Rede Necess\341ria";
 
-// ARDUINOJSON DESERIALIZATION ERROR CODES
+// DESERIALIZATION ERROR MESSAGES (used in provider failure details)
 const char *TXT_DESERIALIZATION_ERROR_OK               = "Desserializa\347\343o OK";
 const char *TXT_DESERIALIZATION_ERROR_EMPTY_INPUT      = "Entrada Vazia para Desserializa\347\343o";
 const char *TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT = "Entrada Incompleta para Desserializa\347\343o";

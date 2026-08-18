@@ -179,4 +179,8 @@ typedef struct forecast {
 
   hourly_t hourly[NUM_HOURLY];
   daily_t daily[NUM_DAILY];
+
+  /* Zero every field. Providers parse into long-lived instances, so a
+   * response that omits fields must never leave previous values behind. */
+  void reset() { *this = forecast{}; }
 } forecast_t;

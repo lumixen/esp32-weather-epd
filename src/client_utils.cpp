@@ -27,7 +27,6 @@
 #include <WiFi.h>
 
 // additional libraries
-#include <ArduinoJson.h>
 
 // header files
 #include "_locale.h"
@@ -148,23 +147,26 @@ void killWiFi() {
  * The `parse` callback is invoked with the response stream to deserialize
  * and map the provider response into the output model.
  *
- * Returns the HTTP Status Code, or a negative error code. The -512 offset
- * distinguishes WiFi errors from httpClient errors and the -256 offset
- * distinguishes JSON deserialization errors from httpClient errors.
+ * Returns ProviderResult::ok() once the response was received and parsed
+ * successfully. Failure detail is already localized: HTTP and WiFi errors
+ * are phrased from the numeric status by this function, parse errors carry
+ * the message the `parse` callback returned. The numeric status stays
+ * private to this function (it is only used for logging), so no magic
+ * codes reach the caller.
  */
-int httpGetWithRetry(WiFiClient &client, const String &host, uint16_t port, const String &uri,
-                     const String &sanitizedUri, bool useHttp10, uint32_t timeoutMs,
-                     std::function<DeserializationError(Stream &, size_t)> parse) {
+ProviderResult httpGetWithRetry(WiFiClient &client, const String &host, uint16_t port, const String &uri,
+                                const String &sanitizedUri, bool useHttp10, uint32_t timeoutMs,
+                                std::function<ProviderResult(Stream &, size_t)> parse) {
   int attempts = 0;
-  bool rxSuccess = false;
+  ProviderResult result;
 
   LOG_INFO("%s: %s", TXT_ATTEMPTING_HTTP_REQ, sanitizedUri.c_str());
   int httpResponse = 0;
-  while (!rxSuccess && attempts < 3) {
+  while (!result.isOk() && attempts < 3) {
     wl_status_t connection_status = WiFi.status();
     if (connection_status != WL_CONNECTED) {
-      // -512 offset distinguishes these errors from httpClient errors
-      return -512 - static_cast<int>(connection_status);
+      // The -512 offset stays private here: it only feeds the phrase lookup.
+      return ProviderResult::error(getHttpResponsePhrase(-512 - static_cast<int>(connection_status)));
     }
 
     HTTPClient http;
@@ -186,25 +188,24 @@ int httpGetWithRetry(WiFiClient &client, const String &host, uint16_t port, cons
       // so the Stream the parser reads from would otherwise keep its default
       // 1 s window (too short for large, intermittently delivered bodies).
       http.getStream().setTimeout(timeoutMs);
-      DeserializationError jsonErr = parse(http.getStream(), expectedLen);
-      if (jsonErr) {
-        // -256 offset distinguishes these errors from httpClient errors
-        httpResponse = -256 - static_cast<int>(jsonErr.code());
+      result = parse(http.getStream(), expectedLen);
+      if (!result.isOk()) {
         LOG_WARNING("stream: read timeout %u ms, advertised size %d B, http.connected()=%u, live stream ptr=%u",
                     http.getStream().getTimeout(), size, http.connected(), http.getStreamPtr() != nullptr);
       }
-      rxSuccess = !jsonErr;
+    } else {
+      result = ProviderResult::error(getHttpResponsePhrase(httpResponse));
     }
     client.stop();
     http.end();
-    LOG_INFO("%d %s", httpResponse, getHttpResponsePhrase(httpResponse));
+    LOG_INFO("%d %s", httpResponse, result.isOk() ? getHttpResponsePhrase(httpResponse) : result.detail().c_str());
     ++attempts;
-    if (!rxSuccess) {
+    if (!result.isOk()) {
       delay(100);
     }
   }
 
-  return httpResponse;
+  return result;
 }  // httpGetWithRetry
 
 /* Prints debug information about heap usage.

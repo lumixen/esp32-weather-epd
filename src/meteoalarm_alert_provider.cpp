@@ -11,7 +11,9 @@
 #include <WiFiClient.h>
 #include <WiFiClientSecure.h>
 #include "cert.h"
+#include "_locale.h"
 #include "client_utils.h"
+#include "display_utils.h"
 #include "meteoalarm_alert_provider.h"
 
 // The renderer displays at most 2 alerts: parsing stops once that many
@@ -307,14 +309,13 @@ String MeteoAlarmAlertProvider::colorFromSeverity(const String &severity) {
 }  // MeteoAlarmAlertProvider::colorFromSeverity
 
 /* Fetch the legacy Atom feed of the configured country over HTTPS (plain
- * HTTP is 302-redirected) and map its entries into the alert model.
- * Returns the HTTP status code. */
-int MeteoAlarmAlertProvider::fetch(std::vector<weather_alert_t> &alerts) {
+ * HTTP is 302-redirected) and map its entries into the alert model. */
+ProviderResult MeteoAlarmAlertProvider::fetch(std::vector<weather_alert_t> &alerts) {
   WiFiClientSecure client;
   client.setCACert(cert_GEANT_TLS_RSA_1);
   const uint16_t port = 443;
   if (METEOALARM_COUNTRY.isEmpty()) {
-    return HTTP_CODE_NOT_FOUND;
+    return ProviderResult::error(getHttpResponsePhrase(HTTP_CODE_NOT_FOUND));
   }
 
   String uri = "/feeds/meteoalarm-legacy-atom-" + METEOALARM_COUNTRY;
@@ -331,14 +332,16 @@ int MeteoAlarmAlertProvider::fetch(std::vector<weather_alert_t> &alerts) {
   // The feed (up to several hundred KB) needs far more than the default 2s
   // read window.
   const uint32_t t0 = millis();
-  const int code = httpGetWithRetry(client, METEOALARM_ENDPOINT, port, uri, sanitizedUri, false, 30000,
-                                    [&alerts, lat, lon, t0, &client](Stream &xml, size_t expectedLen) {
-                                      LOG_DEBUG("fetch: headers at +%u ms",
-                                                static_cast<unsigned>(millis() - t0));
-                                      return parseFeed(xml, alerts, time(nullptr), lat, lon, expectedLen, &client);
-                                    });
-  LOG_DEBUG("fetch total=%u ms status=%d", static_cast<unsigned>(millis() - t0), code);
-  return code;
+  const ProviderResult result = httpGetWithRetry(client, METEOALARM_ENDPOINT, port, uri, sanitizedUri, false, 30000,
+                                                 [&alerts, lat, lon, t0, &client](Stream &xml, size_t expectedLen) {
+                                                   LOG_DEBUG("fetch: headers at +%u ms",
+                                                             static_cast<unsigned>(millis() - t0));
+                                                   return parseFeed(xml, alerts, time(nullptr), lat, lon, expectedLen,
+                                                                    &client);
+                                                 });
+  LOG_DEBUG("fetch total=%u ms ok=%u detail='%s'", static_cast<unsigned>(millis() - t0), result.isOk(),
+            result.detail().c_str());
+  return result;
 }  // MeteoAlarmAlertProvider::fetch
 
 /* Streaming XML scanner for the MeteoAlarm Atom feed. Each <entry> repeats
@@ -405,7 +408,7 @@ static size_t readBytesYielding(Stream &stream, NetworkClient *networkClient, ch
   return count;
 }
 
-DeserializationError MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector<weather_alert_t> &alerts,
+ProviderResult MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector<weather_alert_t> &alerts,
                                                         int64_t now, double lat, double lon, size_t expectedLen,
                                                         NetworkClient *networkClient) {
   enum class St { TEXT, ENTITY, TAG_NAME, TAG_ATTR, TAG_ATTR_QUOTED, SKIP };
@@ -581,7 +584,7 @@ DeserializationError MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector
             entry.reset();
             if (alerts.size() >= METEOALARM_NUM_ALERTS) {
               logTiming("early-exit");
-              return DeserializationError::Ok;
+              return ProviderResult::ok();
             }
           }
         } else if (inEntry && local == capture) {
@@ -611,7 +614,7 @@ DeserializationError MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector
             entryUs += static_cast<uint64_t>(esp_timer_get_time() - tEntry0);
             if (alerts.size() >= METEOALARM_NUM_ALERTS) {
               logTiming("early-exit");
-              return DeserializationError::Ok;
+              return ProviderResult::ok();
             }
           }
           inEntry = true;
@@ -652,10 +655,10 @@ DeserializationError MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector
     }
     LOG_DEBUG("last %u body bytes: %s", static_cast<unsigned>(avail), dump);
     logTiming("truncated");
-    return DeserializationError::InvalidInput;
+    return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT);
   }
   logTiming(atExpectedEnd ? "complete" : "end-of-stream");
-  return DeserializationError::Ok;
+  return ProviderResult::ok();
 }  // MeteoAlarmAlertProvider::parseFeed
 
 #endif  // ALERTS_API_PROVIDER_METEOALARM

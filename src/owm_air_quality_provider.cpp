@@ -13,15 +13,15 @@
 #include "cert.h"
 #endif
 #include <time.h>
+#include "_locale.h"
 #include "client_utils.h"
+#include "provider_result_utils.h"
 #include "owm_air_quality_provider.h"
 
 /* Perform an HTTP GET request to OpenWeatherMap's "Air Pollution" API and map
  * the response into the generic air quality model.
- *
- * Returns the HTTP Status Code.
  */
-int OWMAirQualityProvider::fetch(air_quality_t &airQuality) {
+ProviderResult OWMAirQualityProvider::fetch(air_quality_t &airQuality) {
 #if defined(AIR_QUALITY_API_TRANSPORT_HTTP)
   WiFiClient client;
   const uint16_t port = 80;
@@ -50,7 +50,7 @@ int OWMAirQualityProvider::fetch(air_quality_t &airQuality) {
                           [&airQuality](Stream &json, size_t) { return deserializeAirQuality(json, airQuality); });
 }  // OWMAirQualityProvider::fetch
 
-DeserializationError OWMAirQualityProvider::deserializeAirQuality(Stream &json, air_quality_t &airQuality) {
+ProviderResult OWMAirQualityProvider::deserializeAirQuality(Stream &json, air_quality_t &airQuality) {
   int i = 0;
 
   JsonDocument doc;
@@ -63,7 +63,7 @@ DeserializationError OWMAirQualityProvider::deserializeAirQuality(Stream &json, 
     Serial.println();
   }
   if (error) {
-    return error;
+    return mapDeserializationError(error);
   }
 
   for (JsonObject list : doc["list"].as<JsonArray>()) {
@@ -85,7 +85,7 @@ DeserializationError OWMAirQualityProvider::deserializeAirQuality(Stream &json, 
     ++i;
   }
 
-  return error;
+  return mapDeserializationError(error);
 }  // OWMAirQualityProvider::deserializeAirQuality
 
 #endif  // AIR_QUALITY_API_PROVIDER_OPEN_WEATHER_MAP
