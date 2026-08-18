@@ -9,6 +9,7 @@ class OpenMeteoWeatherProvider : public WeatherProvider {
   const char *getApiName() const override;
   int fetch(forecast_t &forecast) override;
 
- private:
+  /* Map a streamed JSON response of the Open-Meteo forecast API into the
+   * generic forecast model. Public for unit testing. */
   static DeserializationError deserializeCall(Stream &json, forecast_t &forecast);
 };
