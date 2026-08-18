@@ -188,8 +188,9 @@ static void test_lima_daily(void) {
 }
 
 /* The response can carry more entries than the model holds: only the first
- * NUM_HOURLY hourly and NUM_DAILY daily entries are stored, the rest are
- * ignored. */
+ * NUM_HOURLY hourly and NUM_DAILY daily entries are stored. The hourly loop
+ * stops at the model's last slot (NUM_HOURLY - 1), so with 30 entries the
+ * last stored hour must be entry 23, never one of entries 24..29. */
 static void test_hourly_and_daily_cap(void) {
   forecast_t forecast = {};
   DeserializationError err = parseJson(makeSyntheticJson(30, 7), forecast);
@@ -197,8 +198,6 @@ static void test_hourly_and_daily_cap(void) {
 
   TEST_ASSERT_EQUAL_INT64(23, forecast.hourly[23].dt);
   TEST_ASSERT_EQUAL_FLOAT(230.0f, forecast.hourly[23].temp);
-  TEST_ASSERT_EQUAL_INT64(0, forecast.hourly[24].dt);  // past the cap
-  TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.hourly[24].temp);
 
   // The last slot holds the 5th daily entry, not the 7th.
   TEST_ASSERT_EQUAL_INT64(4, forecast.daily[4].dt);
