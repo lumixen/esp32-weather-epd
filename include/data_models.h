@@ -31,13 +31,49 @@ struct sensor_readings {
 };
 
 /*
- * Weather condition. `id` is the provider-native condition code (e.g. OWM
- * condition id or WMO weather code), mapped to icons by the display layer.
+ * Unified weather condition. Providers map their native condition codes
+ * (e.g. OWM condition ids or WMO weather codes) onto this enum; the display
+ * layer maps it onto the condition bitmaps.
+ *
+ * UNKNOWN is first so that a zero-initialized forecast_t (fields not yet
+ * parsed) resolves to the "not available" icon.
+ */
+enum class weather_condition {
+  UNKNOWN,
+  CLEAR,            // WMO 0, OWM 800
+  PARTLY_CLOUDY,    // WMO 1, OWM 801
+  CLOUDY,           // WMO 2, OWM 802, 803
+  OVERCAST,         // WMO 3, OWM 804
+  FOG,              // WMO 45, 48, OWM 741
+  DRIZZLE,          // WMO 51, 53, 55, OWM 300-321
+  FREEZING_DRIZZLE, // WMO 56, 57
+  RAIN,             // WMO 61, 63, 65, OWM 500-504
+  FREEZING_RAIN,    // WMO 66, 67, OWM 511
+  RAIN_SHOWERS,     // WMO 80-82, OWM 520-531
+  SNOW,             // WMO 71-75, OWM 600-602
+  SNOW_GRAINS,      // WMO 77
+  SNOW_SHOWERS,     // WMO 85, 86
+  SLEET,            // OWM 611-613
+  RAIN_SNOW_MIX,    // OWM 615-622
+  THUNDERSTORM,     // WMO 95, OWM 200-221
+  THUNDERSTORM_HAIL,  // WMO 96, 99, OWM 230-232
+  MIST,             // OWM 701
+  SMOKE,            // OWM 711
+  HAZE,             // OWM 721
+  SAND_WHIRLS,      // OWM 731
+  SAND,             // OWM 751
+  DUST,             // OWM 761
+  ASH,              // OWM 762
+  SQUALL,           // OWM 771
+  TORNADO           // OWM 781
+};
+
+/*
+ * Weather condition, mapped to the unified weather_condition enum by the
+ * provider.
  */
 typedef struct weather {
-  int id;              // Weather condition id
-  String main;         // Group of weather parameters (Rain, Snow, Extreme etc.)
-  String description;  // Weather condition within the group
+  weather_condition condition;
 } weather_t;
 
 /*

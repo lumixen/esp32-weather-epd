@@ -317,7 +317,7 @@ class WeatherHandler {
         forecast_.current.dew_point = static_cast<float>(value);
         break;
       case Col::CUR_WEATHER_CODE:
-        forecast_.current.weather.id = static_cast<int>(value);
+        forecast_.current.weather.condition = OpenMeteoWeatherProvider::mapWeatherCode(static_cast<int>(value));
         break;
       case Col::CUR_CLOUDS:
         forecast_.current.clouds = static_cast<int>(value);
@@ -376,7 +376,7 @@ class WeatherHandler {
         forecast_.hourly[idx_].snow_1h = static_cast<float>(value);
         break;
       case Col::HOUR_WEATHER_CODE:
-        forecast_.hourly[idx_].weather.id = static_cast<int>(value);
+        forecast_.hourly[idx_].weather.condition = OpenMeteoWeatherProvider::mapWeatherCode(static_cast<int>(value));
         break;
       case Col::HOUR_IS_DAY:
         forecast_.hourly[idx_].is_day = value != 0.0;
@@ -441,7 +441,7 @@ class WeatherHandler {
         forecast_.daily[idx_].wind_gust = static_cast<float>(value);
         break;
       case Col::DAY_WEATHER_CODE:
-        forecast_.daily[idx_].weather.id = static_cast<int>(value);
+        forecast_.daily[idx_].weather.condition = OpenMeteoWeatherProvider::mapWeatherCode(static_cast<int>(value));
         break;
       case Col::DAY_SR_SUM:
         forecast_.daily[idx_].shortwave_radiation_sum = static_cast<float>(value);
@@ -481,6 +481,62 @@ class WeatherHandler {
 const char *OpenMeteoWeatherProvider::getApiName() const {
   return "Open Meteo API";
 }  // OpenMeteoWeatherProvider::getApiName
+
+/* Map a WMO weather interpretation code (WW) onto the unified weather
+ * condition enum.
+ *
+ * References:
+ *   https://www.nodc.noaa.gov/archive/arc0021/0002199/1.1/data/0-data/HTML/WMO-CODE/WMO4677.HTM
+ */
+weather_condition OpenMeteoWeatherProvider::mapWeatherCode(int id) {
+  switch (id) {
+    case 0:  // Clear sky
+      return weather_condition::CLEAR;
+    case 1:  // Mainly clear
+      return weather_condition::PARTLY_CLOUDY;
+    case 2:  // Partly cloudy
+      return weather_condition::CLOUDY;
+    case 3:  // Overcast
+      return weather_condition::OVERCAST;
+    case 45:  // Fog
+    case 48:  // Depositing rime fog
+      return weather_condition::FOG;
+    case 51:  // Drizzle: light intensity
+    case 53:  // Drizzle: moderate intensity
+    case 55:  // Drizzle: dense intensity
+      return weather_condition::DRIZZLE;
+    case 56:  // Freezing drizzle: light intensity
+    case 57:  // Freezing drizzle: dense intensity
+      return weather_condition::FREEZING_DRIZZLE;
+    case 61:  // Rain: slight intensity
+    case 63:  // Rain: moderate intensity
+    case 65:  // Rain: heavy intensity
+      return weather_condition::RAIN;
+    case 66:  // Freezing rain: light intensity
+    case 67:  // Freezing rain: heavy intensity
+      return weather_condition::FREEZING_RAIN;
+    case 71:  // Snow fall: slight intensity
+    case 73:  // Snow fall: moderate intensity
+    case 75:  // Snow fall: heavy intensity
+      return weather_condition::SNOW;
+    case 77:  // Snow grains
+      return weather_condition::SNOW_GRAINS;
+    case 80:  // Rain showers: slight
+    case 81:  // Rain showers: moderate
+    case 82:  // Rain showers: violent
+      return weather_condition::RAIN_SHOWERS;
+    case 85:  // Snow showers: slight
+    case 86:  // Snow showers: heavy
+      return weather_condition::SNOW_SHOWERS;
+    case 95:  // Thunderstorm: slight or moderate
+      return weather_condition::THUNDERSTORM;
+    case 96:  // Thunderstorm with slight hail
+    case 99:  // Thunderstorm with heavy hail
+      return weather_condition::THUNDERSTORM_HAIL;
+    default:
+      return weather_condition::UNKNOWN;
+  }
+}  // OpenMeteoWeatherProvider::mapWeatherCode
 
 /* Perform an HTTP GET request to Open-Meteo's forecast API and map the
  * response into the generic forecast model.

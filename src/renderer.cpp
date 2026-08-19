@@ -1375,7 +1375,7 @@ void drawCurrentVisibility(const current_t &current) {
           }
           const uint8_t *bitmap = getHourlyForecastBitmap32(hourly[i], moon);
           const uint16_t hourIconAccentColor =
-              getConditionsAccent(hourly[i].weather.id) == conditions_accent::WORTH_ACCENTING
+              getConditionsAccent(hourly[i].weather.condition) == conditions_accent::WORTH_ACCENTING
                   ? COLORS_OUTLOOK_CONDITIONS_ICON_ACCENT
                   : GxEPD_BLACK;
           display.drawInvertedBitmap(xTick - 16, y_b - 32, bitmap, 32, 32, hourIconAccentColor);

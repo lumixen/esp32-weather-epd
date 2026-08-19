@@ -81,4 +81,4 @@ const char *getWifiStatusPhrase(wl_status_t status);
 void printHeapUsage();
 const uint8_t *getMoonPhaseBitmap48(const moon_state_t &moon);
 const char *getMoonPhaseStr(const moon_state_t &moon);
-const conditions_accent getConditionsAccent(int weatherCode);
+const conditions_accent getConditionsAccent(weather_condition condition);

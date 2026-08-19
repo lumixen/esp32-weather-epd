@@ -405,29 +405,18 @@ bool isWindy(float wind_speed, float wind_gust) {
           || wind_gust >= 40.2 /*m/s*/);
 }
 
-#ifdef WEATHER_API_PROVIDER_OPEN_WEATHER_MAP
-/* Takes the current weather and today's daily weather forcast (from
- * OpenWeatherMap API response) and returns a pointer to the icon's 196x196
- * bitmap.
+/* Takes the unified weather condition and returns a pointer to the
+ * condition bitmap.
  *
- * Uses multiple factors to return more detailed icons than the simple icon
- * catagories that OpenWeatherMap provides.
- *
- * Last Updated: June 26, 2022
- *
- * References:
- *   https://openweathermap.org/weather-conditions
+ * Uses multiple factors (day/night, moon, cloudiness, wind) to return more
+ * detailed icons than the simple condition categories that weather
+ * providers supply.
  */
-template<int BitmapSize> const uint8_t *getConditionsBitmap(int id, bool day, bool moon, bool cloudy, bool windy) {
-  switch (id) {
-    // Group 2xx: Thunderstorm
-    case 200:  // Thunderstorm  thunderstorm with light rain     11d
-    case 201:  // Thunderstorm  thunderstorm with rain           11d
-    case 202:  // Thunderstorm  thunderstorm with heavy rain     11d
-    case 210:  // Thunderstorm  light thunderstorm               11d
-    case 211:  // Thunderstorm  thunderstorm                     11d
-    case 212:  // Thunderstorm  heavy thunderstorm               11d
-    case 221:  // Thunderstorm  ragged thunderstorm              11d
+template<int BitmapSize>
+const uint8_t *getConditionsBitmap(weather_condition condition, bool day, bool moon, bool cloudy, bool windy) {
+  switch (condition) {
+    // Thunderstorm
+    case weather_condition::THUNDERSTORM:
       if (!cloudy && day) {
         return getBitmap(wi_day_thunderstorm, BitmapSize);
       }
@@ -435,9 +424,7 @@ template<int BitmapSize> const uint8_t *getConditionsBitmap(int id, bool day, bo
         return getBitmap(wi_night_alt_thunderstorm, BitmapSize);
       }
       return getBitmap(wi_thunderstorm, BitmapSize);
-    case 230:  // Thunderstorm  thunderstorm with light drizzle  11d
-    case 231:  // Thunderstorm  thunderstorm with drizzle        11d
-    case 232:  // Thunderstorm  thunderstorm with heavy drizzle  11d
+    case weather_condition::THUNDERSTORM_HAIL:
       if (!cloudy && day) {
         return getBitmap(wi_day_storm_showers, BitmapSize);
       }
@@ -445,16 +432,9 @@ template<int BitmapSize> const uint8_t *getConditionsBitmap(int id, bool day, bo
         return getBitmap(wi_night_alt_storm_showers, BitmapSize);
       }
       return getBitmap(wi_storm_showers, BitmapSize);
-    // Group 3xx: Drizzle
-    case 300:  // Drizzle       light intensity drizzle          09d
-    case 301:  // Drizzle       drizzle                          09d
-    case 302:  // Drizzle       heavy intensity drizzle          09d
-    case 310:  // Drizzle       light intensity drizzle rain     09d
-    case 311:  // Drizzle       drizzle rain                     09d
-    case 312:  // Drizzle       heavy intensity drizzle rain     09d
-    case 313:  // Drizzle       shower rain and drizzle          09d
-    case 314:  // Drizzle       heavy shower rain and drizzle    09d
-    case 321:  // Drizzle       shower drizzle                   09d
+    // Drizzle
+    case weather_condition::DRIZZLE:
+    case weather_condition::FREEZING_DRIZZLE:
       if (!cloudy && day) {
         return getBitmap(wi_day_showers, BitmapSize);
       }
@@ -462,12 +442,8 @@ template<int BitmapSize> const uint8_t *getConditionsBitmap(int id, bool day, bo
         return getBitmap(wi_night_alt_showers, BitmapSize);
       }
       return getBitmap(wi_showers, BitmapSize);
-    // Group 5xx: Rain
-    case 500:  // Rain          light rain                       10d
-    case 501:  // Rain          moderate rain                    10d
-    case 502:  // Rain          heavy intensity rain             10d
-    case 503:  // Rain          very heavy rain                  10d
-    case 504:  // Rain          extreme rain                     10d
+    // Rain
+    case weather_condition::RAIN:
       if (!cloudy && day && windy) {
         return getBitmap(wi_day_rain_wind, BitmapSize);
       }
@@ -484,18 +460,7 @@ template<int BitmapSize> const uint8_t *getConditionsBitmap(int id, bool day, bo
         return getBitmap(wi_rain_wind, BitmapSize);
       }
       return getBitmap(wi_rain, BitmapSize);
-    case 511:  // Rain          freezing rain                    13d
-      if (!cloudy && day) {
-        return getBitmap(wi_day_rain_mix, BitmapSize);
-      }
-      if (!cloudy && !day && moon) {
-        return getBitmap(wi_night_alt_rain_mix, BitmapSize);
-      }
-      return getBitmap(wi_rain_mix, BitmapSize);
-    case 520:  // Rain          light intensity shower rain      09d
-    case 521:  // Rain          shower rain                      09d
-    case 522:  // Rain          heavy intensity shower rain      09d
-    case 531:  // Rain          ragged shower rain               09d
+    case weather_condition::RAIN_SHOWERS:
       if (!cloudy && day) {
         return getBitmap(wi_day_showers, BitmapSize);
       }
@@ -503,10 +468,18 @@ template<int BitmapSize> const uint8_t *getConditionsBitmap(int id, bool day, bo
         return getBitmap(wi_night_alt_showers, BitmapSize);
       }
       return getBitmap(wi_showers, BitmapSize);
-    // Group 6xx: Snow
-    case 600:  // Snow          light snow                       13d
-    case 601:  // Snow          Snow                             13d
-    case 602:  // Snow          Heavy snow                       13d
+    case weather_condition::FREEZING_RAIN:
+    case weather_condition::RAIN_SNOW_MIX:
+    case weather_condition::SNOW_SHOWERS:
+      if (!cloudy && day) {
+        return getBitmap(wi_day_rain_mix, BitmapSize);
+      }
+      if (!cloudy && !day && moon) {
+        return getBitmap(wi_night_alt_rain_mix, BitmapSize);
+      }
+      return getBitmap(wi_rain_mix, BitmapSize);
+    // Snow
+    case weather_condition::SNOW:
       if (!cloudy && day && windy) {
         return getBitmap(wi_day_snow_wind, BitmapSize);
       }
@@ -523,9 +496,8 @@ template<int BitmapSize> const uint8_t *getConditionsBitmap(int id, bool day, bo
         return getBitmap(wi_snow_wind, BitmapSize);
       }
       return getBitmap(wi_snow, BitmapSize);
-    case 611:  // Snow          Sleet                            13d
-    case 612:  // Snow          Light shower sleet               13d
-    case 613:  // Snow          Shower sleet                     13d
+    case weather_condition::SNOW_GRAINS:
+    case weather_condition::SLEET:
       if (!cloudy && day) {
         return getBitmap(wi_day_sleet, BitmapSize);
       }
@@ -533,20 +505,9 @@ template<int BitmapSize> const uint8_t *getConditionsBitmap(int id, bool day, bo
         return getBitmap(wi_night_alt_sleet, BitmapSize);
       }
       return getBitmap(wi_sleet, BitmapSize);
-    case 615:  // Snow          Light rain and snow              13d
-    case 616:  // Snow          Rain and snow                    13d
-    case 620:  // Snow          Light shower snow                13d
-    case 621:  // Snow          Shower snow                      13d
-    case 622:  // Snow          Heavy shower snow                13d
-      if (!cloudy && day) {
-        return getBitmap(wi_day_rain_mix, BitmapSize);
-      }
-      if (!cloudy && !day && moon) {
-        return getBitmap(wi_night_alt_rain_mix, BitmapSize);
-      }
-      return getBitmap(wi_rain_mix, BitmapSize);
-    // Group 7xx: Atmosphere
-    case 701:  // Mist          mist                             50d
+    // Atmosphere
+    case weather_condition::MIST:
+    case weather_condition::FOG:
       if (!cloudy && day) {
         return getBitmap(wi_day_fog, BitmapSize);
       }
@@ -554,35 +515,26 @@ template<int BitmapSize> const uint8_t *getConditionsBitmap(int id, bool day, bo
         return getBitmap(wi_night_fog, BitmapSize);
       }
       return getBitmap(wi_fog, BitmapSize);
-    case 711:  // Smoke         Smoke                            50d
+    case weather_condition::SMOKE:
       return getBitmap(wi_smoke, BitmapSize);
-    case 721:  // Haze          Haze                             50d
+    case weather_condition::HAZE:
       if (day && !cloudy) {
         return getBitmap(wi_day_haze, BitmapSize);
       }
       return getBitmap(wi_dust, BitmapSize);
-    case 731:  // Dust          sand/dust whirls                 50d
+    case weather_condition::SAND_WHIRLS:
+    case weather_condition::SAND:
       return getBitmap(wi_sandstorm, BitmapSize);
-    case 741:  // Fog           fog                              50d
-      if (!cloudy && day) {
-        return getBitmap(wi_day_fog, BitmapSize);
-      }
-      if (!cloudy && !day && moon) {
-        return getBitmap(wi_night_fog, BitmapSize);
-      }
-      return getBitmap(wi_fog, BitmapSize);
-    case 751:  // Sand          sand                             50d
-      return getBitmap(wi_sandstorm, BitmapSize);
-    case 761:  // Dust          dust                             50d
+    case weather_condition::DUST:
       return getBitmap(wi_dust, BitmapSize);
-    case 762:  // Ash           volcanic ash                     50d
+    case weather_condition::ASH:
       return getBitmap(wi_volcano, BitmapSize);
-    case 771:  // Squall        squalls                          50d
+    case weather_condition::SQUALL:
       return getBitmap(wi_cloudy_gusts, BitmapSize);
-    case 781:  // Tornado       tornado                          50d
+    case weather_condition::TORNADO:
       return getBitmap(wi_tornado, BitmapSize);
-    // Group 800: Clear
-    case 800:  // Clear         clear sky                        01d 01n
+    // Clear
+    case weather_condition::CLEAR:
       if (windy) {
         return getBitmap(wi_strong_wind, BitmapSize);
       }
@@ -593,8 +545,8 @@ template<int BitmapSize> const uint8_t *getConditionsBitmap(int id, bool day, bo
         return getBitmap(wi_stars, BitmapSize);
       }
       return getBitmap(wi_day_sunny, BitmapSize);
-    // Group 80x: Clouds
-    case 801:  // Clouds        few clouds: 11-25%               02d 02n
+    // Clouds
+    case weather_condition::PARTLY_CLOUDY:
       if (windy) {
         return getBitmap(wi_strong_wind, BitmapSize);
       }
@@ -605,8 +557,7 @@ template<int BitmapSize> const uint8_t *getConditionsBitmap(int id, bool day, bo
         return getBitmap(wi_stars, BitmapSize);
       }
       return getBitmap(wi_day_sunny_overcast, BitmapSize);
-    case 802:  // Clouds        scattered clouds: 25-50%         03d 03n
-    case 803:  // Clouds        broken clouds: 51-84%            04d 04n
+    case weather_condition::CLOUDY:
       if (windy && day) {
         return getBitmap(wi_day_cloudy_gusts, BitmapSize);
       }
@@ -623,248 +574,40 @@ template<int BitmapSize> const uint8_t *getConditionsBitmap(int id, bool day, bo
         return getBitmap(wi_cloud, BitmapSize);
       }
       return getBitmap(wi_day_cloudy, BitmapSize);
-    case 804:  // Clouds        overcast clouds: 85-100%         04d 04n
+    case weather_condition::OVERCAST:
       if (windy) {
         return getBitmap(wi_cloudy_gusts, BitmapSize);
       }
       return getBitmap(wi_cloudy, BitmapSize);
+    case weather_condition::UNKNOWN:
     default:
-      // maybe this is a new getBitmap in one of the existing groups
-      if (id >= 200 && id < 300) {
-        return getBitmap(wi_thunderstorm, BitmapSize);
-      }
-      if (id >= 300 && id < 400) {
-        return getBitmap(wi_showers, BitmapSize);
-      }
-      if (id >= 500 && id < 600) {
-        return getBitmap(wi_rain, BitmapSize);
-      }
-      if (id >= 600 && id < 700) {
-        return getBitmap(wi_snow, BitmapSize);
-      }
-      if (id >= 700 && id < 800) {
-        return getBitmap(wi_fog, BitmapSize);
-      }
-      if (id >= 800 && id < 900) {
-        return getBitmap(wi_cloudy, BitmapSize);
-      }
       return getBitmap(wi_na, BitmapSize);
   }
 }  // end getConditionsBitmap
 
-const conditions_accent getConditionsAccent(int id) {
-  // Just stub
-  return conditions_accent::NOT_WORTH_ACCENTING;
-}
-
-#endif
-#ifdef WEATHER_API_PROVIDER_OPEN_METEO
-/* Takes the current weather and today's daily weather forcast (from
- * OpenMeteo API response) and returns a pointer to the icon's 196x196
- * bitmap.
+/* Returns true if the condition is worth accenting with the configurable
+ * accent color on the hourly forecast graph.
  *
- * Uses multiple factors to return more detailed icons than the simple icon
- * catagories that OpenMeteo provides.
- *
- * Last Updated: June 13, 2025
+ * Precipitation conditions are accented (rain, snow, thunderstorms, ...);
+ * everything else is not.
  */
-template<int BitmapSize> const uint8_t *getConditionsBitmap(int id, bool day, bool moon, bool cloudy, bool windy) {
-  switch (id) {
-    case 95:  // Thunderstorm  thunderstorm with light rain     11d
-      if (!cloudy && day) {
-        return getBitmap(wi_day_thunderstorm, BitmapSize);
-      }
-      if (!cloudy && !day && moon) {
-        return getBitmap(wi_night_alt_thunderstorm, BitmapSize);
-      }
-      return getBitmap(wi_thunderstorm, BitmapSize);
-    case 96:  // Thunderstorm  thunderstorm with heavy drizzle  11d
-      if (!cloudy && day) {
-        return getBitmap(wi_day_storm_showers, BitmapSize);
-      }
-      if (!cloudy && !day && moon) {
-        return getBitmap(wi_night_alt_storm_showers, BitmapSize);
-      }
-      return getBitmap(wi_storm_showers, BitmapSize);
-    case 51:  // Drizzle       light intensity drizzle          09d
-    case 53:  // Drizzle       drizzle                          09d
-    case 55:  // Drizzle       heavy intensity drizzle          09d
-    case 56:  // Drizzle       heavy shower rain and drizzle    09d
-    case 57:  // Drizzle       shower drizzle                   09d
-      if (!cloudy && day) {
-        return getBitmap(wi_day_showers, BitmapSize);
-      }
-      if (!cloudy && !day && moon) {
-        return getBitmap(wi_night_alt_showers, BitmapSize);
-      }
-      return getBitmap(wi_showers, BitmapSize);
-    case 61:  // Rain          light rain                       10d
-    case 62:  // Rain          moderate rain                    10d
-    case 63:  // Rain          heavy intensity rain             10d
-      if (!cloudy && day && windy) {
-        return getBitmap(wi_day_rain_wind, BitmapSize);
-      }
-      if (!cloudy && day) {
-        return getBitmap(wi_day_rain, BitmapSize);
-      }
-      if (!cloudy && !day && moon && windy) {
-        return getBitmap(wi_night_alt_rain_wind, BitmapSize);
-      }
-      if (!cloudy && !day && moon) {
-        return getBitmap(wi_night_alt_rain, BitmapSize);
-      }
-      if (windy) {
-        return getBitmap(wi_rain_wind, BitmapSize);
-      }
-      return getBitmap(wi_rain, BitmapSize);
-    case 66:  // Rain          freezing rain                    13d
-    case 67:  // Rain          freezing rain                    13d    if (!cloudy) {return wi_day_rain_mix_64x64;}
-      if (!cloudy && day) {
-        return getBitmap(wi_day_rain_mix, BitmapSize);
-      }
-      if (!cloudy && !day && moon) {
-        return getBitmap(wi_night_alt_rain_mix, BitmapSize);
-      }
-      return getBitmap(wi_rain_mix, BitmapSize);
-    case 80:  // Rain          light intensity shower rain      09d
-    case 81:  // Rain          shower rain                      09d
-    case 82:  // Rain          heavy intensity shower rain      09d
-      if (!cloudy && day) {
-        return getBitmap(wi_day_showers, BitmapSize);
-      }
-      if (!cloudy && !day && moon) {
-        return getBitmap(wi_night_alt_showers, BitmapSize);
-      }
-      return getBitmap(wi_showers, BitmapSize);
-    case 71:  // Snow          light snow                       13d
-    case 73:  // Snow          Snow                             13d
-    case 75:  // Snow          Heavy snow                       13d
-      if (!cloudy && day && windy) {
-        return getBitmap(wi_day_snow_wind, BitmapSize);
-      }
-      if (!cloudy && day) {
-        return getBitmap(wi_day_snow, BitmapSize);
-      }
-      if (!cloudy && !day && moon && windy) {
-        return getBitmap(wi_night_alt_snow_wind, BitmapSize);
-      }
-      if (!cloudy && !day && moon) {
-        return getBitmap(wi_night_alt_snow, BitmapSize);
-      }
-      if (windy) {
-        return getBitmap(wi_snow_wind, BitmapSize);
-      }
-      return getBitmap(wi_snow, BitmapSize);
-    case 77:  // Snow          light snow                       13d
-      if (!cloudy && day) {
-        return getBitmap(wi_day_sleet, BitmapSize);
-      }
-      if (!cloudy && !day && moon) {
-        return getBitmap(wi_night_alt_sleet, BitmapSize);
-      }
-      return getBitmap(wi_sleet, BitmapSize);
-    case 85:  // Snow          Light rain and snow              13d
-    case 86:  // Snow          Rain and snow                    13d
-      if (!cloudy && day) {
-        return getBitmap(wi_day_rain_mix, BitmapSize);
-      }
-      if (!cloudy && !day && moon) {
-        return getBitmap(wi_night_alt_rain_mix, BitmapSize);
-      }
-      return getBitmap(wi_rain_mix, BitmapSize);
-    // Group 7xx: Atmosphere
-    case 48:  // Mist          mist                             50d
-      if (!cloudy && day) {
-        return getBitmap(wi_day_fog, BitmapSize);
-      }
-      if (!cloudy && !day && moon) {
-        return getBitmap(wi_night_fog, BitmapSize);
-      }
-      return getBitmap(wi_fog, BitmapSize);
-    case 45:  // Fog           fog                              50d
-      if (!cloudy && day) {
-        return getBitmap(wi_day_fog, BitmapSize);
-      }
-      if (!cloudy && !day && moon) {
-        return getBitmap(wi_night_fog, BitmapSize);
-      }
-      return getBitmap(wi_fog, BitmapSize);
-    // Group 800: Clear
-    case 0:  // Clear         clear sky                        01d 01n
-      if (windy) {
-        return getBitmap(wi_strong_wind, BitmapSize);
-      }
-      if (!day && moon) {
-        return getBitmap(wi_night_clear, BitmapSize);
-      }
-      if (!day && !moon) {
-        return getBitmap(wi_stars, BitmapSize);
-      }
-      return getBitmap(wi_day_sunny, BitmapSize);
-    // Group 80x: Clouds
-    case 1:  // Clouds        few clouds: 11-25%               02d 02n
-      if (windy) {
-        return getBitmap(wi_strong_wind, BitmapSize);
-      }
-      if (!day && moon) {
-        return getBitmap(wi_night_alt_partly_cloudy, BitmapSize);
-      }
-      if (!day && !moon) {
-        return getBitmap(wi_stars, BitmapSize);
-      }
-      return getBitmap(wi_day_sunny_overcast, BitmapSize);
-    case 2:  // Clouds        scattered clouds: 25-50%         03d 03n
-      if (windy && day) {
-        return getBitmap(wi_day_cloudy_gusts, BitmapSize);
-      }
-      if (windy && !day && moon) {
-        return getBitmap(wi_night_alt_cloudy_gusts, BitmapSize);
-      }
-      if (windy && !day && !moon) {
-        return getBitmap(wi_cloudy_gusts, BitmapSize);
-      }
-      if (!day && moon) {
-        return getBitmap(wi_night_alt_cloudy, BitmapSize);
-      }
-      if (!day && !moon) {
-        return getBitmap(wi_cloud, BitmapSize);
-      }
-      return getBitmap(wi_day_cloudy, BitmapSize);
-    case 3:  // Clouds        overcast clouds: 85-100%         04d 04n
-      if (windy) {
-        return getBitmap(wi_cloudy_gusts, BitmapSize);
-      }
-      return getBitmap(wi_cloudy, BitmapSize);
-    default:
-      return getBitmap(wi_na, BitmapSize);
-  }
-}  // end getConditionsBitmap
-
-const conditions_accent getConditionsAccent(int id) {
-  switch (id) {
-    case 61: // Rain: Slight, moderate and heavy intensity
-    case 63: // Rain: Slight, moderate and heavy intensity
-    case 65: // Rain: Slight, moderate and heavy intensity
-    case 66: // Freezing Rain: Light and heavy intensity
-    case 67: // Freezing Rain: Light and heavy intensity
-    case 71: // Snow fall: Slight, moderate, and heavy intensity
-    case 73: // Snow fall: Slight, moderate, and heavy intensity
-    case 75: // Snow fall: Slight, moderate, and heavy intensity
-    case 77: // Snow grains
-    case 80: // Rain showers: Slight, moderate, and violent
-    case 81: // Rain showers: Slight, moderate, and violent
-    case 82: // Rain showers: Slight, moderate, and violent
-    case 85: // Snow showers slight and heavy
-    case 86: // Snow showers slight and heavy
-    case 95: // Thunderstorm: Slight or moderate
-    case 96: // Thunderstorm with slight and heavy hail
-    case 99: // Thunderstorm with slight and heavy hail
+const conditions_accent getConditionsAccent(weather_condition condition) {
+  switch (condition) {
+    case weather_condition::THUNDERSTORM:
+    case weather_condition::THUNDERSTORM_HAIL:
+    case weather_condition::RAIN:
+    case weather_condition::FREEZING_RAIN:
+    case weather_condition::RAIN_SHOWERS:
+    case weather_condition::SNOW:
+    case weather_condition::SNOW_GRAINS:
+    case weather_condition::SNOW_SHOWERS:
+    case weather_condition::SLEET:
+    case weather_condition::RAIN_SNOW_MIX:
       return conditions_accent::WORTH_ACCENTING;
     default:
       return conditions_accent::NOT_WORTH_ACCENTING;
   }
-}
-#endif
+}  // end getConditionsAccent
 
 /* Takes the hourly weather forecast and
  * returns a pointer to the icon's 32x32 bitmap.
@@ -872,40 +615,39 @@ const conditions_accent getConditionsAccent(int id) {
  * The daily weather forcast of today is needed for moonrise and moonset times.
  */
 const uint8_t *getHourlyForecastBitmap32(const hourly_t &hourly, const moon_state_t &moon) {
-  const int id = hourly.weather.id;
+  const weather_condition condition = hourly.weather.condition;
   const bool day = hourly.is_day;
   const bool cloudy = isCloudy(hourly.clouds);
   const bool windy = isWindy(hourly.wind_speed, hourly.wind_gust);
   const bool moon_in_sky = isMoonInSky(hourly.dt, moon.moonrise, moon.moonset, moon.phase);
-  return getConditionsBitmap<32>(id, day, moon_in_sky, cloudy, windy);
+  return getConditionsBitmap<32>(condition, day, moon_in_sky, cloudy, windy);
 }
 
-/* Takes the daily weather forecast (from OpenWeatherMap API response) and
+/* Takes the daily weather forecast and
  * returns a pointer to the icon's 64x64 bitmap.
  */
 const uint8_t *getDailyForecastBitmap64(const daily_t &daily) {
-  const int id = daily.weather.id;
+  const weather_condition condition = daily.weather.condition;
   // always show daytime icon for daily forecast
   const bool day = true;
   const bool moon = false;
   const bool cloudy = isCloudy(daily.clouds);
   const bool windy = isWindy(daily.wind_speed, daily.wind_gust);
-  return getConditionsBitmap<64>(id, day, moon, cloudy, windy);
+  return getConditionsBitmap<64>(condition, day, moon, cloudy, windy);
 }  // end getDailyForecastBitmap64
 
-/* Takes the current weather and today's daily weather forcast (from
- * OpenWeatherMap API response) and returns a pointer to the icon's 196x196
- * bitmap.
+/* Takes the current weather and today's daily weather forcast and returns a
+ * pointer to the icon's 196x196 bitmap.
  *
  * The daily weather forcast of today is needed for moonrise and moonset times.
  */
 const uint8_t *getCurrentConditionsBitmap196(const current_t &current, const moon_state_t &moon) {
-  const int id = current.weather.id;
+  const weather_condition condition = current.weather.condition;
   const bool day = current.is_day;
   const bool moon_in_sky = isMoonInSky(current.dt, moon.moonrise, moon.moonset, moon.phase);
   const bool cloudy = isCloudy(current.clouds);
   const bool windy = isWindy(current.wind_speed, current.wind_gust);
-  return getConditionsBitmap<196>(id, day, moon_in_sky, cloudy, windy);
+  return getConditionsBitmap<196>(condition, day, moon_in_sky, cloudy, windy);
 }  // end getCurrentConditionsBitmap196
 
 /* Returns a 32x32 bitmap for a given alert.
