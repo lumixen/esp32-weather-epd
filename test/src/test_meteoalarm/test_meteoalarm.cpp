@@ -11,6 +11,7 @@
 #include <cstring>
 #include <unity.h>
 
+#include "../string_stream.h"
 #include "_locale.h"
 #include "data_models.h"
 #include "meteoalarm_alert_provider.h"
@@ -24,30 +25,6 @@ static const int64_t kSquallStart = 1786099460LL;   // 2026-08-07T10:44:20+00:00
 static const int64_t kSquallEnd = 1786125600LL;     // 2026-08-07T18:00:00+00:00
 static const int64_t kRainStart = 1786168800LL;     // 2026-08-08T06:00:00+00:00
 static const int64_t kRainEnd = 1786212000LL;       // 2026-08-08T18:00:00+00:00
-
-// Minimal read-only Stream over a String; framework's StreamString does not
-// expose String assignment in this Arduino core.
-class StringStream : public Stream {
- public:
-  explicit StringStream(const String &s) : data_(s), pos_(0), bytesRead_(0) {}
-  int read() override {
-    if (pos_ < data_.length()) {
-      ++bytesRead_;
-      return data_[pos_++];
-    }
-    return -1;
-  }
-  int peek() override { return pos_ < data_.length() ? data_[pos_] : -1; }
-  int available() override { return data_.length() - pos_; }
-  size_t write(uint8_t) override { return 0; }
-  void flush() override {}
-  size_t bytesRead() const { return bytesRead_; }
-
- private:
-  String data_;
-  size_t pos_;
-  size_t bytesRead_;
-};
 
 void setUp(void) {}
 void tearDown(void) {}

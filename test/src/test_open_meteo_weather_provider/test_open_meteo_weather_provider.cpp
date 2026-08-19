@@ -10,6 +10,7 @@
 
 #include <unity.h>
 
+#include "../string_stream.h"
 #include "_locale.h"
 #include "client_utils.h"
 #include "data_models.h"
@@ -20,29 +21,6 @@
 static const int64_t kCurrentTime = 1787068800LL;  // 2026-08-18T12:00:00+00:00
 static const int64_t kSunrise = 1787051986LL;      // daily[0]
 static const int64_t kSunset = 1787094257LL;       // daily[0]
-
-// Minimal read-only Stream over a String; framework's StreamString does not
-// expose String assignment in this Arduino core. The String is borrowed, not
-// copied, so large fixtures do not double peak RAM; read()/peek() return the
-// byte as unsigned (0..255, -1 at EOF) so UTF-8 payloads (e.g. the "°" in the
-// units fields) never promote signed chars to unexpected negative values.
-class StringStream : public Stream {
- public:
-  explicit StringStream(const String &s) : data_(s), pos_(0) {}
-  int read() override {
-    return pos_ < data_.length() ? static_cast<uint8_t>(data_[pos_++]) : -1;
-  }
-  int peek() override {
-    return pos_ < data_.length() ? static_cast<uint8_t>(data_[pos_]) : -1;
-  }
-  int available() override { return data_.length() - pos_; }
-  size_t write(uint8_t) override { return 0; }
-  void flush() override {}
-
- private:
-  const String &data_;
-  size_t pos_;
-};
 
 void setUp(void) {}
 void tearDown(void) {}
