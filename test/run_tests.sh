@@ -40,6 +40,7 @@ status=0
     -f test_rtc_drift_correction \
     -f test_moon_tools \
     -f test_open_meteo_weather_provider \
+    -f test_open_meteo_air_quality_provider \
     -f test_meteoalarm \
     "${EXTRA_ARGS[@]}" || status=1
 
