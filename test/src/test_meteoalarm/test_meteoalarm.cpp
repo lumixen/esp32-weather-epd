@@ -35,7 +35,7 @@ void tearDown(void) {}
  * empty (non-blocking socket): such gaps must never truncate the feed. */
 class GapStream : public StringStream {
  public:
-  explicit GapStream(const String &s, size_t gapCalls) : StringStream(s), gaps_(gapCalls) {}
+  explicit GapStream(const char *s, size_t gapCalls) : StringStream(s), gaps_(gapCalls) {}
   int read() override {
     if (gaps_ > 0) {
       --gaps_;
