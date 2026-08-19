@@ -1,8 +1,8 @@
 #pragma once
 
 #include <vector>
-#include <ArduinoJson.h>
 #include "alert_provider.h"
+#include "provider_result.h"
 
 /* OpenWeatherMap "One Call" API alert provider.
  *
@@ -13,8 +13,8 @@
  */
 class OWMAlertProvider : public AlertProvider {
  public:
-  int fetch(std::vector<weather_alert_t> &alerts) override;
+  ProviderResult fetch(std::vector<weather_alert_t> &alerts) override;
 
  private:
-  static DeserializationError deserializeAlerts(Stream &json, std::vector<weather_alert_t> &alerts);
+  static ProviderResult deserializeAlerts(Stream &json, std::vector<weather_alert_t> &alerts);
 };

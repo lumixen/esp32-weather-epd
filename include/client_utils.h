@@ -18,19 +18,20 @@
 
 #include <functional>
 #include <Arduino.h>
-#include <ArduinoJson.h>
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include "config.h"
+#include "provider_result.h"
 
 wl_status_t startWiFi(int8_t &wifiRSSI);
 void killWiFi();
 
 /* Perform an HTTP GET request with retry.
  *
- * Returns the HTTP status code on success (HTTP_CODE_OK). Negative codes:
- * -512 - WiFi status offset when disconnected, -256 - JSON deserialization
- * error code offset.
+ * Returns ProviderResult::ok() once the response was received and parsed
+ * successfully. On failure, the detail is already localized: HTTP/WiFi
+ * errors are phrased from getHttpResponsePhrase() by this function, and
+ * parse failures carry the message the `parse` callback returned.
  *
  * The `parse` callback is invoked with the response stream once the request
  * succeeds and is responsible for deserializing and mapping the provider
@@ -42,6 +43,81 @@ void killWiFi();
  * response stream. Providers with large responses (e.g. the MeteoAlarm feed
  * is hundreds of KB) must pass a value large enough to stream the whole body.
  */
-int httpGetWithRetry(WiFiClient &client, const String &host, uint16_t port, const String &uri,
-                     const String &sanitizedUri, bool useHttp10, uint32_t timeoutMs,
-                     std::function<DeserializationError(Stream &, size_t expectedLen)> parse);
+ProviderResult httpGetWithRetry(WiFiClient &client, const String &host, uint16_t port, const String &uri,
+                                const String &sanitizedUri, bool useHttp10, uint32_t timeoutMs,
+                                std::function<ProviderResult(Stream &, size_t expectedLen)> parse);
+
+/* Buffered input stream adapter feeding a streaming JSON parser (such as
+ * rapidjson's SAX reader) from an Arduino Stream, e.g. the live HTTP
+ * response body of an HTTPClient. The underlying stream is read in
+ * 64-byte chunks, so each refill issues a single bulk read instead of one
+ * call per byte. EOF is signalled by '\0', the rapidjson convention.
+ *
+ * Implements the rapidjson InputStream concept: Ch, Peek(), Take(), Tell()
+ * and the in-place editing hooks PutBegin()/Put()/PutEnd() (only reached
+ * with kParseInsituFlag/kParseNumbersAsStringsFlag, which streaming parsers
+ * never enable, but the hooks must exist for the concept to compile).
+ */
+class StreamInput {
+ public:
+  typedef char Ch;
+
+  explicit StreamInput(Stream &stream) : stream_(stream), pos_(0), len_(0), total_(0) {}
+
+  char Peek() {
+    if (pos_ >= len_ && !fill()) {
+      reachedEof_ = true;
+      return '\0';
+    }
+    return buffer_[pos_];
+  }
+
+  char Take() {
+    if (pos_ >= len_ && !fill()) {
+      reachedEof_ = true;
+      return '\0';
+    }
+    ++total_;
+    return buffer_[pos_++];
+  }
+
+  size_t Tell() { return total_; }
+
+  /* True once the underlying stream returned no more bytes (seen by either
+   * Peek() or Take()). Lets parsers classify a parse error as premature end
+   * of input (IncompleteInput) instead of invalid syntax. */
+  bool reachedEof() const { return reachedEof_; }
+
+  // In-place editing hooks. Only reached with
+  // kParseNumbersAsStringsFlag/kParseInsituFlag, which streaming parsers
+  // never enable, but the unused branches still get compiled, so the hooks
+  // must exist with the concept's signatures (InsituStringStream semantics).
+  Ch *PutBegin() { return scratch_; }
+  void Put(Ch c) {
+    if (scratchLen_ < sizeof(scratch_)) {
+      scratch_[scratchLen_++] = c;
+    }
+  }
+  size_t PutEnd(Ch *) {
+    const size_t n = scratchLen_;
+    scratchLen_ = 0;
+    return n;
+  }
+
+ private:
+  bool fill() {
+    const size_t n = stream_.readBytes(buffer_, sizeof(buffer_));
+    pos_ = 0;
+    len_ = n;
+    return n > 0;
+  }
+
+  Stream &stream_;
+  char buffer_[64];
+  char scratch_[64];
+  size_t scratchLen_ = 0;
+  size_t pos_;
+  size_t len_;
+  size_t total_;
+  bool reachedEof_ = false;
+};

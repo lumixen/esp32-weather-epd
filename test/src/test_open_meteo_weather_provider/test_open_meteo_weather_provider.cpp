@@ -10,6 +10,8 @@
 
 #include <unity.h>
 
+#include "_locale.h"
+#include "client_utils.h"
 #include "data_models.h"
 #include "open_meteo_weather_provider.h"
 #include "open_meteo_lima_real.inc"
@@ -45,7 +47,7 @@ class StringStream : public Stream {
 void setUp(void) {}
 void tearDown(void) {}
 
-static DeserializationError parseJson(const String &json, forecast_t &forecast) {
+static ProviderResult parseJson(const String &json, forecast_t &forecast) {
   StringStream ss(json);
   return OpenMeteoWeatherProvider::deserializeCall(ss, forecast);
 }
@@ -88,8 +90,8 @@ static void test_get_api_name(void) {
  * requested from the API). */
 static void test_lima_current(void) {
   forecast_t forecast = {};
-  DeserializationError err = parseJson(kOpenMeteoLimaReal, forecast);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  ProviderResult err = parseJson(kOpenMeteoLimaReal, forecast);
+  TEST_ASSERT_TRUE(err.isOk());
 
   TEST_ASSERT_EQUAL_INT64(kCurrentTime, forecast.current.dt);
   TEST_ASSERT_EQUAL_INT64(kSunrise, forecast.current.sunrise);
@@ -114,8 +116,8 @@ static void test_lima_current(void) {
  * transitions (is_day 1 -> true, 0 -> false). */
 static void test_lima_hourly(void) {
   forecast_t forecast = {};
-  DeserializationError err = parseJson(kOpenMeteoLimaReal, forecast);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  ProviderResult err = parseJson(kOpenMeteoLimaReal, forecast);
+  TEST_ASSERT_TRUE(err.isOk());
 
   // First entry: the current observation hour.
   TEST_ASSERT_EQUAL_INT64(1787068800LL, forecast.hourly[0].dt);
@@ -160,8 +162,8 @@ static void test_lima_hourly(void) {
  * shortwave radiation sum defaults to 0 (not requested from the API). */
 static void test_lima_daily(void) {
   forecast_t forecast = {};
-  DeserializationError err = parseJson(kOpenMeteoLimaReal, forecast);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  ProviderResult err = parseJson(kOpenMeteoLimaReal, forecast);
+  TEST_ASSERT_TRUE(err.isOk());
 
   TEST_ASSERT_EQUAL_INT64(1787029200LL, forecast.daily[0].dt);
   TEST_ASSERT_EQUAL_FLOAT(17.5f, forecast.daily[0].temp.min);
@@ -200,8 +202,8 @@ static void test_lima_daily(void) {
  * last stored hour must be entry 23, never one of entries 24..29. */
 static void test_hourly_and_daily_cap(void) {
   forecast_t forecast = {};
-  DeserializationError err = parseJson(makeSyntheticJson(30, 7), forecast);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  ProviderResult err = parseJson(makeSyntheticJson(30, 7), forecast);
+  TEST_ASSERT_TRUE(err.isOk());
 
   TEST_ASSERT_EQUAL_INT64(23, forecast.hourly[23].dt);
   TEST_ASSERT_EQUAL_FLOAT(230.0f, forecast.hourly[23].temp);
@@ -215,8 +217,8 @@ static void test_hourly_and_daily_cap(void) {
 /* Fewer entries than the model holds: the remaining slots stay untouched. */
 static void test_shorter_arrays(void) {
   forecast_t forecast = {};
-  DeserializationError err = parseJson(makeSyntheticJson(3, 2), forecast);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  ProviderResult err = parseJson(makeSyntheticJson(3, 2), forecast);
+  TEST_ASSERT_TRUE(err.isOk());
 
   TEST_ASSERT_EQUAL_INT64(0, forecast.hourly[0].dt);
   TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.hourly[0].temp);
@@ -239,41 +241,109 @@ static void test_optional_fields_present(void) {
       "\"hourly\":{\"time\":[2],\"soil_temperature_18cm\":[17.25]},"
       "\"daily\":{\"time\":[3],\"shortwave_radiation_sum\":[14.5]}}";
   forecast_t forecast = {};
-  DeserializationError err = parseJson(json, forecast);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  ProviderResult err = parseJson(json, forecast);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_FLOAT(17.25f, forecast.current.soil_temperature_18cm);
   TEST_ASSERT_EQUAL_FLOAT(14.5f, forecast.daily[0].shortwave_radiation_sum);
 }
 
-/* Missing sections or fields must not crash and default to zero. */
-static void test_missing_sections(void) {
+/* A syntactically valid JSON root that is not an Open-Meteo forecast must
+ * be rejected with InvalidInput (not Ok), so the caller's retry/error path
+ * can engage instead of trusting stale forecast values. This covers the
+ * Open-Meteo {"error": ...} responses and payloads missing any of the three
+ * required time keys (current.time, hourly.time, daily.time). */
+static void test_non_forecast_payloads_rejected(void) {
   forecast_t forecast = {};
-  DeserializationError err = parseJson("{}", forecast);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+
+  const char *errorResponse = "{\"error\":true,\"reason\":\"Latitude must be in range of (-90, 90]\"}";
+  ProviderResult err = parseJson(errorResponse, forecast);
+  TEST_ASSERT_FALSE(err.isOk());
+  TEST_ASSERT_TRUE(err.detail().startsWith(TXT_DESERIALIZATION_ERROR_INVALID_INPUT));
+
+  // Empty root: no section seen at all.
+  err = parseJson("{}", forecast);
+  TEST_ASSERT_FALSE(err.isOk());
+
+  // current without hourly/daily time arrays.
+  err = parseJson("{\"current\":{\"time\":123,\"temperature_2m\":-2.5,\"is_day\":0}}", forecast);
+  TEST_ASSERT_FALSE(err.isOk());
+
+  // All three sections but current.time missing.
+  err = parseJson("{\"current\":{\"temperature_2m\":12.5},\"hourly\":{\"time\":[1]},\"daily\":{\"time\":[2]}}",
+                  forecast);
+  TEST_ASSERT_FALSE(err.isOk());
+
+  // current.time present but the hourly/daily time arrays empty.
+  err = parseJson("{\"current\":{\"time\":1},\"hourly\":{\"time\":[]},\"daily\":{\"time\":[]}}", forecast);
+  TEST_ASSERT_FALSE(err.isOk());
+
+  // Rejected payloads must leave the caller's forecast untouched.
   TEST_ASSERT_EQUAL_INT64(0, forecast.current.dt);
   TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.current.temp);
-  TEST_ASSERT_EQUAL_INT(0, forecast.current.weather.id);
-  TEST_ASSERT_FALSE(forecast.current.is_day);
-  TEST_ASSERT_EQUAL_INT64(0, forecast.daily[0].dt);
+  TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.current.soil_temperature_18cm);
+}
 
-  // current without hourly/daily, and is_day 0 -> false.
-  forecast_t f2 = {};
-  err = parseJson("{\"current\":{\"time\":123,\"temperature_2m\":-2.5,\"is_day\":0}}", f2);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
-  TEST_ASSERT_EQUAL_INT64(123, f2.current.dt);
-  TEST_ASSERT_EQUAL_FLOAT(-2.5f, f2.current.temp);
-  TEST_ASSERT_FALSE(f2.current.is_day);
-  TEST_ASSERT_EQUAL_FLOAT(0.0f, f2.current.soil_temperature_18cm);
+/* The minimum key set that identifies a payload as a forecast is accepted,
+ * even when every other field is absent. */
+static void test_minimal_forecast_keys_accepted(void) {
+  forecast_t forecast = {};
+  ProviderResult err =
+      parseJson("{\"current\":{\"time\":1},\"hourly\":{\"time\":[2]},\"daily\":{\"time\":[3]}}", forecast);
+  TEST_ASSERT_TRUE(err.isOk());
+  TEST_ASSERT_EQUAL_INT64(1, forecast.current.dt);
+  TEST_ASSERT_EQUAL_INT64(2, forecast.hourly[0].dt);
+  TEST_ASSERT_EQUAL_INT64(3, forecast.daily[0].dt);
+}
+
+/* Payloads with the required time keys but missing individual fields are
+ * accepted; the absent fields must not crash and default to zero. */
+static void test_missing_optional_fields(void) {
+  forecast_t forecast = {};
+  ProviderResult err =
+      parseJson("{\"current\":{\"time\":123,\"is_day\":0},\"hourly\":{\"time\":[1]},\"daily\":{\"time\":[2]}}",
+                forecast);
+  TEST_ASSERT_TRUE(err.isOk());
+  TEST_ASSERT_EQUAL_INT64(123, forecast.current.dt);
+  TEST_ASSERT_FALSE(forecast.current.is_day);
+  TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.current.temp);
+  TEST_ASSERT_EQUAL_INT(0, forecast.current.weather.id);
+  TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.current.soil_temperature_18cm);
+  TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.daily[0].temp.min);
 }
 
 /* Garbage and empty input are reported as deserialization errors. */
 static void test_invalid_json(void) {
   forecast_t forecast = {};
-  DeserializationError err = parseJson("this is not json", forecast);
-  TEST_ASSERT_FALSE(err == DeserializationError::Ok);
+  ProviderResult err = parseJson("this is not json", forecast);
+  TEST_ASSERT_FALSE(err.isOk());
+  TEST_ASSERT_TRUE(err.detail().startsWith(TXT_DESERIALIZATION_ERROR_INVALID_INPUT));
 
   err = parseJson("", forecast);
-  TEST_ASSERT_FALSE(err == DeserializationError::Ok);
+  TEST_ASSERT_FALSE(err.isOk());
+  TEST_ASSERT_EQUAL_STRING(TXT_DESERIALIZATION_ERROR_EMPTY_INPUT, err.detail().c_str());
+}
+
+/* EOF seen through Peek() must be recorded too: rapidjson signals end of
+ * input via '\0' from Peek() before any failing Take(), so a truncated body
+ * detected that way still classifies as IncompleteInput. */
+static void test_stream_input_eof_flag(void) {
+  String data("ab");
+  StringStream ss(data);
+  StreamInput input(ss);
+  TEST_ASSERT_FALSE(input.reachedEof());
+  TEST_ASSERT_EQUAL_CHAR('a', input.Peek());
+  TEST_ASSERT_EQUAL_CHAR('a', input.Take());
+  TEST_ASSERT_EQUAL_CHAR('b', input.Take());
+  TEST_ASSERT_FALSE(input.reachedEof());
+  TEST_ASSERT_EQUAL_CHAR('\0', input.Peek());
+  TEST_ASSERT_TRUE(input.reachedEof());
+
+  // Exhausted stream from the start: Peek() records it immediately.
+  String emptyData("");
+  StringStream empty(emptyData);
+  StreamInput emptyInput(empty);
+  TEST_ASSERT_EQUAL_CHAR('\0', emptyInput.Peek());
+  TEST_ASSERT_TRUE(emptyInput.reachedEof());
 }
 
 void setup() {
@@ -286,8 +356,11 @@ void setup() {
   RUN_TEST(test_hourly_and_daily_cap);
   RUN_TEST(test_shorter_arrays);
   RUN_TEST(test_optional_fields_present);
-  RUN_TEST(test_missing_sections);
+  RUN_TEST(test_missing_optional_fields);
+  RUN_TEST(test_minimal_forecast_keys_accepted);
+  RUN_TEST(test_non_forecast_payloads_rejected);
   RUN_TEST(test_invalid_json);
+  RUN_TEST(test_stream_input_eof_flag);
   UNITY_END();
 }
 

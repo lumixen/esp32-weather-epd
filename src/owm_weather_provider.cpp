@@ -15,6 +15,7 @@
 #endif
 #include "_locale.h"
 #include "client_utils.h"
+#include "provider_result_utils.h"
 #include "owm_weather_provider.h"
 
 // OpenWeatherMaps does not specify a limit, but if you need more alerts you
@@ -27,10 +28,8 @@ const char *OWMWeatherProvider::getApiName() const {
 
 /* Perform an HTTP GET request to OpenWeatherMap's "One Call" API and map the
  * response into the generic forecast model.
- *
- * Returns the HTTP Status Code.
  */
-int OWMWeatherProvider::fetch(forecast_t &forecast) {
+ProviderResult OWMWeatherProvider::fetch(forecast_t &forecast) {
 #if defined(WEATHER_API_TRANSPORT_HTTP)
   WiFiClient client;
   const uint16_t port = 80;
@@ -61,30 +60,28 @@ int OWMWeatherProvider::fetch(forecast_t &forecast) {
   alerts = &alerts_;
 #endif
 
-  int httpResponse = httpGetWithRetry(
+  ProviderResult result = httpGetWithRetry(
       client, OWM_ENDPOINT, port, uri, sanitizedUri, false, HTTP_CLIENT_TCP_TIMEOUT,
       [this, &forecast, alerts](Stream &json, size_t) { return deserializeOneCall(json, forecast, alerts); });
 
-  fetchStatus_ = httpResponse;
-  haveAlerts_ = (httpResponse == HTTP_CODE_OK);
-  return httpResponse;
+  fetchStatus_ = result;
+  haveAlerts_ = result.isOk();
+  return result;
 }  // OWMWeatherProvider::fetch
 
 /* Serve national weather alerts extracted from the last One Call response.
  * No additional HTTP request is made.
- *
- * Returns the HTTP Status Code.
  */
-int OWMWeatherProvider::fetch(std::vector<weather_alert_t> &alerts) {
+ProviderResult OWMWeatherProvider::fetch(std::vector<weather_alert_t> &alerts) {
   if (haveAlerts_) {
     alerts = alerts_;
-    return HTTP_CODE_OK;
+    return ProviderResult::ok();
   }
   return fetchStatus_;
 }  // OWMWeatherProvider::fetch
 
-DeserializationError OWMWeatherProvider::deserializeOneCall(Stream &json, forecast_t &forecast,
-                                                            std::vector<weather_alert_t> *alerts) {
+ProviderResult OWMWeatherProvider::deserializeOneCall(Stream &json, forecast_t &forecast,
+                                                      std::vector<weather_alert_t> *alerts) {
   int i;
 
   JsonDocument filter;
@@ -117,7 +114,7 @@ DeserializationError OWMWeatherProvider::deserializeOneCall(Stream &json, foreca
     Serial.println();
   }
   if (error) {
-    return error;
+    return mapDeserializationError(error);
   }
 
   forecast.lat = doc["lat"].as<float>();
@@ -235,7 +232,7 @@ DeserializationError OWMWeatherProvider::deserializeOneCall(Stream &json, foreca
   }
 #endif
 
-  return error;
+  return mapDeserializationError(error);
 }  // OWMWeatherProvider::deserializeOneCall
 
 #endif  // WEATHER_API_PROVIDER_OPEN_WEATHER_MAP

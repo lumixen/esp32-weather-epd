@@ -1,9 +1,9 @@
 #pragma once
 
 #include <vector>
-#include <ArduinoJson.h>
 #include <WiFiClient.h>
 #include "alert_provider.h"
+#include "provider_result.h"
 
 /* MeteoAlarm (EUMETNET) national weather alert provider.
  *
@@ -14,7 +14,7 @@
  */
 class MeteoAlarmAlertProvider : public AlertProvider {
  public:
-  int fetch(std::vector<weather_alert_t> &alerts) override;
+  ProviderResult fetch(std::vector<weather_alert_t> &alerts) override;
 
   /* Stream the Atom feed and collect alerts that have not expired (`now` is
    * the current Unix time) and cover the optional location (lat/lon, NaN =
@@ -23,7 +23,7 @@ class MeteoAlarmAlertProvider : public AlertProvider {
    * bounds the read. Public for unit testing. `networkClient` (optional), the
    * TLS client the response streams from, enables multi-KB block reads
    * (single-byte fallback when null, used by the unit test feeds). */
-  static DeserializationError parseFeed(Stream &xml, std::vector<weather_alert_t> &alerts,
+  static ProviderResult parseFeed(Stream &xml, std::vector<weather_alert_t> &alerts,
                                         int64_t now, double lat = NAN, double lon = NAN,
                                         size_t expectedLen = 0, NetworkClient *networkClient = nullptr);
 

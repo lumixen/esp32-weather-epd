@@ -445,7 +445,7 @@ const char *TXT_HTTP_RESPONSE_508 = "Loop Detected";
 const char *TXT_HTTP_RESPONSE_510 = "Not Extended";
 const char *TXT_HTTP_RESPONSE_511 = "Network Authentication Required";
 
-// ARDUINOJSON DESERIALIZATION ERROR CODES
+// DESERIALIZATION ERROR MESSAGES (used in provider failure details)
 const char *TXT_DESERIALIZATION_ERROR_OK               = "Deserialization OK";
 const char *TXT_DESERIALIZATION_ERROR_EMPTY_INPUT      = "Deserialization Empty Input";
 const char *TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT = "Deserialization Incomplete Input";

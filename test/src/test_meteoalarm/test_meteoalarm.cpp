@@ -11,6 +11,7 @@
 #include <cstring>
 #include <unity.h>
 
+#include "_locale.h"
 #include "data_models.h"
 #include "meteoalarm_alert_provider.h"
 #include "feed_ukraine_real.inc"
@@ -72,9 +73,9 @@ class GapStream : public StringStream {
   size_t gaps_;
 };
 
-static DeserializationError parseFeed(const String &xml, std::vector<weather_alert_t> &alerts,
-                                      int64_t now, double lat = NAN, double lon = NAN,
-                                      size_t expectedLen = 0) {
+static ProviderResult parseFeed(const String &xml, std::vector<weather_alert_t> &alerts,
+                                int64_t now, double lat = NAN, double lon = NAN,
+                                size_t expectedLen = 0) {
   StringStream ss(xml);
   return MeteoAlarmAlertProvider::parseFeed(ss, alerts, now, lat, lon, expectedLen);
 }
@@ -121,8 +122,8 @@ static void test_color_from_severity(void) {
  */
 static void test_parse_real_feed(void) {
   std::vector<weather_alert_t> alerts;
-  DeserializationError err = parseFeed(kFeedUkraineReal, alerts, kNow);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  ProviderResult err = parseFeed(kFeedUkraineReal, alerts, kNow);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(2, alerts.size());
 
   TEST_ASSERT_EQUAL_STRING("Yellow Squall Warning", alerts[0].event.c_str());
@@ -142,21 +143,21 @@ static void test_expired_skip(void) {
   std::vector<weather_alert_t> alerts;
 
   // kNow is before the Heavy rain expiry, after the Squall expiry.
-  DeserializationError err = parseFeed(kFeedUkraineReal, alerts, kNow + 1);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  ProviderResult err = parseFeed(kFeedUkraineReal, alerts, kNow + 1);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(1, alerts.size());
   TEST_ASSERT_EQUAL_STRING("Yellow Heavy rain Warning", alerts[0].event.c_str());
 
   // Beyond both expiries: nothing left.
   alerts.clear();
   err = parseFeed(kFeedUkraineReal, alerts, kRainEnd + 1);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(0, alerts.size());
 
   // Unsynced clock: expiry filtering is disabled, everything is kept.
   alerts.clear();
   err = parseFeed(kFeedUkraineReal, alerts, 0);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(2, alerts.size());
 }
 
@@ -175,8 +176,8 @@ static void test_onset_fallback(void) {
 </feed>
 )FEED";
   std::vector<weather_alert_t> alerts;
-  DeserializationError err = parseFeed(feed, alerts, kNow);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  ProviderResult err = parseFeed(feed, alerts, kNow);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(1, alerts.size());
   TEST_ASSERT_EQUAL_INT64(kSquallStart + 1, alerts[0].start);  // effective time
   TEST_ASSERT_EQUAL_INT64(kSquallEnd, alerts[0].end);
@@ -197,8 +198,8 @@ static void test_entities(void) {
 </feed>
 )FEED";
   std::vector<weather_alert_t> alerts;
-  DeserializationError err = parseFeed(feed, alerts, kNow);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  ProviderResult err = parseFeed(feed, alerts, kNow);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(1, alerts.size());
   TEST_ASSERT_EQUAL_STRING("Yellow Wind & wave Warning", alerts[0].event.c_str());
   TEST_ASSERT_EQUAL_STRING("wind & wave", alerts[0].tags.c_str());
@@ -211,37 +212,38 @@ static void test_truncated_feed(void) {
 
   String cut = kFeedUkraineReal;
   cut.remove(cut.length() - 8);  // drop "</feed>\n" but keep the closed entries
-  DeserializationError err = parseFeed(cut, alerts, kNow);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  ProviderResult err = parseFeed(cut, alerts, kNow);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(2, alerts.size());
 
-  // Cut inside the second entry: the feed is truncated while parsing.
+// Cut inside the second entry: the feed is truncated while parsing.
   alerts.clear();
   cut = kFeedUkraineReal;
   const int secondEntry = cut.indexOf("<cap:event>", cut.indexOf("<cap:event>") + 1);
   cut.remove(secondEntry + 13);
   err = parseFeed(cut, alerts, kNow);
-  TEST_ASSERT_TRUE(err == DeserializationError::InvalidInput);
+  TEST_ASSERT_FALSE(err.isOk());
+  TEST_ASSERT_EQUAL_STRING(TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT, err.detail().c_str());
 
   // Cut right after the first entry: the second entry never opens.
   alerts.clear();
   cut = kFeedUkraineReal;
   cut.remove(cut.indexOf("<entry>", cut.indexOf("<entry>") + 1) - 10);
   err = parseFeed(cut, alerts, kNow);
-  TEST_ASSERT_TRUE(err == DeserializationError::InvalidInput);
+  TEST_ASSERT_FALSE(err.isOk());
 }
 
 /* Garbage and empty input parse as valid feeds without alerts. */
 static void test_garbage(void) {
   std::vector<weather_alert_t> alerts;
 
-  DeserializationError err = parseFeed("", alerts, kNow);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  ProviderResult err = parseFeed("", alerts, kNow);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(0, alerts.size());
 
   alerts.clear();
   err = parseFeed("this is not xml at all", alerts, kNow);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(0, alerts.size());
 }
 
@@ -263,8 +265,8 @@ static void test_alert_cap(void) {
 
   std::vector<weather_alert_t> alerts;
   StringStream ss(feed);
-  DeserializationError err = MeteoAlarmAlertProvider::parseFeed(ss, alerts, kNow);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  ProviderResult err = MeteoAlarmAlertProvider::parseFeed(ss, alerts, kNow);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(2, alerts.size());
   TEST_ASSERT_EQUAL_STRING("Yellow Wind Warning", alerts[0].event.c_str());
   TEST_ASSERT_EQUAL_STRING("Yellow Rain Warning", alerts[1].event.c_str());
@@ -299,8 +301,8 @@ static void test_severity_colors(void) {
   feed += "</feed>";
 
   std::vector<weather_alert_t> alerts;
-  DeserializationError err = parseFeed(feed, alerts, kNow);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  ProviderResult err = parseFeed(feed, alerts, kNow);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(2, alerts.size());
   TEST_ASSERT_EQUAL_STRING("Orange Thunderstorm Warning", alerts[0].event.c_str());
   TEST_ASSERT_EQUAL_STRING("Red Squall Warning", alerts[1].event.c_str());
@@ -334,15 +336,15 @@ static void test_polygon_filter_fixture(void) {
   std::vector<weather_alert_t> alerts;
 
   // (51.1, 24.85) lies inside the Squall polygon but not the Heavy rain one.
-  DeserializationError err = parseFeed(kFeedUkraineReal, alerts, kNow, 51.1, 24.85);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  ProviderResult err = parseFeed(kFeedUkraineReal, alerts, kNow, 51.1, 24.85);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(1, alerts.size());
   TEST_ASSERT_EQUAL_STRING("Yellow Squall Warning", alerts[0].event.c_str());
 
   // Berlin (52.52, 13.40) is outside both polygons.
   alerts.clear();
   err = parseFeed(kFeedUkraineReal, alerts, kNow, 52.52, 13.40);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(0, alerts.size());
 }
 
@@ -362,8 +364,8 @@ static void test_polygon_missing_kept(void) {
 </feed>
 )FEED";
   std::vector<weather_alert_t> alerts;
-  DeserializationError err = parseFeed(feed, alerts, kNow, 52.52, 13.40);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  ProviderResult err = parseFeed(feed, alerts, kNow, 52.52, 13.40);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(1, alerts.size());
 }
 
@@ -393,8 +395,8 @@ static void test_merge_union_span(void) {
 </feed>
 )FEED";
   std::vector<weather_alert_t> alerts;
-  DeserializationError err = parseFeed(feed, alerts, kNow);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  ProviderResult err = parseFeed(feed, alerts, kNow);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(1, alerts.size());
   TEST_ASSERT_EQUAL_STRING("Yellow Wind Warning", alerts[0].event.c_str());
   TEST_ASSERT_EQUAL_STRING("wind", alerts[0].tags.c_str());
@@ -436,8 +438,8 @@ static void test_merge_distinct_hazards(void) {
 </feed>
 )FEED";
   std::vector<weather_alert_t> alerts;
-  DeserializationError err = parseFeed(feed, alerts, kNow);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  ProviderResult err = parseFeed(feed, alerts, kNow);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(2, alerts.size());
   TEST_ASSERT_EQUAL_STRING("Yellow Squall Warning", alerts[0].event.c_str());
   TEST_ASSERT_EQUAL_STRING("squall", alerts[0].tags.c_str());
@@ -472,8 +474,8 @@ static void test_merge_severity_upgrade(void) {
 </feed>
 )FEED";
   std::vector<weather_alert_t> alerts;
-  DeserializationError err = parseFeed(feed, alerts, kNow);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  ProviderResult err = parseFeed(feed, alerts, kNow);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(1, alerts.size());
   TEST_ASSERT_EQUAL_STRING("Orange Thunderstorm Warning", alerts[0].event.c_str());
   TEST_ASSERT_EQUAL_STRING("thunderstorm", alerts[0].tags.c_str());
@@ -488,8 +490,8 @@ static void test_merge_severity_upgrade(void) {
 static void test_latest_feed_polygon_filter(void) {
   std::vector<weather_alert_t> alerts;
 
-  DeserializationError err = parseFeed(kFeedUkraineLatest, alerts, kNow, 51.1, 24.85);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  ProviderResult err = parseFeed(kFeedUkraineLatest, alerts, kNow, 51.1, 24.85);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(2, alerts.size());
 
   TEST_ASSERT_EQUAL_STRING("Yellow Squall Warning", alerts[0].event.c_str());
@@ -505,7 +507,7 @@ static void test_latest_feed_polygon_filter(void) {
   // Berlin is outside all six polygons.
   alerts.clear();
   err = parseFeed(kFeedUkraineLatest, alerts, kNow, 52.52, 13.40);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(0, alerts.size());
 }
 
@@ -517,8 +519,8 @@ static void test_latest_feed_polygon_filter(void) {
 static void test_latest_feed_expiry(void) {
   std::vector<weather_alert_t> alerts;
 
-  DeserializationError err = parseFeed(kFeedUkraineLatest, alerts, kNow);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  ProviderResult err = parseFeed(kFeedUkraineLatest, alerts, kNow);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(2, alerts.size());
   TEST_ASSERT_EQUAL_STRING("Yellow Squall Warning", alerts[0].event.c_str());
   TEST_ASSERT_EQUAL_STRING("squall", alerts[0].tags.c_str());
@@ -531,7 +533,7 @@ static void test_latest_feed_expiry(void) {
 
   alerts.clear();
   err = parseFeed(kFeedUkraineLatest, alerts, kNow + 1);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(2, alerts.size());
   TEST_ASSERT_EQUAL_STRING("Yellow Heavy rain Warning", alerts[0].event.c_str());
   TEST_ASSERT_EQUAL_STRING("heavy rain", alerts[0].tags.c_str());
@@ -699,9 +701,9 @@ static void test_large_feed_full_consumption(void) {
   TEST_ASSERT(ss.totalLength() > 400 * 1024);
 
   std::vector<weather_alert_t> alerts;
-  DeserializationError err =
+  ProviderResult err =
       MeteoAlarmAlertProvider::parseFeed(ss, alerts, kNow, 50.45, 30.52, ss.totalLength());
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(1, alerts.size());
   TEST_ASSERT_EQUAL_STRING("Yellow Thunderstorm Warning", alerts[0].event.c_str());
   TEST_ASSERT_EQUAL_STRING("thunderstorm", alerts[0].tags.c_str());
@@ -721,9 +723,9 @@ static void test_expected_len(void) {
 
   String realFeed = kFeedUkraineReal;
   StringStream ss(realFeed);
-  DeserializationError err =
+  ProviderResult err =
       MeteoAlarmAlertProvider::parseFeed(ss, alerts, kNow, NAN, NAN, realFeed.length());
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(2, alerts.size());
   TEST_ASSERT_EQUAL_STRING("Yellow Squall Warning", alerts[0].event.c_str());
   TEST_ASSERT_EQUAL_UINT(realFeed.length(), ss.bytesRead());
@@ -732,7 +734,7 @@ static void test_expected_len(void) {
   size_t cut = realFeed.indexOf("</entry>") + 8;  // end of the first entry
   StringStream ss2(realFeed);
   err = MeteoAlarmAlertProvider::parseFeed(ss2, alerts, kNow, NAN, NAN, cut);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(1, alerts.size());
   TEST_ASSERT_EQUAL_STRING("Yellow Squall Warning", alerts[0].event.c_str());
   // The read stopped exactly at the cut, far short of the end of the document.
@@ -740,7 +742,7 @@ static void test_expected_len(void) {
 
   alerts.clear();
   err = parseFeed(kFeedUkraineReal, alerts, kNow);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(2, alerts.size());
 }
 
@@ -752,8 +754,8 @@ static const size_t kFeedRealLen = sizeof(kFeedUkraineReal) - 1;  // length of t
 static void test_transient_read_gaps(void) {
   std::vector<weather_alert_t> alerts;
   GapStream ss(kFeedUkraineReal, 512);
-  DeserializationError err = MeteoAlarmAlertProvider::parseFeed(ss, alerts, kNow);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  ProviderResult err = MeteoAlarmAlertProvider::parseFeed(ss, alerts, kNow);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(2, alerts.size());
   TEST_ASSERT_EQUAL_STRING("Yellow Squall Warning", alerts[0].event.c_str());
   // No byte of the real document was lost to the gaps.
@@ -775,9 +777,9 @@ static void test_advertised_length_mismatch(void) {
   // stops exactly at the advertised boundary; the partial entry is dropped.
   const size_t cut = realFeed.indexOf("<cap:polygon>", realFeed.indexOf("<cap:polygon>") + 1) + 13;
   StringStream ssShort(realFeed);
-  DeserializationError err =
+  ProviderResult err =
       MeteoAlarmAlertProvider::parseFeed(ssShort, alerts, kNow, NAN, NAN, cut);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);  // end at advertised length is clean
+  TEST_ASSERT_TRUE(err.isOk());  // end at advertised length is clean
   TEST_ASSERT_EQUAL_UINT(1, alerts.size());           // partial second entry dropped
   TEST_ASSERT_EQUAL_UINT(cut, ssShort.bytesRead());
 
@@ -786,7 +788,7 @@ static void test_advertised_length_mismatch(void) {
   alerts.clear();
   StringStream ssLong(realFeed);
   err = MeteoAlarmAlertProvider::parseFeed(ssLong, alerts, kNow, NAN, NAN, realFeed.length() + 1);
-  TEST_ASSERT_TRUE(err == DeserializationError::Ok);
+  TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(2, alerts.size());
   TEST_ASSERT_EQUAL_UINT(realFeed.length(), ssLong.bytesRead());
 }

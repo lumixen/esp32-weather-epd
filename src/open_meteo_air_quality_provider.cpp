@@ -13,15 +13,16 @@
 #include "cert.h"
 #endif
 #include <time.h>
+#include "_locale.h"
 #include "client_utils.h"
+#include "provider_result_utils.h"
 #include "open_meteo_air_quality_provider.h"
 
 /* Perform an HTTP GET request to Open-Meteo's air quality API and map the
  * response into the generic air quality model.
  *
- * Returns the HTTP Status Code.
  */
-int OpenMeteoAirQualityProvider::fetch(air_quality_t &airQuality) {
+ProviderResult OpenMeteoAirQualityProvider::fetch(air_quality_t &airQuality) {
 #if defined(AIR_QUALITY_API_TRANSPORT_HTTP)
   WiFiClient client;
   const uint16_t port = 80;
@@ -43,7 +44,7 @@ int OpenMeteoAirQualityProvider::fetch(air_quality_t &airQuality) {
                           [&airQuality](Stream &json, size_t) { return deserializeAirQuality(json, airQuality); });
 }  // OpenMeteoAirQualityProvider::fetch
 
-DeserializationError OpenMeteoAirQualityProvider::deserializeAirQuality(Stream &json, air_quality_t &airQuality) {
+ProviderResult OpenMeteoAirQualityProvider::deserializeAirQuality(Stream &json, air_quality_t &airQuality) {
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, json);
   LOG_DEBUG("doc.overflowed() : %s", doc.overflowed() ? "true" : "false");
@@ -53,7 +54,7 @@ DeserializationError OpenMeteoAirQualityProvider::deserializeAirQuality(Stream &
     Serial.println();
   }
   if (error) {
-    return error;
+    return mapDeserializationError(error);
   }
 
   JsonObject hourly = doc["hourly"];
@@ -90,7 +91,7 @@ DeserializationError OpenMeteoAirQualityProvider::deserializeAirQuality(Stream &
     airQuality.components.so2[i] = hourly["sulphur_dioxide"][idx].as<float>();
     airQuality.components.nh3[i] = hourly["ammonia"][idx].as<float>();
   }
-  return error;
+  return mapDeserializationError(error);
 }  // OpenMeteoAirQualityProvider::deserializeAirQuality
 
 #endif  // AIR_QUALITY_API_PROVIDER_OPEN_METEO

@@ -438,7 +438,7 @@ const char *TXT_HTTP_RESPONSE_508 = "Bucle Detectado";
 const char *TXT_HTTP_RESPONSE_510 = "No Extendido";
 const char *TXT_HTTP_RESPONSE_511 = "Se Requiere Autenticacion de Red";
 
-// ARDUINOJSON DESERIALIZATION ERROR CODES
+// DESERIALIZATION ERROR MESSAGES (used in provider failure details)
 const char *TXT_DESERIALIZATION_ERROR_OK               = "Desserializaci\363n OK";
 const char *TXT_DESERIALIZATION_ERROR_EMPTY_INPUT      = "Entrada Vacia para Desserializaci\363n";
 const char *TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT = "Entrada Incompleta para Desserializaci\363n";

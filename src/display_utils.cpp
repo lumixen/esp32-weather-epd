@@ -18,7 +18,6 @@
 #include <cmath>
 #include <vector>
 #include <Arduino.h>
-#include <ArduinoJson.h>
 #include <HTTPClient.h>
 #include <WiFi.h>
 #include <esp_adc/adc_cali.h>
@@ -1439,17 +1438,12 @@ const char *getCompassPointNotation(int windDeg) {
 
 /* This function returns a pointer to a string representing the meaning for a
  * HTTP response status code or an arduino client error code.
- * ArduinoJson DeserializationError codes are also included here and are given a
- * negative 100 offset to distinguish them from other client error codes.
  *
  * HTTP response status codes [100, 599]
  * https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
  *
  * HTTP client errors [0, -255]
  * https://github.com/espressif/arduino-esp32/blob/master/libraries/HTTPClient/src/HTTPClient.h
- *
- * ArduinoJson DeserializationError codes [-256, -511]
- * https://arduinojson.org/v6/api/misc/deserializationerror/
  *
  * WiFi Status codes [-512, -767]
  * https://github.com/espressif/arduino-esp32/blob/master/libraries/WiFi/src/WiFiType.h
@@ -1613,20 +1607,6 @@ const char *getHttpResponsePhrase(int code) {
       return TXT_HTTPC_ERROR_STREAM_WRITE;
     case HTTPC_ERROR_READ_TIMEOUT:
       return TXT_HTTPC_ERROR_READ_TIMEOUT;
-
-    // ArduinoJson DeserializationError codes  [-256, -511]
-    case -256 - (DeserializationError::Code::Ok):
-      return TXT_DESERIALIZATION_ERROR_OK;
-    case -256 - (DeserializationError::Code::EmptyInput):
-      return TXT_DESERIALIZATION_ERROR_EMPTY_INPUT;
-    case -256 - (DeserializationError::Code::IncompleteInput):
-      return TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT;
-    case -256 - (DeserializationError::Code::InvalidInput):
-      return TXT_DESERIALIZATION_ERROR_INVALID_INPUT;
-    case -256 - (DeserializationError::Code::NoMemory):
-      return TXT_DESERIALIZATION_ERROR_NO_MEMORY;
-    case -256 - (DeserializationError::Code::TooDeep):
-      return TXT_DESERIALIZATION_ERROR_TOO_DEEP;
 
     // WiFi Status codes [-512, -767]
     case -512 - WL_NO_SHIELD:

@@ -34,6 +34,7 @@
 #include "icons/icons_196x196.h"
 #include "logger.h"
 #include "provider_factory.h"
+#include "provider_result.h"
 #include "renderer.h"
 #include "moon_tools.h"
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
@@ -330,10 +331,10 @@ void setup() {
 #endif
 // MAKE API REQUESTS
   WeatherProvider *weatherProvider = createWeatherProvider();
-  int rxStatus = weatherProvider->fetch(environment_data);
-  if (rxStatus != HTTP_CODE_OK) {
+  ProviderResult result = weatherProvider->fetch(environment_data);
+  if (!result.isOk()) {
     statusStr = weatherProvider->getApiName();
-    tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
+    tmpStr = result.detail();
     handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
                        wifiRSSI);
   }
@@ -341,20 +342,20 @@ void setup() {
   if (alertProvider != nullptr) {
     // alerts may be served from the weather provider's stored response, in
     // which case no additional HTTP request is made
-    rxStatus = alertProvider->fetch(alerts);
-    if (rxStatus != HTTP_CODE_OK) {
+    result = alertProvider->fetch(alerts);
+    if (!result.isOk()) {
       // Alerts are a non-essential source: log the failure and continue
       // without them instead of taking over the whole display.
-      LOG_ERROR("Alerts API: %d: %s", rxStatus, getHttpResponsePhrase(rxStatus));
+      LOG_ERROR("Alerts API: %s", result.detail().c_str());
       alerts.clear();
     }
   }
 
   AirQualityProvider *airQualityProvider = createAirQualityProvider();
-  rxStatus = airQualityProvider->fetch(air_pollution);
-  if (rxStatus != HTTP_CODE_OK) {
+  result = airQualityProvider->fetch(air_pollution);
+  if (!result.isOk()) {
     statusStr = "Air Pollution API";
-    tmpStr = String(rxStatus, DEC) + ": " + getHttpResponsePhrase(rxStatus);
+    tmpStr = result.detail();
     handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
                        wifiRSSI);
   }

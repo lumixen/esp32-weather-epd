@@ -15,6 +15,7 @@
 #endif
 #include "_locale.h"
 #include "client_utils.h"
+#include "provider_result_utils.h"
 #include "owm_alert_provider.h"
 
 // OpenWeatherMaps does not specify a limit, but if you need more alerts you
@@ -23,10 +24,8 @@
 
 /* Perform an HTTP GET request to OpenWeatherMap's "One Call" API requesting
  * only alerts, and map the response into the generic alert model.
- *
- * Returns the HTTP Status Code.
  */
-int OWMAlertProvider::fetch(std::vector<weather_alert_t> &alerts) {
+ProviderResult OWMAlertProvider::fetch(std::vector<weather_alert_t> &alerts) {
 #if defined(ALERTS_API_TRANSPORT_HTTP)
   WiFiClient client;
   const uint16_t port = 80;
@@ -52,7 +51,7 @@ int OWMAlertProvider::fetch(std::vector<weather_alert_t> &alerts) {
                           [&alerts](Stream &json, size_t) { return deserializeAlerts(json, alerts); });
 }  // OWMAlertProvider::fetch
 
-DeserializationError OWMAlertProvider::deserializeAlerts(Stream &json, std::vector<weather_alert_t> &alerts) {
+ProviderResult OWMAlertProvider::deserializeAlerts(Stream &json, std::vector<weather_alert_t> &alerts) {
   int i = 0;
 
   JsonDocument filter;
@@ -77,7 +76,7 @@ DeserializationError OWMAlertProvider::deserializeAlerts(Stream &json, std::vect
     Serial.println();
   }
   if (error) {
-    return error;
+    return mapDeserializationError(error);
   }
 
   for (JsonObject alert : doc["alerts"].as<JsonArray>()) {
@@ -96,7 +95,7 @@ DeserializationError OWMAlertProvider::deserializeAlerts(Stream &json, std::vect
     ++i;
   }
 
-  return error;
+  return mapDeserializationError(error);
 }  // OWMAlertProvider::deserializeAlerts
 
 #endif  // ALERTS_API_PROVIDER_OPEN_WEATHER_MAP && !WEATHER_API_PROVIDER_OPEN_WEATHER_MAP
