@@ -80,6 +80,123 @@ ProviderResult OWMWeatherProvider::fetch(std::vector<weather_alert_t> &alerts) {
   return fetchStatus_;
 }  // OWMWeatherProvider::fetch
 
+/* Map an OpenWeatherMap weather condition id onto the unified weather
+ * condition enum.
+ *
+ * References:
+ *   https://openweathermap.org/weather-conditions
+ */
+weather_condition OWMWeatherProvider::mapWeatherCode(int id) {
+  switch (id) {
+    // Group 2xx: Thunderstorm
+    case 200:  // Thunderstorm with light rain
+    case 201:  // Thunderstorm with rain
+    case 202:  // Thunderstorm with heavy rain
+    case 210:  // Light thunderstorm
+    case 211:  // Thunderstorm
+    case 212:  // Heavy thunderstorm
+    case 221:  // Ragged thunderstorm
+      return weather_condition::THUNDERSTORM;
+    case 230:  // Thunderstorm with light drizzle
+    case 231:  // Thunderstorm with drizzle
+    case 232:  // Thunderstorm with heavy drizzle
+      return weather_condition::THUNDERSTORM_HAIL;
+    // Group 3xx: Drizzle
+    case 300:  // Light intensity drizzle
+    case 301:  // Drizzle
+    case 302:  // Heavy intensity drizzle
+    case 310:  // Light intensity drizzle rain
+    case 311:  // Drizzle rain
+    case 312:  // Heavy intensity drizzle rain
+    case 313:  // Shower rain and drizzle
+    case 314:  // Heavy shower rain and drizzle
+    case 321:  // Shower drizzle
+      return weather_condition::DRIZZLE;
+    // Group 5xx: Rain
+    case 500:  // Light rain
+    case 501:  // Moderate rain
+    case 502:  // Heavy intensity rain
+    case 503:  // Very heavy rain
+    case 504:  // Extreme rain
+      return weather_condition::RAIN;
+    case 511:  // Freezing rain
+      return weather_condition::FREEZING_RAIN;
+    case 520:  // Light intensity shower rain
+    case 521:  // Shower rain
+    case 522:  // Heavy intensity shower rain
+    case 531:  // Ragged shower rain
+      return weather_condition::RAIN_SHOWERS;
+    // Group 6xx: Snow
+    case 600:  // Light snow
+    case 601:  // Snow
+    case 602:  // Heavy snow
+      return weather_condition::SNOW;
+    case 611:  // Sleet
+    case 612:  // Light shower sleet
+    case 613:  // Shower sleet
+      return weather_condition::SLEET;
+    case 615:  // Light rain and snow
+    case 616:  // Rain and snow
+    case 620:  // Light shower snow
+    case 621:  // Shower snow
+    case 622:  // Heavy shower snow
+      return weather_condition::RAIN_SNOW_MIX;
+    // Group 7xx: Atmosphere
+    case 701:  // Mist
+      return weather_condition::MIST;
+    case 711:  // Smoke
+      return weather_condition::SMOKE;
+    case 721:  // Haze
+      return weather_condition::HAZE;
+    case 731:  // Sand/dust whirls
+      return weather_condition::SAND_WHIRLS;
+    case 741:  // Fog
+      return weather_condition::FOG;
+    case 751:  // Sand
+      return weather_condition::SAND;
+    case 761:  // Dust
+      return weather_condition::DUST;
+    case 762:  // Volcanic ash
+      return weather_condition::ASH;
+    case 771:  // Squalls
+      return weather_condition::SQUALL;
+    case 781:  // Tornado
+      return weather_condition::TORNADO;
+    // Group 800: Clear
+    case 800:  // Clear sky
+      return weather_condition::CLEAR;
+    // Group 80x: Clouds
+    case 801:  // Few clouds: 11-25%
+      return weather_condition::PARTLY_CLOUDY;
+    case 802:  // Scattered clouds: 25-50%
+    case 803:  // Broken clouds: 51-84%
+      return weather_condition::CLOUDY;
+    case 804:  // Overcast clouds: 85-100%
+      return weather_condition::OVERCAST;
+    default:
+      // maybe this is a new condition id in one of the existing groups
+      if (id >= 200 && id < 300) {
+        return weather_condition::THUNDERSTORM;
+      }
+      if (id >= 300 && id < 400) {
+        return weather_condition::DRIZZLE;
+      }
+      if (id >= 500 && id < 600) {
+        return weather_condition::RAIN;
+      }
+      if (id >= 600 && id < 700) {
+        return weather_condition::SNOW;
+      }
+      if (id >= 700 && id < 800) {
+        return weather_condition::FOG;
+      }
+      if (id >= 800 && id < 900) {
+        return weather_condition::CLOUDY;
+      }
+      return weather_condition::UNKNOWN;
+  }
+}  // OWMWeatherProvider::mapWeatherCode
+
 ProviderResult OWMWeatherProvider::deserializeOneCall(Stream &json, forecast_t &forecast,
                                                       std::vector<weather_alert_t> *alerts) {
   int i;
@@ -140,9 +257,7 @@ ProviderResult OWMWeatherProvider::deserializeOneCall(Stream &json, forecast_t &
   forecast.current.rain_1h = current["rain"]["1h"].as<float>();
   forecast.current.snow_1h = current["snow"]["1h"].as<float>();
   JsonObject current_weather = current["weather"][0];
-  forecast.current.weather.id = current_weather["id"].as<int>();
-  forecast.current.weather.main = current_weather["main"].as<const char *>();
-  forecast.current.weather.description = current_weather["description"].as<const char *>();
+  forecast.current.weather.condition = mapWeatherCode(current_weather["id"].as<int>());
   // OpenWeatherMap indicates sun is up with d otherwise n for night
   forecast.current.is_day = current_weather["icon"].as<String>().endsWith("d");
 
@@ -164,9 +279,7 @@ ProviderResult OWMWeatherProvider::deserializeOneCall(Stream &json, forecast_t &
     forecast.hourly[i].rain_1h = hourly["rain"]["1h"].as<float>();
     forecast.hourly[i].snow_1h = hourly["snow"]["1h"].as<float>();
     JsonObject hourly_weather = hourly["weather"][0];
-    forecast.hourly[i].weather.id = hourly_weather["id"].as<int>();
-    forecast.hourly[i].weather.main = hourly_weather["main"].as<const char *>();
-    forecast.hourly[i].weather.description = hourly_weather["description"].as<const char *>();
+    forecast.hourly[i].weather.condition = mapWeatherCode(hourly_weather["id"].as<int>());
     // OpenWeatherMap indicates sun is up with d otherwise n for night
     forecast.hourly[i].is_day = hourly_weather["icon"].as<String>().endsWith("d");
 
@@ -201,9 +314,7 @@ ProviderResult OWMWeatherProvider::deserializeOneCall(Stream &json, forecast_t &
     forecast.daily[i].rain = daily["rain"].as<float>();
     forecast.daily[i].snow = daily["snow"].as<float>();
     JsonObject daily_weather = daily["weather"][0];
-    forecast.daily[i].weather.id = daily_weather["id"].as<int>();
-    forecast.daily[i].weather.main = daily_weather["main"].as<const char *>();
-    forecast.daily[i].weather.description = daily_weather["description"].as<const char *>();
+    forecast.daily[i].weather.condition = mapWeatherCode(daily_weather["id"].as<int>());
 
     if (i == NUM_DAILY - 1) {
       break;

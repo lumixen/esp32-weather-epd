@@ -12,4 +12,4 @@ COPY install_qemu.sh /opt/install_qemu.sh
 RUN DEST=/opt/qemu /opt/install_qemu.sh
 
 WORKDIR /project
-CMD ["pio", "test", "-e", "lolin_d32_qemu", "--without-uploading"]
+CMD ["bash", "test/run_tests.sh"]

@@ -1,0 +1,116 @@
+# Pinned configuration for the QEMU unit test run with the Open-Meteo
+# weather provider (the `lolin_d32_qemu` env default, wired in by
+# scripts/select_test_env_config.py when ESP32_EPD_CONFIG is unset).
+#
+# This is a fixed copy of the canonical Open-Meteo setup and is committed on
+# purpose: test builds must never depend on the untracked local config.yml
+# (CI and developers' machines would otherwise build against different
+# configurations). Keep it in sync with config.example.yml, and remember that
+# test/src links MeteoAlarmAlertProvider::parseFeed, so alertsAPI provider
+# must stay MeteoAlarm. Credentials are placeholders; tests never go online.
+epdPanel: GENERIC_BW_V2
+epdDriver: Good Display DESPI-C02
+locale: en_GB
+
+weatherAPI:
+  provider: Open-Meteo
+  transport: HTTPS_VERIFY
+
+airQualityAPI:
+  provider: Open-Meteo
+  transport: HTTPS_VERIFY
+
+alertsAPI:
+  provider: MeteoAlarm
+  # MeteoAlarm Atom feed country slug, e.g. netherlands, ukraine or
+  # united-kingdom. Must be one of the feeds listed at
+  # https://feeds.meteoalarm.org/ (validated at build time).
+  country: netherlands
+
+ntp:
+  server_1: pool.ntp.org
+  server_2: time.nist.gov
+  syncIntervalWakeups: 6
+  timeout: 20000
+
+pin:
+  batAdc: 35
+  epdBusy: 14
+  epdCS: 13
+  epdRst: 21
+  epdDC: 22
+  epdSCK: 18
+  epdMISO: 19
+  epdMOSI: 23
+  epdPwr: 26
+
+useImperialUnitsAsDefault: false
+unitsTemp: Celsius
+unitsSpeed: km/h
+unitsPres: hPa
+unitsDistance: km
+unitsHourlyPrecip: probability of precipitation
+unitsDailyPrecip: mm
+windDirectionIndicator: arrow
+windArrowPrecision: secondary intercardinal
+font: FreeSans
+displayDailyPrecip: smart
+displayHourlyIcons: true
+batteryMonitoring: true
+statusBarExtrasBatVoltage: false
+statusBarExtrasWifiRSSI: false
+logLevel: debug
+
+wifi:
+  ssid: your-wifi-ssid
+  password: your-wifi-password
+  timeout: 10000
+  scan: false
+
+latitude: "51.5072"
+longitude: "-0.1276"
+city: London
+timezone: Europe/London
+timeFormat: "%H:%M"
+hourFormat: "%H"
+dateFormat: "%x"
+refreshTimeFormat: "%x %H:%M"
+sleepDuration: 30
+bedTime: 0
+wakeTime: 6
+hourlyGraphMax: 24
+moonPhaseStyle: primary
+
+bme:
+  type: NONE
+
+leftPanelLayout:
+  SUNRISE: 0
+  SUNSET: 1
+  MOONRISE: 2
+  MOONSET: 3
+  MOONPHASE: 4
+  HUMIDITY: 5
+  WIND: 6
+  PRESSURE: 7
+  AIR_QUALITY: 8
+  VISIBILITY: 9
+
+homeAssistantMqtt:
+  enabled: false
+
+colors:
+  outlookLowThresholdTemperature: 0
+  outlookHighThresholdTemperature: 35
+  outlookTemperatureLowColor: black
+  outlookTemperatureNormalColor: black
+  outlookTemperatureHighColor: black
+  outlookConditionsIconAccent: black
+  city: black
+  date: black
+  alert: black
+  errorIcon: black
+  statusBarBatteryWarning: black
+  statusBarWeakWifi: black
+  statusBarMessage: black
+  forecastPrecipitation: black

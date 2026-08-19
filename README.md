@@ -226,7 +226,7 @@ Without the wrapper, select the config with the `ESP32_EPD_CONFIG` environment v
 ESP32_EPD_CONFIG=kitchen ~/.platformio/penv/bin/pio run -e lolin_d32 -t upload
 ```
 
-When `ESP32_EPD_CONFIG` is unset, `config.yml` is used — that is what the VS Code PlatformIO buttons and the `lolin_d32_qemu` test environment build against.
+When `ESP32_EPD_CONFIG` is unset, `config.yml` is used — that is what the VS Code PlatformIO buttons build against. (The `lolin_d32_qemu` test environment instead defaults to the committed test config `test/configs/openmeteo.yml`; see `test/run_tests.sh`.)
 
 ### Home Assistant integration through MQTT
 

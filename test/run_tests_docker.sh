@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 #
-# Runs the MeteoAlarm unit tests inside Docker with the ESP32 QEMU emulator.
+# Runs the QEMU unit tests inside Docker with the ESP32 QEMU emulator.
 # The whole project directory is mounted read-write, so build artifacts land
 # in .pio/ on the host and the built image is cached across runs.
+#
+# The actual test orchestration lives in test/run_tests.sh (executed in the
+# container): it loops over the test configs in test/configs/, each reusing
+# the single lolin_d32_qemu env with a different compile-time config.
 set -euo pipefail
 
 # Root of the git repo: the container mounts it read-write at /project, so
@@ -18,7 +22,7 @@ esac
 
 if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
     echo "Building test image $IMAGE ..."
-    docker build --platform "$PLATFORM" -t "$IMAGE" "$ROOT/test"
+    docker build --platform "$PLATFORM" -t "$IMAGE" "$ROOT/test/docker"
 fi
 
 # Everything runs inside the container: PlatformIO's own packages dir is
@@ -38,4 +42,4 @@ exec docker run --rm --platform "$PLATFORM" \
     "${PIO_VOLUME_ARGS[@]}" \
     -w /project \
     "$IMAGE" \
-    pio test -e lolin_d32_qemu --without-uploading "$@"
+    bash test/run_tests.sh "$@"

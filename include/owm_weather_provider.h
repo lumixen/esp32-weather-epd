@@ -18,6 +18,10 @@ class OWMWeatherProvider : public WeatherProvider, public AlertProvider {
   ProviderResult fetch(forecast_t &forecast) override;
   ProviderResult fetch(std::vector<weather_alert_t> &alerts) override;
 
+  /* Map an OpenWeatherMap weather condition id onto the unified
+   * weather_condition enum. Public for unit testing. */
+  static weather_condition mapWeatherCode(int id);
+
  private:
   static ProviderResult deserializeOneCall(Stream &json, forecast_t &forecast,
                                            std::vector<weather_alert_t> *alerts);

@@ -85,6 +85,44 @@ static void test_get_api_name(void) {
   TEST_ASSERT_EQUAL_STRING("Open Meteo API", provider.getApiName());
 }
 
+/* Every WMO weather interpretation code must map onto the unified
+ * weather_condition enum. Unknown codes must fall back to UNKNOWN. */
+static void test_map_weather_code(void) {
+  TEST_ASSERT_EQUAL(weather_condition::CLEAR, OpenMeteoWeatherProvider::mapWeatherCode(0));
+  TEST_ASSERT_EQUAL(weather_condition::PARTLY_CLOUDY, OpenMeteoWeatherProvider::mapWeatherCode(1));
+  TEST_ASSERT_EQUAL(weather_condition::CLOUDY, OpenMeteoWeatherProvider::mapWeatherCode(2));
+  TEST_ASSERT_EQUAL(weather_condition::OVERCAST, OpenMeteoWeatherProvider::mapWeatherCode(3));
+  TEST_ASSERT_EQUAL(weather_condition::FOG, OpenMeteoWeatherProvider::mapWeatherCode(45));
+  TEST_ASSERT_EQUAL(weather_condition::FOG, OpenMeteoWeatherProvider::mapWeatherCode(48));
+  TEST_ASSERT_EQUAL(weather_condition::DRIZZLE, OpenMeteoWeatherProvider::mapWeatherCode(51));
+  TEST_ASSERT_EQUAL(weather_condition::DRIZZLE, OpenMeteoWeatherProvider::mapWeatherCode(53));
+  TEST_ASSERT_EQUAL(weather_condition::DRIZZLE, OpenMeteoWeatherProvider::mapWeatherCode(55));
+  TEST_ASSERT_EQUAL(weather_condition::FREEZING_DRIZZLE, OpenMeteoWeatherProvider::mapWeatherCode(56));
+  TEST_ASSERT_EQUAL(weather_condition::FREEZING_DRIZZLE, OpenMeteoWeatherProvider::mapWeatherCode(57));
+  TEST_ASSERT_EQUAL(weather_condition::RAIN, OpenMeteoWeatherProvider::mapWeatherCode(61));
+  TEST_ASSERT_EQUAL(weather_condition::RAIN, OpenMeteoWeatherProvider::mapWeatherCode(63));
+  TEST_ASSERT_EQUAL(weather_condition::RAIN, OpenMeteoWeatherProvider::mapWeatherCode(65));
+  TEST_ASSERT_EQUAL(weather_condition::FREEZING_RAIN, OpenMeteoWeatherProvider::mapWeatherCode(66));
+  TEST_ASSERT_EQUAL(weather_condition::FREEZING_RAIN, OpenMeteoWeatherProvider::mapWeatherCode(67));
+  TEST_ASSERT_EQUAL(weather_condition::SNOW, OpenMeteoWeatherProvider::mapWeatherCode(71));
+  TEST_ASSERT_EQUAL(weather_condition::SNOW, OpenMeteoWeatherProvider::mapWeatherCode(73));
+  TEST_ASSERT_EQUAL(weather_condition::SNOW, OpenMeteoWeatherProvider::mapWeatherCode(75));
+  TEST_ASSERT_EQUAL(weather_condition::SNOW_GRAINS, OpenMeteoWeatherProvider::mapWeatherCode(77));
+  TEST_ASSERT_EQUAL(weather_condition::RAIN_SHOWERS, OpenMeteoWeatherProvider::mapWeatherCode(80));
+  TEST_ASSERT_EQUAL(weather_condition::RAIN_SHOWERS, OpenMeteoWeatherProvider::mapWeatherCode(81));
+  TEST_ASSERT_EQUAL(weather_condition::RAIN_SHOWERS, OpenMeteoWeatherProvider::mapWeatherCode(82));
+  TEST_ASSERT_EQUAL(weather_condition::SNOW_SHOWERS, OpenMeteoWeatherProvider::mapWeatherCode(85));
+  TEST_ASSERT_EQUAL(weather_condition::SNOW_SHOWERS, OpenMeteoWeatherProvider::mapWeatherCode(86));
+  TEST_ASSERT_EQUAL(weather_condition::THUNDERSTORM, OpenMeteoWeatherProvider::mapWeatherCode(95));
+  TEST_ASSERT_EQUAL(weather_condition::THUNDERSTORM_HAIL, OpenMeteoWeatherProvider::mapWeatherCode(96));
+  TEST_ASSERT_EQUAL(weather_condition::THUNDERSTORM_HAIL, OpenMeteoWeatherProvider::mapWeatherCode(99));
+  TEST_ASSERT_EQUAL(weather_condition::UNKNOWN, OpenMeteoWeatherProvider::mapWeatherCode(4));
+  TEST_ASSERT_EQUAL(weather_condition::UNKNOWN, OpenMeteoWeatherProvider::mapWeatherCode(20));
+  TEST_ASSERT_EQUAL(weather_condition::UNKNOWN, OpenMeteoWeatherProvider::mapWeatherCode(44));
+  TEST_ASSERT_EQUAL(weather_condition::UNKNOWN, OpenMeteoWeatherProvider::mapWeatherCode(90));
+  TEST_ASSERT_EQUAL(weather_condition::UNKNOWN, OpenMeteoWeatherProvider::mapWeatherCode(401));
+}
+
 /* Map the real Lima response: every current field, the sun times taken from
  * the first daily entry, and the soil temperature defaulting to 0 (not
  * requested from the API). */
@@ -107,7 +145,7 @@ static void test_lima_current(void) {
   TEST_ASSERT_EQUAL_FLOAT(5.81f, forecast.current.wind_speed);
   TEST_ASSERT_EQUAL_FLOAT(14.50f, forecast.current.wind_gust);
   TEST_ASSERT_EQUAL_INT(153, forecast.current.wind_deg);
-  TEST_ASSERT_EQUAL_INT(1, forecast.current.weather.id);
+  TEST_ASSERT_EQUAL(weather_condition::PARTLY_CLOUDY, forecast.current.weather.condition);
   TEST_ASSERT_TRUE(forecast.current.is_day);
   TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.current.soil_temperature_18cm);
 }
@@ -128,14 +166,14 @@ static void test_lima_hourly(void) {
   TEST_ASSERT_EQUAL_INT(0, forecast.hourly[0].pop);
   TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.hourly[0].rain_1h);
   TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.hourly[0].snow_1h);
-  TEST_ASSERT_EQUAL_INT(1, forecast.hourly[0].weather.id);
+  TEST_ASSERT_EQUAL(weather_condition::PARTLY_CLOUDY, forecast.hourly[0].weather.condition);
   TEST_ASSERT_TRUE(forecast.hourly[0].is_day);
 
   // Night entry (is_day 0 -> false).
   TEST_ASSERT_EQUAL_INT64(1787097600LL, forecast.hourly[8].dt);
   TEST_ASSERT_EQUAL_FLOAT(18.8f, forecast.hourly[8].temp);
   TEST_ASSERT_EQUAL_INT(34, forecast.hourly[8].clouds);
-  TEST_ASSERT_EQUAL_INT(1, forecast.hourly[8].weather.id);
+  TEST_ASSERT_EQUAL(weather_condition::PARTLY_CLOUDY, forecast.hourly[8].weather.condition);
   TEST_ASSERT_FALSE(forecast.hourly[8].is_day);
 
   TEST_ASSERT_EQUAL_INT64(1787112000LL, forecast.hourly[12].dt);
@@ -146,7 +184,7 @@ static void test_lima_hourly(void) {
   // Late morning entry: weather code 2, back to daytime.
   TEST_ASSERT_EQUAL_INT64(1787140800LL, forecast.hourly[20].dt);
   TEST_ASSERT_EQUAL_FLOAT(17.2f, forecast.hourly[20].temp);
-  TEST_ASSERT_EQUAL_INT(2, forecast.hourly[20].weather.id);
+  TEST_ASSERT_EQUAL(weather_condition::CLOUDY, forecast.hourly[20].weather.condition);
   TEST_ASSERT_TRUE(forecast.hourly[20].is_day);
 
   // Last of the 24 entries.
@@ -154,7 +192,7 @@ static void test_lima_hourly(void) {
   TEST_ASSERT_EQUAL_FLOAT(19.9f, forecast.hourly[23].temp);
   TEST_ASSERT_EQUAL_INT(29, forecast.hourly[23].clouds);
   TEST_ASSERT_EQUAL_FLOAT(3.82f, forecast.hourly[23].wind_speed);
-  TEST_ASSERT_EQUAL_INT(1, forecast.hourly[23].weather.id);
+  TEST_ASSERT_EQUAL(weather_condition::PARTLY_CLOUDY, forecast.hourly[23].weather.condition);
   TEST_ASSERT_TRUE(forecast.hourly[23].is_day);
 }
 
@@ -173,13 +211,13 @@ static void test_lima_daily(void) {
   TEST_ASSERT_EQUAL_INT(0, forecast.daily[0].pop);
   TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.daily[0].rain);
   TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.daily[0].snow);
-  TEST_ASSERT_EQUAL_INT(3, forecast.daily[0].weather.id);
+  TEST_ASSERT_EQUAL(weather_condition::OVERCAST, forecast.daily[0].weather.condition);
   TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.daily[0].shortwave_radiation_sum);
 
   TEST_ASSERT_EQUAL_INT64(1787202000LL, forecast.daily[2].dt);
   TEST_ASSERT_EQUAL_FLOAT(17.0f, forecast.daily[2].temp.min);
   TEST_ASSERT_EQUAL_FLOAT(21.8f, forecast.daily[2].temp.max);
-  TEST_ASSERT_EQUAL_INT(3, forecast.daily[2].weather.id);
+  TEST_ASSERT_EQUAL(weather_condition::OVERCAST, forecast.daily[2].weather.condition);
 
   // The only day with any precipitation probability.
   TEST_ASSERT_EQUAL_INT64(1787288400LL, forecast.daily[3].dt);
@@ -188,12 +226,12 @@ static void test_lima_daily(void) {
   TEST_ASSERT_EQUAL_INT(2, forecast.daily[3].pop);
   TEST_ASSERT_EQUAL_FLOAT(3.37f, forecast.daily[3].wind_speed);
   TEST_ASSERT_EQUAL_FLOAT(10.00f, forecast.daily[3].wind_gust);
-  TEST_ASSERT_EQUAL_INT(2, forecast.daily[3].weather.id);
+  TEST_ASSERT_EQUAL(weather_condition::CLOUDY, forecast.daily[3].weather.condition);
 
   TEST_ASSERT_EQUAL_INT64(1787374800LL, forecast.daily[4].dt);
   TEST_ASSERT_EQUAL_FLOAT(17.8f, forecast.daily[4].temp.min);
   TEST_ASSERT_EQUAL_FLOAT(22.5f, forecast.daily[4].temp.max);
-  TEST_ASSERT_EQUAL_INT(3, forecast.daily[4].weather.id);
+  TEST_ASSERT_EQUAL(weather_condition::OVERCAST, forecast.daily[4].weather.condition);
 }
 
 /* The response can carry more entries than the model holds: only the first
@@ -306,7 +344,7 @@ static void test_missing_optional_fields(void) {
   TEST_ASSERT_EQUAL_INT64(123, forecast.current.dt);
   TEST_ASSERT_FALSE(forecast.current.is_day);
   TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.current.temp);
-  TEST_ASSERT_EQUAL_INT(0, forecast.current.weather.id);
+  TEST_ASSERT_EQUAL(weather_condition::UNKNOWN, forecast.current.weather.condition);
   TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.current.soil_temperature_18cm);
   TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.daily[0].temp.min);
 }
@@ -350,6 +388,7 @@ void setup() {
   delay(200);  // let the emulated UART settle
   UNITY_BEGIN();
   RUN_TEST(test_get_api_name);
+  RUN_TEST(test_map_weather_code);
   RUN_TEST(test_lima_current);
   RUN_TEST(test_lima_hourly);
   RUN_TEST(test_lima_daily);

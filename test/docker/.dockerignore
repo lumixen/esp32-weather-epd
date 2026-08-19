@@ -1,0 +1,4 @@
+# Build context: test/docker (only the image needs the Dockerfile and
+# install_qemu.sh).
+__pycache__
+*.pyc
