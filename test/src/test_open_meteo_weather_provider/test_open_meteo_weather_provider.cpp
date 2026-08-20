@@ -311,6 +311,23 @@ static void test_minimal_forecast_keys_accepted(void) {
   TEST_ASSERT_EQUAL_INT64(3, forecast.daily[0].dt);
 }
 
+/* Numbers in scientific notation without a decimal point (15e1) must parse
+ * on the float path; the former int-only sscanf %lld parse silently stopped
+ * at the exponent and returned just the mantissa (15 instead of 150). */
+static void test_exponent_form_numbers(void) {
+  forecast_t forecast = {};
+  ProviderResult err =
+      parseJson("{\"current\":{\"time\":1,\"temperature_2m\":15e1},\"hourly\":{\"time\":[2]},\"daily\":{\"time\":[3]}}",
+                forecast);
+  TEST_ASSERT_TRUE(err.isOk());
+  TEST_ASSERT_EQUAL_FLOAT(150.0f, forecast.current.temp);
+
+  err = parseJson("{\"current\":{\"time\":1,\"temperature_2m\":-15E-1},\"hourly\":{\"time\":[2]},\"daily\":{\"time\":[3]}}",
+                  forecast);
+  TEST_ASSERT_TRUE(err.isOk());
+  TEST_ASSERT_EQUAL_FLOAT(-1.5f, forecast.current.temp);
+}
+
 /* Payloads with the required time keys but missing individual fields are
  * accepted; the absent fields must not crash and default to zero. */
 static void test_missing_optional_fields(void) {
@@ -339,27 +356,34 @@ static void test_invalid_json(void) {
   TEST_ASSERT_EQUAL_STRING(TXT_DESERIALIZATION_ERROR_EMPTY_INPUT, err.detail().c_str());
 }
 
-/* EOF seen through Peek() must be recorded too: rapidjson signals end of
- * input via '\0' from Peek() before any failing Take(), so a truncated body
- * detected that way still classifies as IncompleteInput. */
-static void test_stream_input_eof_flag(void) {
-  String data("ab");
-  StringStream ss(data);
-  StreamInput input(ss);
-  TEST_ASSERT_FALSE(input.reachedEof());
-  TEST_ASSERT_EQUAL_CHAR('a', input.Peek());
-  TEST_ASSERT_EQUAL_CHAR('a', input.Take());
-  TEST_ASSERT_EQUAL_CHAR('b', input.Take());
-  TEST_ASSERT_FALSE(input.reachedEof());
-  TEST_ASSERT_EQUAL_CHAR('\0', input.Peek());
-  TEST_ASSERT_TRUE(input.reachedEof());
+/* A body cut short mid-document parses without an error (this parser only
+ * reports explicit syntax problems) but never closes the root object: it
+ * must classify as IncompleteInput so the caller retries. */
+static void test_truncated_body(void) {
+  forecast_t forecast = {};
+  const String truncated = makeSyntheticJson(30, 5).substring(0, 80);
+  ProviderResult err = parseJson(truncated, forecast);
+  TEST_ASSERT_FALSE(err.isOk());
+  TEST_ASSERT_TRUE(err.detail().startsWith(TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT));
 
-  // Exhausted stream from the start: Peek() records it immediately.
-  String emptyData("");
-  StringStream empty(emptyData);
-  StreamInput emptyInput(empty);
-  TEST_ASSERT_EQUAL_CHAR('\0', emptyInput.Peek());
-  TEST_ASSERT_TRUE(emptyInput.reachedEof());
+  // The rejected payload must leave the caller's forecast untouched.
+  TEST_ASSERT_EQUAL_INT64(0, forecast.current.dt);
+  TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.hourly[0].temp);
+}
+
+/* Pumping stops as soon as the root document closes: endDocument() fires and
+ * the read loop exits, so whatever follows the completed JSON — a final
+ * newline or trailing garbage — is never fed to the parser and cannot trip a
+ * parse error of its own. */
+static void test_trailing_bytes_after_valid_document(void) {
+  forecast_t forecast = {};
+  ProviderResult err = parseJson(String(kOpenMeteoLimaReal) + "\n", forecast);
+  TEST_ASSERT_TRUE(err.isOk());
+  TEST_ASSERT_EQUAL_INT64(kCurrentTime, forecast.current.dt);
+
+  err = parseJson(String(kOpenMeteoLimaReal) + "trailing garbage", forecast);
+  TEST_ASSERT_TRUE(err.isOk());
+  TEST_ASSERT_EQUAL_INT64(kCurrentTime, forecast.current.dt);
 }
 
 void setup() {
@@ -375,9 +399,11 @@ void setup() {
   RUN_TEST(test_optional_fields_present);
   RUN_TEST(test_missing_optional_fields);
   RUN_TEST(test_minimal_forecast_keys_accepted);
+  RUN_TEST(test_exponent_form_numbers);
   RUN_TEST(test_non_forecast_payloads_rejected);
   RUN_TEST(test_invalid_json);
-  RUN_TEST(test_stream_input_eof_flag);
+  RUN_TEST(test_truncated_body);
+  RUN_TEST(test_trailing_bytes_after_valid_document);
   UNITY_END();
 }
 
