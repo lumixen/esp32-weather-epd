@@ -371,10 +371,10 @@ static void test_truncated_body(void) {
   TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.hourly[0].temp);
 }
 
-/* This parser has no stop-when-done: trailing bytes after the completed
- * root document (e.g. a final newline in the HTTP body) trip a parse error
- * of their own. A forecast that was already fully parsed must still be
- * accepted. */
+/* Pumping stops as soon as the root document closes: endDocument() fires and
+ * the read loop exits, so whatever follows the completed JSON — a final
+ * newline or trailing garbage — is never fed to the parser and cannot trip a
+ * parse error of its own. */
 static void test_trailing_bytes_after_valid_document(void) {
   forecast_t forecast = {};
   ProviderResult err = parseJson(String(kOpenMeteoLimaReal) + "\n", forecast);

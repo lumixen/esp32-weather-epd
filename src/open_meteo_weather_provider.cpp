@@ -327,13 +327,11 @@ ProviderResult OpenMeteoWeatherProvider::deserializeCall(Stream &json, forecast_
     parser.write(&b, 1);
   }
   if (parser.hasParseError()) {
-    // This parser has no stop-when-done: trailing bytes that follow the
-    // completed root document (e.g. a final newline) trip an error of their
-    // own. A fully parsed forecast that ended cleanly before that is a win.
+    // Genuinely malformed JSON flagged by the parser. Trailing bytes after a
+    // completed document never reach this branch: the read loop above exits as
+    // soon as endDocument() fires, so anything following the JSON is simply not
+    // fed to the parser.
     LOG_WARNING("Open-Meteo JSON parse error: %s", parser.getErrorMessage());
-    if (handler.finishedDocument() && handler.isComplete()) {
-      return ProviderResult::ok();
-    }
     forecast.reset();
     return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT);
   }
