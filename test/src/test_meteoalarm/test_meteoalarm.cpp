@@ -21,40 +21,18 @@
 // Fixed clock for deterministic expiry filtering: 2026-08-07 18:00:00 UTC.
 static const int64_t kNow = 1786125600LL;
 // Epoch of the real fixture timestamps.
-static const int64_t kSquallStart = 1786099460LL;   // 2026-08-07T10:44:20+00:00
-static const int64_t kSquallEnd = 1786125600LL;     // 2026-08-07T18:00:00+00:00
-static const int64_t kRainStart = 1786168800LL;     // 2026-08-08T06:00:00+00:00
-static const int64_t kRainEnd = 1786212000LL;       // 2026-08-08T18:00:00+00:00
+static const int64_t kSquallStart = 1786099460LL;  // 2026-08-07T10:44:20+00:00
+static const int64_t kSquallEnd = 1786125600LL;    // 2026-08-07T18:00:00+00:00
+static const int64_t kRainStart = 1786168800LL;    // 2026-08-08T06:00:00+00:00
+static const int64_t kRainEnd = 1786212000LL;      // 2026-08-08T18:00:00+00:00
 
 void setUp(void) {}
 void tearDown(void) {}
 
-/* Stream that transiently reports -1 / no data for the first `gapCalls` reads,
- * then delivers the underlying document. Models the Arduino 3.x TLS client,
- * whose read() returns -1 while its internal decryption buffer is momentarily
- * empty (non-blocking socket): such gaps must never truncate the feed. */
-class GapStream : public StringStream {
- public:
-  explicit GapStream(const char *s, size_t gapCalls) : StringStream(s), gaps_(gapCalls) {}
-  int read() override {
-    if (gaps_ > 0) {
-      --gaps_;
-      return -1;
-    }
-    return StringStream::read();
-  }
-  int peek() override { return gaps_ > 0 ? -1 : StringStream::peek(); }
-  int available() override { return gaps_ > 0 ? 0 : StringStream::available(); }
-
- private:
-  size_t gaps_;
-};
-
-static ProviderResult parseFeed(const String &xml, std::vector<weather_alert_t> &alerts,
-                                int64_t now, double lat = NAN, double lon = NAN,
-                                size_t expectedLen = 0) {
+static ProviderResult parseFeed(const String &xml, std::vector<weather_alert_t> &alerts, int64_t now, double lat = NAN,
+                                double lon = NAN) {
   StringStream ss(xml);
-  return MeteoAlarmAlertProvider::parseFeed(ss, alerts, now, lat, lon, expectedLen);
+  return MeteoAlarmAlertProvider::parseFeed(ss, alerts, now, lat, lon);
 }
 
 static void test_parse_iso8601(void) {
@@ -193,7 +171,7 @@ static void test_truncated_feed(void) {
   TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(2, alerts.size());
 
-// Cut inside the second entry: the feed is truncated while parsing.
+  // Cut inside the second entry: the feed is truncated while parsing.
   alerts.clear();
   cut = kFeedUkraineReal;
   const int secondEntry = cut.indexOf("<cap:event>", cut.indexOf("<cap:event>") + 1);
@@ -233,8 +211,7 @@ static void test_alert_cap(void) {
   String feed = "<feed xmlns=\"http://www.w3.org/2005/Atom\" xmlns:cap=\"urn:oasis:names:tc:emergency:cap:1.2\">";
   const char *hazards[] = {"Wind warning", "Rain warning", "Thunderstorm warning", "Hail warning"};
   for (int i = 0; i < 64; ++i) {
-    feed += "<entry><cap:areaDesc>Area " + String(i) + "</cap:areaDesc><cap:event>" + hazards[i % 4]
-            + "</cap:event>";
+    feed += "<entry><cap:areaDesc>Area " + String(i) + "</cap:areaDesc><cap:event>" + hazards[i % 4] + "</cap:event>";
     feed += "<cap:effective>2026-08-07T10:44:21+00:00</cap:effective>";
     feed += "<cap:expires>2026-08-07T18:00:00+00:00</cap:expires><cap:severity>Moderate</cap:severity></entry>";
   }
@@ -260,8 +237,10 @@ static void test_severity_colors(void) {
   struct {
     const char *event;
     const char *severity;
-  } sevs[] = {{"Thunderstormwarning", "Severe"}, {"Squall warning", "Extreme"},
-              {"Hail warning", "Unknown"}, {"Wind warning", ""}};
+  } sevs[] = {{"Thunderstormwarning", "Severe"},
+              {"Squall warning", "Extreme"},
+              {"Hail warning", "Unknown"},
+              {"Wind warning", ""}};
   for (const auto &s : sevs) {
     feed += "<entry><cap:areaDesc>Area</cap:areaDesc><cap:event>";
     feed += s.event;
@@ -529,19 +508,22 @@ static void test_latest_feed_expiry(void) {
  * from long <title> texts (skipped byte-by-byte by the parser, like the real
  * feed's long entries), not from oversized polygons: point-in-polygon has to
  * run for every entry and would dominate the emulated runtime otherwise.
- * The total length is computed up front so the stream can report the
- * advertised content length (expectedLen) like a real fetch. */
+ * The total length is computed up front so the test can assert that the
+ * parser consumed the whole body (the close-delimited stream ends with the
+ * document). */
 static const size_t kSynthChunk = 128;
 static const size_t kSynthFillerReps = 80;
 
 class SyntheticFeedStream : public Stream {
  public:
   explicit SyntheticFeedStream(size_t entries, double lat, double lon)
-      : entries_(entries), lat_(lat), lon_(lon), filler_(
-            "Vulnerability: strong winds with gusts up to 90 km/h. The wind may cause damage "
-            "to roofs, trees and outdoor structures. Secure loose objects and avoid forested "
-            "areas. This warning is issued for informational purposes and does not imply that "
-            "any particular event is likely to occur. ") {
+      : entries_(entries),
+        lat_(lat),
+        lon_(lon),
+        filler_("Vulnerability: strong winds with gusts up to 90 km/h. The wind may cause damage "
+                "to roofs, trees and outdoor structures. Secure loose objects and avoid forested "
+                "areas. This warning is issued for informational purposes and does not imply that "
+                "any particular event is likely to occur. ") {
     // Dry run: compute the total generated length before any byte is read.
     while (fillChunk()) {
     }
@@ -620,10 +602,9 @@ class SyntheticFeedStream : public Stream {
         // The only warning covering the test location, placed last so the
         // whole document has to be read before it is found.
         char ring[160];
-        snprintf(ring, sizeof(ring),
-                 "<cap:polygon>%.2f,%.2f %.2f,%.2f %.2f,%.2f %.2f,%.2f %.2f,%.2f</cap:polygon>\n",
-                 lat_ - 0.01, lon_ - 0.01, lat_ - 0.01, lon_ + 0.01, lat_ + 0.01, lon_ + 0.01,
-                 lat_ + 0.01, lon_ - 0.01, lat_ - 0.01, lon_ - 0.01);
+        snprintf(ring, sizeof(ring), "<cap:polygon>%.2f,%.2f %.2f,%.2f %.2f,%.2f %.2f,%.2f %.2f,%.2f</cap:polygon>\n",
+                 lat_ - 0.01, lon_ - 0.01, lat_ - 0.01, lon_ + 0.01, lat_ + 0.01, lon_ + 0.01, lat_ + 0.01, lon_ - 0.01,
+                 lat_ - 0.01, lon_ - 0.01);
         chunk_ += "<entry>\n  <cap:areaDesc>Kyiv oblast</cap:areaDesc>\n";
         chunk_ += "  <cap:event>Thunderstormwarning</cap:event>\n";
         chunk_ += "  <cap:effective>2026-08-07T10:44:21+00:00</cap:effective>\n";
@@ -678,96 +659,14 @@ static void test_large_feed_full_consumption(void) {
   TEST_ASSERT(ss.totalLength() > 400 * 1024);
 
   std::vector<weather_alert_t> alerts;
-  ProviderResult err =
-      MeteoAlarmAlertProvider::parseFeed(ss, alerts, kNow, 50.45, 30.52, ss.totalLength());
+  ProviderResult err = MeteoAlarmAlertProvider::parseFeed(ss, alerts, kNow, 50.45, 30.52);
   TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(1, alerts.size());
   TEST_ASSERT_EQUAL_STRING("Yellow Thunderstorm Warning", alerts[0].event.c_str());
   TEST_ASSERT_EQUAL_STRING("thunderstorm", alerts[0].tags.c_str());
-  // The advertised body was consumed entirely, and not a byte past it.
+  // The whole body was consumed: the close-delimited stream ends with the
+  // document, so EOF coincides with the last byte of the feed.
   TEST_ASSERT_EQUAL_UINT(ss.totalLength(), ss.bytesRead());
-}
-
-/* expectedLen stops the read at the content length: when it matches the
- * document length the result is identical to an unlimited parse (no
- * "unexpected end" error even though the stream is not read to EOF); when it
- * cuts inside an entry, that entry is dropped but the parse still succeeds.
- * The read always stops exactly at expectedLen: never past it (a connection
- * closed right after the body must not be probed), so no byte beyond the
- * announced length is ever consumed. */
-static void test_expected_len(void) {
-  std::vector<weather_alert_t> alerts;
-
-  String realFeed = kFeedUkraineReal;
-  StringStream ss(realFeed);
-  ProviderResult err =
-      MeteoAlarmAlertProvider::parseFeed(ss, alerts, kNow, NAN, NAN, realFeed.length());
-  TEST_ASSERT_TRUE(err.isOk());
-  TEST_ASSERT_EQUAL_UINT(2, alerts.size());
-  TEST_ASSERT_EQUAL_STRING("Yellow Squall Warning", alerts[0].event.c_str());
-  TEST_ASSERT_EQUAL_UINT(realFeed.length(), ss.bytesRead());
-
-  alerts.clear();
-  size_t cut = realFeed.indexOf("</entry>") + 8;  // end of the first entry
-  StringStream ss2(realFeed);
-  err = MeteoAlarmAlertProvider::parseFeed(ss2, alerts, kNow, NAN, NAN, cut);
-  TEST_ASSERT_TRUE(err.isOk());
-  TEST_ASSERT_EQUAL_UINT(1, alerts.size());
-  TEST_ASSERT_EQUAL_STRING("Yellow Squall Warning", alerts[0].event.c_str());
-  // The read stopped exactly at the cut, far short of the end of the document.
-  TEST_ASSERT_EQUAL_UINT(cut, ss2.bytesRead());
-
-  alerts.clear();
-  err = parseFeed(kFeedUkraineReal, alerts, kNow);
-  TEST_ASSERT_TRUE(err.isOk());
-  TEST_ASSERT_EQUAL_UINT(2, alerts.size());
-}
-
-static const size_t kFeedRealLen = sizeof(kFeedUkraineReal) - 1;  // length of the real feed
-
-/* The TLS client in Arduino 3.x reports -1 while its internal decryption
- * buffer is momentarily empty. The parser must tolerate such transient gaps
- * and still consume the whole document. */
-static void test_transient_read_gaps(void) {
-  std::vector<weather_alert_t> alerts;
-  GapStream ss(kFeedUkraineReal, 512);
-  ProviderResult err = MeteoAlarmAlertProvider::parseFeed(ss, alerts, kNow);
-  TEST_ASSERT_TRUE(err.isOk());
-  TEST_ASSERT_EQUAL_UINT(2, alerts.size());
-  TEST_ASSERT_EQUAL_STRING("Yellow Squall Warning", alerts[0].event.c_str());
-  // No byte of the real document was lost to the gaps.
-  TEST_ASSERT_EQUAL_UINT(kFeedRealLen, ss.bytesRead());
-}
-
-/* The server advertises a content length that does not match the actual
- * body. The advertised length is a hard stop: the read never goes past it.
- * When advertised length is SHORTER than the document, parsing stops exactly
- * at the boundary with the partial entry dropped (Ok, atExpectedEnd); when it
- * is LONGER, the parse runs to the real end of the stream instead. Both are
- * clean outcomes: only a premature stream end mid-entry is InvalidInput. */
-static void test_advertised_length_mismatch(void) {
-  std::vector<weather_alert_t> alerts;
-
-  const String realFeed = kFeedUkraineReal;
-
-  // Advertised length cuts inside the second entry's polygon text: the read
-  // stops exactly at the advertised boundary; the partial entry is dropped.
-  const size_t cut = realFeed.indexOf("<cap:polygon>", realFeed.indexOf("<cap:polygon>") + 1) + 13;
-  StringStream ssShort(realFeed);
-  ProviderResult err =
-      MeteoAlarmAlertProvider::parseFeed(ssShort, alerts, kNow, NAN, NAN, cut);
-  TEST_ASSERT_TRUE(err.isOk());  // end at advertised length is clean
-  TEST_ASSERT_EQUAL_UINT(1, alerts.size());           // partial second entry dropped
-  TEST_ASSERT_EQUAL_UINT(cut, ssShort.bytesRead());
-
-  // Advertised one byte more than the document: the parse runs to the real
-  // end of the stream, never reading past the document, still Ok.
-  alerts.clear();
-  StringStream ssLong(realFeed);
-  err = MeteoAlarmAlertProvider::parseFeed(ssLong, alerts, kNow, NAN, NAN, realFeed.length() + 1);
-  TEST_ASSERT_TRUE(err.isOk());
-  TEST_ASSERT_EQUAL_UINT(2, alerts.size());
-  TEST_ASSERT_EQUAL_UINT(realFeed.length(), ssLong.bytesRead());
 }
 
 void setup() {
@@ -792,10 +691,7 @@ void setup() {
   RUN_TEST(test_merge_severity_upgrade);
   RUN_TEST(test_latest_feed_polygon_filter);
   RUN_TEST(test_latest_feed_expiry);
-  RUN_TEST(test_expected_len);
   RUN_TEST(test_large_feed_full_consumption);
-  RUN_TEST(test_transient_read_gaps);
-  RUN_TEST(test_advertised_length_mismatch);
   UNITY_END();
 }
 

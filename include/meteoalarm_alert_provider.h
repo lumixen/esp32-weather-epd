@@ -19,13 +19,11 @@ class MeteoAlarmAlertProvider : public AlertProvider {
   /* Stream the Atom feed and collect alerts that have not expired (`now` is
    * the current Unix time) and cover the optional location (lat/lon, NaN =
    * no polygon filter; alerts without a polygon are always kept). Parsing
-   * stops after METEOALARM_NUM_ALERTS warnings; `expectedLen` (0 = unknown)
-   * bounds the read. Public for unit testing. `networkClient` (optional), the
-   * TLS client the response streams from, enables multi-KB block reads
-   * (single-byte fallback when null, used by the unit test feeds). */
-  static ProviderResult parseFeed(Stream &xml, std::vector<weather_alert_t> &alerts,
-                                        int64_t now, double lat = NAN, double lon = NAN,
-                                        size_t expectedLen = 0, NetworkClient *networkClient = nullptr);
+   * stops after METEOALARM_NUM_ALERTS warnings; the body is close-delimited
+   * (the fetch requests HTTP/1.0), so the end of the stream coincides with
+   * the end of the feed. Public for unit testing. */
+  static ProviderResult parseFeed(Stream &xml, std::vector<weather_alert_t> &alerts, int64_t now, double lat = NAN,
+                                  double lon = NAN);
 
   /* Parse an ISO 8601 timestamp ("YYYY-MM-DDTHH:MM:SSZ" or "±HH:MM") to Unix
    * epoch seconds in UTC. Returns -1 on failure. */

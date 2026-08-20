@@ -5,8 +5,6 @@
 
 #include <Arduino.h>
 #include <cmath>
-#include <esp_timer.h>
-#include <memory>
 #include <HTTPClient.h>
 #include <WiFiClient.h>
 #include <WiFiClientSecure.h>
@@ -87,8 +85,7 @@ static int64_t daysFromCivil(int y, unsigned m, unsigned d) {
  * the color of the most urgent severity. Merged entries do not count toward
  * METEOALARM_NUM_ALERTS, so the cap is consumed by distinct hazards only.
  */
-void addEntry(entry_data_t &e, std::vector<weather_alert_t> &alerts, int64_t now, double lat,
-              double lon) {
+void addEntry(entry_data_t &e, std::vector<weather_alert_t> &alerts, int64_t now, double lat, double lon) {
   if (!e.any) {
     return;
   }
@@ -178,8 +175,7 @@ bool MeteoAlarmAlertProvider::pointInPolygon(double lat, double lon, const Strin
       firstLon = x;
     } else {
       // Ray casting crossing test for the edge (prev -> cur)
-      if ((prevLat > lat) != (y > lat) &&
-          lon < (x - prevLon) * (lat - prevLat) / (y - prevLat) + prevLon) {
+      if ((prevLat > lat) != (y > lat) && lon < (x - prevLon) * (lat - prevLat) / (y - prevLat) + prevLon) {
         inside = !inside;
       }
     }
@@ -309,7 +305,13 @@ String MeteoAlarmAlertProvider::colorFromSeverity(const String &severity) {
 }  // MeteoAlarmAlertProvider::colorFromSeverity
 
 /* Fetch the legacy Atom feed of the configured country over HTTPS (plain
- * HTTP is 302-redirected) and map its entries into the alert model. */
+ * HTTP is 302-redirected) and map its entries into the alert model. The
+ * request is sent with HTTP/1.0 so the server replies Connection: close
+ * (verified against feeds.meteoalarm.org): the body is close-delimited and
+ * the parser streams it to EOF without a declared content length.
+ *
+ * The feed (up to several hundred KB) needs far more than the default 2s
+ * read window, hence the explicit 30 s timeout. */
 ProviderResult MeteoAlarmAlertProvider::fetch(std::vector<weather_alert_t> &alerts) {
   WiFiClientSecure client;
   client.setCACert(cert_GEANT_TLS_RSA_1);
@@ -329,16 +331,10 @@ ProviderResult MeteoAlarmAlertProvider::fetch(std::vector<weather_alert_t> &aler
     lon = strtod(LON.c_str(), nullptr);
   }
 
-  // The feed (up to several hundred KB) needs far more than the default 2s
-  // read window.
   const uint32_t t0 = millis();
-  const ProviderResult result = httpGetWithRetry(client, METEOALARM_ENDPOINT, port, uri, sanitizedUri, false, 30000,
-                                                 [&alerts, lat, lon, t0, &client](Stream &xml, size_t expectedLen) {
-                                                   LOG_DEBUG("fetch: headers at +%u ms",
-                                                             static_cast<unsigned>(millis() - t0));
-                                                   return parseFeed(xml, alerts, time(nullptr), lat, lon, expectedLen,
-                                                                    &client);
-                                                 });
+  const ProviderResult result = httpGetWithRetry(
+      client, METEOALARM_ENDPOINT, port, uri, sanitizedUri, true, 30000,
+      [&alerts, lat, lon](Stream &xml, size_t) { return parseFeed(xml, alerts, time(nullptr), lat, lon); });
   LOG_DEBUG("fetch total=%u ms ok=%u detail='%s'", static_cast<unsigned>(millis() - t0), result.isOk(),
             result.detail().c_str());
   return result;
@@ -349,68 +345,16 @@ ProviderResult MeteoAlarmAlertProvider::fetch(std::vector<weather_alert_t> &aler
  * expires and polygon are captured, everything else is skipped, so the
  * document is parsed as a stream without buffering it.
  *
- * Parsing stops once METEOALARM_NUM_ALERTS matching warnings were collected
- * and once `expectedLen` bytes were read the body is considered fully
- * consumed: no read past it, so a connection closed right after the body
- * never surfaces as a read error. */
+ * The body is close-delimited (the fetch requests HTTP/1.0, so the server
+ * closes the connection right after the feed): the scanner is fed one byte
+ * at a time and the end of the body coincides with the end of the stream,
+ * there is no declared content length to read up to. Parsing stops once
+ * METEOALARM_NUM_ALERTS matching warnings were collected, cutting the
+ * download short. A stream end while still inside an entry means the body
+ * was truncated (e.g. by a read timeout) and is reported as an error. */
 
-/* Reads up to `length` bytes from `stream`, waiting for each within the
- * stream's read timeout (a delivered byte refreshes the deadline). The TLS
- * client's block read() serves multi-KB mbedTLS plaintext per call; other
- * streams (unit test feeds) fall back to single-byte reads. Stream::readBytes
- * cannot be used: it treats the non-blocking -1 as a hard error (truncating
- * at TCP/TLS burst boundaries) or busy-spins in timedRead (starving the idle
- * task), so poll with delay(1) instead. `stallMs`/`stalls` count dry-read
- * waits: a stall-dominated read points at the network stack, not the parser.
- */
-static size_t readBytesYielding(Stream &stream, NetworkClient *networkClient, char *buffer, size_t length,
-                                unsigned long &stallMs, unsigned long &stalls) {
-  size_t count = 0;
-  unsigned long deadline = millis() + stream.getTimeout();
-  unsigned long stallStart = 0;
-  while (count < length) {
-    if (networkClient != nullptr) {
-      // Bulk path (production TLS client): read() returns the byte count.
-      const int r = networkClient->read(reinterpret_cast<uint8_t *>(buffer) + count, length - count);
-      if (r > 0) {
-        if (stallStart != 0) {
-          stallMs += millis() - stallStart;
-          ++stalls;
-          stallStart = 0;
-        }
-        count += r;
-        deadline = millis() + stream.getTimeout();
-        continue;
-      }
-    } else {
-      // Single-byte path (unit test feeds): read() returns one byte value.
-      const int c = stream.read();
-      if (c >= 0) {
-        if (stallStart != 0) {
-          stallMs += millis() - stallStart;
-          ++stalls;
-          stallStart = 0;
-        }
-        buffer[count++] = static_cast<char>(c);
-        deadline = millis() + stream.getTimeout();
-        continue;
-      }
-    }
-    // No data right now (non-blocking TLS client / exhausted feed).
-    if (millis() > deadline) {
-      break;  // read timeout expired
-    }
-    if (stallStart == 0) {
-      stallStart = millis();
-    }
-    delay(1);  // yield to other tasks / the watchdog
-  }
-  return count;
-}
-
-ProviderResult MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector<weather_alert_t> &alerts,
-                                                        int64_t now, double lat, double lon, size_t expectedLen,
-                                                        NetworkClient *networkClient) {
+ProviderResult MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector<weather_alert_t> &alerts, int64_t now,
+                                                  double lat, double lon) {
   enum class St { TEXT, ENTITY, TAG_NAME, TAG_ATTR, TAG_ATTR_QUOTED, SKIP };
 
   St state = St::TEXT;
@@ -418,246 +362,173 @@ ProviderResult MeteoAlarmAlertProvider::parseFeed(Stream &xml, std::vector<weath
   bool endTag = false;
   bool selfClosing = false;
   char quote = 0;
-  String tagName;   // tag currently being parsed
-  String capture;   // entry element currently accumulating text
-  String text;      // captured text so far
-  String entity;    // pending "&...;" reference
+  String tagName;  // tag currently being parsed
+  String capture;  // entry element currently accumulating text
+  String text;     // captured text so far
+  String entity;   // pending "&...;" reference
   entry_data_t entry;
 
   const uint32_t tStart = millis();
-  LOG_DEBUG("feed: headers at +%u ms (body %u B, heap %u)", static_cast<unsigned>(millis() - tStart),
-            static_cast<unsigned>(expectedLen), static_cast<unsigned>(ESP.getFreeHeap()));
-
-  std::unique_ptr<char[]> buf(new char[4096]);
   size_t total = 0;  // bytes read from the response body
-  bool atExpectedEnd = false;
-  char tail[64];      // rolling buffer of the last bytes read, for diagnostics
-  size_t tailPos = 0;
-  unsigned long parseStartMillis = millis();
-  unsigned long stallMs = 0;
-  unsigned long stalls = 0;
-  uint64_t readUs = 0;    // µs spent in stream reads (network/TLS waits)
-  uint64_t parseUs = 0;   // µs spent in the XML scanner
-  uint64_t entryUs = 0;   // µs spent in addEntry/pointInPolygon at entry close
-  uint32_t tFirstByte = 0;
-  auto logTiming = [&](const char *reason) {
-    const uint32_t tEnd = millis();
-    const uint32_t firstByte = (tFirstByte != 0) ? tFirstByte - tStart : 0;
-    const uint32_t body = (tFirstByte != 0) ? tEnd - tFirstByte : 0;
-    LOG_DEBUG("feed: %s firstByte=%u ms body=%u ms parse=%u ms readUs=%lu ms parseUs=%lu ms entryUs=%lu ms "
-              "bytes=%u alerts=%u stalls=%lu stallMs=%lu ms rssi=%d heap=%u",
-              reason, static_cast<unsigned>(firstByte), static_cast<unsigned>(body),
-              static_cast<unsigned>(tEnd - tStart), static_cast<unsigned long>(readUs / 1000),
-              static_cast<unsigned long>(parseUs / 1000), static_cast<unsigned long>(entryUs / 1000),
-              static_cast<unsigned>(total), static_cast<unsigned>(alerts.size()), stalls, stallMs, WiFi.RSSI(),
-              static_cast<unsigned>(ESP.getFreeHeap()));
-  };
-  while (true) {
-    if (expectedLen > 0 && total >= expectedLen) {
-      // Body consumed; do not read past it (the server may close right after).
-      atExpectedEnd = true;
-      break;
-    }
-    // Never request beyond the remaining body: a server closing the socket
-    // right after it would otherwise surface as a TLS read error.
-    size_t want = 4096;
-    if (expectedLen > 0 && expectedLen - total < want) {
-      want = expectedLen - total;
-    }
-    // Wait up to the stream timeout for each chunk, yielding in between (see
-    // readBytesYielding): TCP/TLS pauses must not truncate the feed.
-    const int64_t tRead0 = esp_timer_get_time();
-    const size_t n = readBytesYielding(xml, networkClient, buf.get(), want, stallMs, stalls);
-    readUs += static_cast<uint64_t>(esp_timer_get_time() - tRead0);
-    if (n == 0) {
-      break;  // end of stream (or read timeout)
-    }
-    total += n;
-    if (tFirstByte == 0) {
-      tFirstByte = millis();
-    }
-    const int64_t tParse0 = esp_timer_get_time();
-    for (size_t i = 0; i < n; ++i) {
-      const char c = buf[i];
-      tail[tailPos] = c;
-      tailPos = (tailPos + 1) % sizeof(tail);
 
-      switch (state) {
-        case St::TEXT: {
-          if (c == '<') {
-            state = St::TAG_NAME;
-            tagName = "";
-            endTag = false;
-            selfClosing = false;
-          } else if (c == '&') {
-            entity = "";
-            state = St::ENTITY;
-          } else if (!capture.isEmpty()) {
-            text += c;
-          }
-          break;
+  // Feed the scanner one byte at a time: `readBytes` waits within the
+  // stream's read timeout (set by httpGetWithRetry) and returns 0 when the
+  // body ends, which is clean for the close-delimited HTTP/1.0 response.
+  char c;
+  while (xml.readBytes(&c, 1) > 0) {
+    ++total;
+    switch (state) {
+      case St::TEXT: {
+        if (c == '<') {
+          state = St::TAG_NAME;
+          tagName = "";
+          endTag = false;
+          selfClosing = false;
+        } else if (c == '&') {
+          entity = "";
+          state = St::ENTITY;
+        } else if (!capture.isEmpty()) {
+          text += c;
         }
-        case St::ENTITY: {
-          if (c == ';') {
-            if (entity == "amp") {
-              text += '&';
-            } else if (entity == "lt") {
-              text += '<';
-            } else if (entity == "gt") {
-              text += '>';
-            } else if (entity == "quot") {
-              text += '"';
-            } else if (entity == "apos") {
-              text += '\'';
-            } else {
-              text += '&';
-              text += entity;
-              text += ';';
-            }
-            state = St::TEXT;
-          } else if (entity.length() >= 8) {
-            // too long to be a named entity, keep it as raw text
+        break;
+      }
+      case St::ENTITY: {
+        if (c == ';') {
+          if (entity == "amp") {
+            text += '&';
+          } else if (entity == "lt") {
+            text += '<';
+          } else if (entity == "gt") {
+            text += '>';
+          } else if (entity == "quot") {
+            text += '"';
+          } else if (entity == "apos") {
+            text += '\'';
+          } else {
             text += '&';
             text += entity;
-            text += c;
-            entity = "";
-            state = St::TEXT;
-          } else {
-            entity += c;
+            text += ';';
           }
-          break;
+          state = St::TEXT;
+        } else if (entity.length() >= 8) {
+          // too long to be a named entity, keep it as raw text
+          text += '&';
+          text += entity;
+          text += c;
+          entity = "";
+          state = St::TEXT;
+        } else {
+          entity += c;
         }
-        case St::TAG_NAME: {
-          if (c == '?' || c == '!') {
-            // <?xml ...?> declaration or <!DOCTYPE ...>/<!-- ... -->, skip
-            state = St::SKIP;
-          } else if (c == '/') {
-            endTag = true;
-          } else if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
-            state = St::TAG_ATTR;
-          } else if (c == '>') {
-            // tag complete
-            goto finish_tag;  // NOLINT(bugprone-branch-clone)
-          } else {
-            tagName += c;
-          }
-          break;
-        }
-        case St::TAG_ATTR: {
-          if (c == '"' || c == '\'') {
-            quote = c;
-            state = St::TAG_ATTR_QUOTED;
-          } else if (c == '/') {
-            selfClosing = true;
-          } else if (c == '>') {
-            goto finish_tag;  // NOLINT(bugprone-branch-clone)
-          }
-          break;
-        }
-        case St::TAG_ATTR_QUOTED: {
-          if (c == quote) {
-            state = St::TAG_ATTR;
-          }
-          break;
-        }
-        case St::SKIP: {
-          if (c == '>') {
-            state = St::TEXT;
-          }
-          break;
-        }
+        break;
       }
-
-      continue;
-
-    finish_tag:;
-      state = St::TEXT;  // a finished tag is always followed by text
-      const String local = tagName.substring(tagName.indexOf(':') + 1);
-
-      if (endTag) {
-        if (local == "entry") {
-          if (inEntry) {
-            const int64_t tEntry0 = esp_timer_get_time();
-            addEntry(entry, alerts, now, lat, lon);
-            entryUs += static_cast<uint64_t>(esp_timer_get_time() - tEntry0);
-            inEntry = false;
-            entry.reset();
-            if (alerts.size() >= METEOALARM_NUM_ALERTS) {
-              logTiming("early-exit");
-              return ProviderResult::ok();
-            }
-          }
-        } else if (inEntry && local == capture) {
-          if (local == "event") {
-            entry.event = text;
-          } else if (local == "severity") {
-            entry.severity = text;
-          } else if (local == "effective") {
-            entry.effective = text;
-          } else if (local == "onset") {
-            entry.onset = text;
-          } else if (local == "expires") {
-            entry.expires = text;
-          } else if (local == "polygon") {
-            entry.polygon = text;
-          }
-          entry.any = true;
-          capture = "";
-          text = "";
+      case St::TAG_NAME: {
+        if (c == '?' || c == '!') {
+          // <?xml ...?> declaration or <!DOCTYPE ...>/<!-- ... -->, skip
+          state = St::SKIP;
+        } else if (c == '/') {
+          endTag = true;
+        } else if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+          state = St::TAG_ATTR;
+        } else if (c == '>') {
+          // tag complete
+          goto finish_tag;  // NOLINT(bugprone-branch-clone)
+        } else {
+          tagName += c;
         }
-      } else {
-        if (local == "entry") {
-          if (inEntry) {
-            // previous entry closed implicitly by a new one
-            const int64_t tEntry0 = esp_timer_get_time();
-            addEntry(entry, alerts, now, lat, lon);
-            entryUs += static_cast<uint64_t>(esp_timer_get_time() - tEntry0);
-            if (alerts.size() >= METEOALARM_NUM_ALERTS) {
-              logTiming("early-exit");
-              return ProviderResult::ok();
-            }
-          }
-          inEntry = true;
-          entry.reset();
-          if (selfClosing) {
-            inEntry = false;
-          }
-        } else if (inEntry && (local == "event" || local == "severity" || local == "effective" ||
-                               local == "onset" || local == "expires" || local == "polygon")) {
-          capture = local;
-          text = "";
+        break;
+      }
+      case St::TAG_ATTR: {
+        if (c == '"' || c == '\'') {
+          quote = c;
+          state = St::TAG_ATTR_QUOTED;
+        } else if (c == '/') {
+          selfClosing = true;
+        } else if (c == '>') {
+          goto finish_tag;  // NOLINT(bugprone-branch-clone)
         }
+        break;
+      }
+      case St::TAG_ATTR_QUOTED: {
+        if (c == quote) {
+          state = St::TAG_ATTR;
+        }
+        break;
+      }
+      case St::SKIP: {
+        if (c == '>') {
+          state = St::TEXT;
+        }
+        break;
       }
     }
-    parseUs += static_cast<uint64_t>(esp_timer_get_time() - tParse0);
+
+    continue;
+
+  finish_tag:;
+    state = St::TEXT;  // a finished tag is always followed by text
+    const String local = tagName.substring(tagName.indexOf(':') + 1);
+
+    if (endTag) {
+      if (local == "entry") {
+        if (inEntry) {
+          addEntry(entry, alerts, now, lat, lon);
+          inEntry = false;
+          entry.reset();
+          if (alerts.size() >= METEOALARM_NUM_ALERTS) {
+            return ProviderResult::ok();
+          }
+        }
+      } else if (inEntry && local == capture) {
+        if (local == "event") {
+          entry.event = text;
+        } else if (local == "severity") {
+          entry.severity = text;
+        } else if (local == "effective") {
+          entry.effective = text;
+        } else if (local == "onset") {
+          entry.onset = text;
+        } else if (local == "expires") {
+          entry.expires = text;
+        } else if (local == "polygon") {
+          entry.polygon = text;
+        }
+        entry.any = true;
+        capture = "";
+        text = "";
+      }
+    } else {
+      if (local == "entry") {
+        if (inEntry) {
+          // previous entry closed implicitly by a new one
+          addEntry(entry, alerts, now, lat, lon);
+          if (alerts.size() >= METEOALARM_NUM_ALERTS) {
+            return ProviderResult::ok();
+          }
+        }
+        inEntry = true;
+        entry.reset();
+        if (selfClosing) {
+          inEntry = false;
+        }
+      } else if (inEntry && (local == "event" || local == "severity" || local == "effective" || local == "onset" ||
+                             local == "expires" || local == "polygon")) {
+        capture = local;
+        text = "";
+      }
+    }
   }
 
-  // End of stream while still inside an entry: the feed was truncated by a
-  // timeout (a break at the advertised content length is expected).
-  if (!atExpectedEnd && (inEntry || !capture.isEmpty())) {
-    LOG_ERROR("MeteoAlarm: feed ended early, %u of %u bytes read, scanner in state %d (inEntry=%u, capture='%s', "
-              "tagName='%s')",
-              static_cast<unsigned>(total), static_cast<unsigned>(expectedLen), static_cast<int>(state), inEntry,
-              capture.c_str(), tagName.c_str());
-    LOG_ERROR("parse loop took %lu ms, stream read timeout %u ms, available %d", millis() - parseStartMillis,
-              xml.getTimeout(), xml.available());
-    const size_t avail = total < sizeof(tail) ? total : sizeof(tail);
-    const size_t start = total < sizeof(tail) ? 0 : tailPos;
-    char dump[sizeof(tail) * 4 + 1] = {};
-    size_t pos = 0;
-    for (size_t i = 0; i < avail; ++i) {
-      const char c = tail[(start + i) % sizeof(tail)];
-      if (c >= 0x20 && c <= 0x7E) {
-        dump[pos++] = c;
-      } else {
-        pos += snprintf(dump + pos, sizeof(dump) - pos, "\\x%02X", static_cast<uint8_t>(c));
-      }
-    }
-    LOG_DEBUG("last %u body bytes: %s", static_cast<unsigned>(avail), dump);
-    logTiming("truncated");
+  // End of stream while still inside an entry: the feed was truncated (e.g.
+  // by a read timeout); a complete close-delimited body ends after </feed>.
+  if (inEntry || !capture.isEmpty()) {
+    LOG_WARNING("MeteoAlarm: feed ended early after %u bytes, scanner in state %d (inEntry=%u, capture='%s', "
+                "tagName='%s')",
+                static_cast<unsigned>(total), static_cast<int>(state), inEntry, capture.c_str(), tagName.c_str());
     return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT);
   }
-  logTiming(atExpectedEnd ? "complete" : "end-of-stream");
+  LOG_DEBUG("feed: %u bytes -> %u alerts in %u ms", static_cast<unsigned>(total), static_cast<unsigned>(alerts.size()),
+            static_cast<unsigned>(millis() - tStart));
   return ProviderResult::ok();
 }  // MeteoAlarmAlertProvider::parseFeed
 
