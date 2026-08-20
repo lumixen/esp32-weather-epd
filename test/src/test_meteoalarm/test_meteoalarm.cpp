@@ -1,8 +1,8 @@
 /* Unit tests for the MeteoAlarm alert provider (feed parsing).
  *
- * The fixtures are exercised with the real Arduino String/Stream inside the
- * ESP32 QEMU emulator. The primary fixture (feed_ukraine_real.inc) is a
- * verbatim excerpt of the live Ukraine feed captured on 2026-08-07.
+ * The fixtures are exercised with the real Arduino String inside the ESP32
+ * QEMU emulator. The primary fixture (feed_ukraine_real.inc) is a verbatim
+ * excerpt of the live Ukraine feed captured on 2026-08-07.
  *
  * GPL-3.0, see LICENSE.
  */
@@ -11,7 +11,6 @@
 #include <cstring>
 #include <unity.h>
 
-#include "../string_stream.h"
 #include "_locale.h"
 #include "data_models.h"
 #include "meteoalarm_alert_provider.h"
@@ -31,8 +30,9 @@ void tearDown(void) {}
 
 static ProviderResult parseFeed(const String &xml, std::vector<weather_alert_t> &alerts, int64_t now, double lat = NAN,
                                 double lon = NAN) {
-  StringStream ss(xml);
-  return MeteoAlarmAlertProvider::parseFeed(ss, alerts, now, lat, lon);
+  MeteoAlarmAlertProvider::FeedParser parser(alerts, now, lat, lon);
+  parser.feed(xml.c_str(), xml.length());
+  return parser.finish();
 }
 
 static void test_parse_iso8601(void) {
@@ -202,11 +202,10 @@ static void test_garbage(void) {
   TEST_ASSERT_EQUAL_UINT(0, alerts.size());
 }
 
-/* No more than 2 alerts are kept (the renderer displays at most 2), and
- * parsing stops as soon as that many distinct hazards have been collected:
- * the remaining body is not read, cutting the download short. The feed is
- * sized well above the parser's read buffer (4096 bytes) so the first chunk
- * does not already contain the whole document. */
+/* No more than 2 alerts are kept (the renderer displays at most 2): feed()
+ * stops updating any state as soon as that many distinct hazards have been
+ * collected, so entries fed afterwards (there are 64 in this fixture) are
+ * ignored rather than parsed. */
 static void test_alert_cap(void) {
   String feed = "<feed xmlns=\"http://www.w3.org/2005/Atom\" xmlns:cap=\"urn:oasis:names:tc:emergency:cap:1.2\">";
   const char *hazards[] = {"Wind warning", "Rain warning", "Thunderstorm warning", "Hail warning"};
@@ -218,15 +217,11 @@ static void test_alert_cap(void) {
   feed += "</feed>";
 
   std::vector<weather_alert_t> alerts;
-  StringStream ss(feed);
-  ProviderResult err = MeteoAlarmAlertProvider::parseFeed(ss, alerts, kNow);
+  ProviderResult err = parseFeed(feed, alerts, kNow);
   TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(2, alerts.size());
   TEST_ASSERT_EQUAL_STRING("Yellow Wind Warning", alerts[0].event.c_str());
   TEST_ASSERT_EQUAL_STRING("Yellow Rain Warning", alerts[1].event.c_str());
-  // The parse stopped as soon as the second distinct hazard completed, long
-  // before the end of the document.
-  TEST_ASSERT(ss.bytesRead() < feed.length());
 }
 
 /* Severity colors: with more than 2 alerts only the first two distinct
@@ -501,22 +496,26 @@ static void test_latest_feed_expiry(void) {
   TEST_ASSERT_EQUAL_INT64(kRainStart, alerts[1].end);
 }
 
-/* Streaming synthesizer for a feed the size of the live Ukraine document
- * (~450 KB). The document is generated on demand in small chunks: a ~450 KB
- * String does not fit into the 320 KB RAM of the device, while the real HTTP
- * client delivers the body as a stream anyway. The bulk of the size comes
- * from long <title> texts (skipped byte-by-byte by the parser, like the real
- * feed's long entries), not from oversized polygons: point-in-polygon has to
- * run for every entry and would dominate the emulated runtime otherwise.
- * The total length is computed up front so the test can assert that the
- * parser consumed the whole body (the close-delimited stream ends with the
- * document). */
+/* Synthesizer for a feed the size of the live Ukraine document (~450 KB).
+ * The document is generated on demand in small chunks: a ~450 KB String does
+ * not fit into the 320 KB RAM of the device, while esp_http_client delivers
+ * the real body to FeedParser::feed() in bounded chunks anyway. The bulk of
+ * the size comes from long <title> texts (skipped byte-by-byte by the
+ * parser, like the real feed's long entries), not from oversized polygons:
+ * point-in-polygon has to run for every entry and would dominate the
+ * emulated runtime otherwise. The total length is computed up front so the
+ * test can assert that every generated chunk was actually fed to the
+ * parser. */
 static const size_t kSynthChunk = 128;
 static const size_t kSynthFillerReps = 80;
 
-class SyntheticFeedStream : public Stream {
+/* Generates the synthetic feed in small chunks on demand, mirroring how
+ * esp_http_client's HTTP_EVENT_ON_DATA callback delivers the real feed to
+ * FeedParser::feed() -- one bounded chunk at a time, never the whole
+ * document at once. */
+class SyntheticFeedGenerator {
  public:
-  explicit SyntheticFeedStream(size_t entries, double lat, double lon)
+  explicit SyntheticFeedGenerator(size_t entries, double lat, double lon)
       : entries_(entries),
         lat_(lat),
         lon_(lon),
@@ -524,7 +523,7 @@ class SyntheticFeedStream : public Stream {
                 "to roofs, trees and outdoor structures. Secure loose objects and avoid forested "
                 "areas. This warning is issued for informational purposes and does not imply that "
                 "any particular event is likely to occur. ") {
-    // Dry run: compute the total generated length before any byte is read.
+    // Dry run: compute the total generated length before any chunk is handed out.
     while (fillChunk()) {
     }
     dryRun_ = false;
@@ -534,26 +533,17 @@ class SyntheticFeedStream : public Stream {
     fillOff_ = 0;
     entryStage_ = EntryStage::kOpen;
     chunk_ = "";
-    chunkPos_ = 0;
   }
 
-  int read() override {
-    if (chunkPos_ >= chunk_.length() && !fillChunk()) {
-      return -1;
+  // Fills `out` with the next chunk and returns true, or returns false once
+  // the whole document has been generated.
+  bool nextChunk(String &out) {
+    if (!fillChunk()) {
+      return false;
     }
-    ++bytesRead_;
-    return chunk_[chunkPos_++];
+    out = chunk_;
+    return true;
   }
-  int peek() override {
-    if (chunkPos_ >= chunk_.length() && !fillChunk()) {
-      return -1;
-    }
-    return chunk_[chunkPos_];
-  }
-  int available() override { return 1; }
-  size_t write(uint8_t) override { return 0; }
-  void flush() override {}
-  size_t bytesRead() const { return bytesRead_; }
   size_t totalLength() const { return total_; }
 
  private:
@@ -568,15 +558,12 @@ class SyntheticFeedStream : public Stream {
   size_t fillReps_ = 0;
   size_t fillOff_ = 0;
   bool dryRun_ = true;
-  size_t bytesRead_ = 0;
   size_t total_ = 0;
   String chunk_;
-  size_t chunkPos_ = 0;
   String filler_;
 
   bool fillChunk() {
     chunk_ = "";
-    chunkPos_ = 0;
     while (chunk_.length() < kSynthChunk && stage_ != Stage::kDone) {
       if (stage_ == Stage::kHeader) {
         chunk_ += "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
@@ -650,23 +637,31 @@ class SyntheticFeedStream : public Stream {
 };
 
 /* A feed the size of the live Ukraine document (539 KB) that contains no
- * matching warning until the very last entry: the early exit at 2 matching
- * alerts never fires and the parser has to consume the whole body. On the
- * device this is exactly the scenario that outran the old 2 s read window
+ * matching warning until the very last entry: the alert cap never fires and
+ * the parser has to consume the whole body, fed in small chunks exactly as
+ * esp_http_client's event handler would deliver them. On the device this is
+ * exactly the scenario that outran the old 2 s read window
  * (HTTP_CLIENT_TCP_TIMEOUT) and surfaced as -259 InvalidInput. */
 static void test_large_feed_full_consumption(void) {
-  SyntheticFeedStream ss(20, 50.45, 30.52);
-  TEST_ASSERT(ss.totalLength() > 400 * 1024);
+  SyntheticFeedGenerator gen(20, 50.45, 30.52);
+  TEST_ASSERT(gen.totalLength() > 400 * 1024);
 
   std::vector<weather_alert_t> alerts;
-  ProviderResult err = MeteoAlarmAlertProvider::parseFeed(ss, alerts, kNow, 50.45, 30.52);
+  MeteoAlarmAlertProvider::FeedParser parser(alerts, kNow, 50.45, 30.52);
+  size_t fed = 0;
+  String chunk;
+  while (gen.nextChunk(chunk)) {
+    parser.feed(chunk.c_str(), chunk.length());
+    fed += chunk.length();
+  }
+  ProviderResult err = parser.finish();
   TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_UINT(1, alerts.size());
   TEST_ASSERT_EQUAL_STRING("Yellow Thunderstorm Warning", alerts[0].event.c_str());
   TEST_ASSERT_EQUAL_STRING("thunderstorm", alerts[0].tags.c_str());
-  // The whole body was consumed: the close-delimited stream ends with the
-  // document, so EOF coincides with the last byte of the feed.
-  TEST_ASSERT_EQUAL_UINT(ss.totalLength(), ss.bytesRead());
+  // The whole body was fed and consumed: the last entry (containing the only
+  // matching warning) is reached only once every chunk has been processed.
+  TEST_ASSERT_EQUAL_UINT(gen.totalLength(), fed);
 }
 
 void setup() {
