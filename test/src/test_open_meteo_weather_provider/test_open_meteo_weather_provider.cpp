@@ -311,6 +311,23 @@ static void test_minimal_forecast_keys_accepted(void) {
   TEST_ASSERT_EQUAL_INT64(3, forecast.daily[0].dt);
 }
 
+/* Numbers in scientific notation without a decimal point (15e1) must parse
+ * on the float path; the former int-only sscanf %lld parse silently stopped
+ * at the exponent and returned just the mantissa (15 instead of 150). */
+static void test_exponent_form_numbers(void) {
+  forecast_t forecast = {};
+  ProviderResult err =
+      parseJson("{\"current\":{\"time\":1,\"temperature_2m\":15e1},\"hourly\":{\"time\":[2]},\"daily\":{\"time\":[3]}}",
+                forecast);
+  TEST_ASSERT_TRUE(err.isOk());
+  TEST_ASSERT_EQUAL_FLOAT(150.0f, forecast.current.temp);
+
+  err = parseJson("{\"current\":{\"time\":1,\"temperature_2m\":-15E-1},\"hourly\":{\"time\":[2]},\"daily\":{\"time\":[3]}}",
+                  forecast);
+  TEST_ASSERT_TRUE(err.isOk());
+  TEST_ASSERT_EQUAL_FLOAT(-1.5f, forecast.current.temp);
+}
+
 /* Payloads with the required time keys but missing individual fields are
  * accepted; the absent fields must not crash and default to zero. */
 static void test_missing_optional_fields(void) {
@@ -382,6 +399,7 @@ void setup() {
   RUN_TEST(test_optional_fields_present);
   RUN_TEST(test_missing_optional_fields);
   RUN_TEST(test_minimal_forecast_keys_accepted);
+  RUN_TEST(test_exponent_form_numbers);
   RUN_TEST(test_non_forecast_payloads_rejected);
   RUN_TEST(test_invalid_json);
   RUN_TEST(test_truncated_body);
