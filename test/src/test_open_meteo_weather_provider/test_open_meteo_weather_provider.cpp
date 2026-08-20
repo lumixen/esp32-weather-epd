@@ -339,27 +339,34 @@ static void test_invalid_json(void) {
   TEST_ASSERT_EQUAL_STRING(TXT_DESERIALIZATION_ERROR_EMPTY_INPUT, err.detail().c_str());
 }
 
-/* EOF seen through Peek() must be recorded too: rapidjson signals end of
- * input via '\0' from Peek() before any failing Take(), so a truncated body
- * detected that way still classifies as IncompleteInput. */
-static void test_stream_input_eof_flag(void) {
-  String data("ab");
-  StringStream ss(data);
-  StreamInput input(ss);
-  TEST_ASSERT_FALSE(input.reachedEof());
-  TEST_ASSERT_EQUAL_CHAR('a', input.Peek());
-  TEST_ASSERT_EQUAL_CHAR('a', input.Take());
-  TEST_ASSERT_EQUAL_CHAR('b', input.Take());
-  TEST_ASSERT_FALSE(input.reachedEof());
-  TEST_ASSERT_EQUAL_CHAR('\0', input.Peek());
-  TEST_ASSERT_TRUE(input.reachedEof());
+/* A body cut short mid-document parses without an error (this parser only
+ * reports explicit syntax problems) but never closes the root object: it
+ * must classify as IncompleteInput so the caller retries. */
+static void test_truncated_body(void) {
+  forecast_t forecast = {};
+  const String truncated = makeSyntheticJson(30, 5).substring(0, 80);
+  ProviderResult err = parseJson(truncated, forecast);
+  TEST_ASSERT_FALSE(err.isOk());
+  TEST_ASSERT_TRUE(err.detail().startsWith(TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT));
 
-  // Exhausted stream from the start: Peek() records it immediately.
-  String emptyData("");
-  StringStream empty(emptyData);
-  StreamInput emptyInput(empty);
-  TEST_ASSERT_EQUAL_CHAR('\0', emptyInput.Peek());
-  TEST_ASSERT_TRUE(emptyInput.reachedEof());
+  // The rejected payload must leave the caller's forecast untouched.
+  TEST_ASSERT_EQUAL_INT64(0, forecast.current.dt);
+  TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.hourly[0].temp);
+}
+
+/* This parser has no stop-when-done: trailing bytes after the completed
+ * root document (e.g. a final newline in the HTTP body) trip a parse error
+ * of their own. A forecast that was already fully parsed must still be
+ * accepted. */
+static void test_trailing_bytes_after_valid_document(void) {
+  forecast_t forecast = {};
+  ProviderResult err = parseJson(String(kOpenMeteoLimaReal) + "\n", forecast);
+  TEST_ASSERT_TRUE(err.isOk());
+  TEST_ASSERT_EQUAL_INT64(kCurrentTime, forecast.current.dt);
+
+  err = parseJson(String(kOpenMeteoLimaReal) + "trailing garbage", forecast);
+  TEST_ASSERT_TRUE(err.isOk());
+  TEST_ASSERT_EQUAL_INT64(kCurrentTime, forecast.current.dt);
 }
 
 void setup() {
@@ -377,7 +384,8 @@ void setup() {
   RUN_TEST(test_minimal_forecast_keys_accepted);
   RUN_TEST(test_non_forecast_payloads_rejected);
   RUN_TEST(test_invalid_json);
-  RUN_TEST(test_stream_input_eof_flag);
+  RUN_TEST(test_truncated_body);
+  RUN_TEST(test_trailing_bytes_after_valid_document);
   UNITY_END();
 }
 
