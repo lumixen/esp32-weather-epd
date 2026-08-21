@@ -280,6 +280,7 @@ ProviderResult MeteoAlarmAlertProvider::fetch(std::vector<weather_alert_t> &aler
       break;
     }
 
+    alerts.clear();
     FeedParser parser(alerts, time(nullptr), lat, lon);
 
     esp_http_client_config_t config = {};
