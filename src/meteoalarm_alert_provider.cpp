@@ -13,9 +13,9 @@
 #include "meteoalarm_alert_provider.h"
 
 // The renderer displays at most 2 alerts: parsing stops once that many
-// matching warnings of distinct hazards were collected (the remaining body,
-// if still delivered by esp_http_client, is simply ignored). Same-hazard
-// entries are merged, see FeedParser::addEntry.
+// matching warnings of distinct hazards were collected and the connection
+// is closed without reading the remainder (see fetch() early-close loop).
+// Same-hazard entries are merged, see FeedParser::addEntry.
 #define METEOALARM_NUM_ALERTS 2
 
 // Severity rank of the MeteoAlarm awareness colors, used to keep the most
@@ -58,15 +58,9 @@ int64_t daysFromCivil(int y, unsigned m, unsigned d) {
   return static_cast<int64_t>(era) * 146097 + static_cast<int64_t>(doe) - 719468;
 }
 
-/* esp_http_client event callback: feed each chunk of body data straight into
- * the FeedParser as it arrives, so the document is never buffered in full. */
-esp_err_t httpEventHandler(esp_http_client_event_t *evt) {
-  if (evt->event_id == HTTP_EVENT_ON_DATA) {
-    auto *parser = static_cast<MeteoAlarmAlertProvider::FeedParser *>(evt->user_data);
-    parser->feed(static_cast<const char *>(evt->data), evt->data_len);
-  }
-  return ESP_OK;
-}
+/* No event handler is used: fetch() reads via esp_http_client_read in a
+ * loop and feeds the parser directly, so it can close the connection as
+ * soon as METEOALARM_NUM_ALERTS distinct hazards are collected. */
 
 }  // namespace
 
@@ -250,9 +244,10 @@ String MeteoAlarmAlertProvider::colorFromSeverity(const String &severity) {
 
 /* Fetch the legacy Atom feed of the configured country over HTTPS (plain
  * HTTP is 302-redirected) and map its entries into the alert model via
- * esp_http_client: httpEventHandler feeds each received chunk straight into
- * a FeedParser as it arrives, so the body (which has no declared
- * Content-Length) is never buffered in full.
+ * esp_http_client_read in bounded chunks, so the body (which has no declared
+ * Content-Length) is never buffered in full. Once METEOALARM_NUM_ALERTS
+ * matching warnings are collected the connection is closed without reading
+ * the remainder to save time/bandwidth.
  *
  * The feed (up to several hundred KB) needs far more than a short read
  * window, hence the explicit 30 s timeout. */
@@ -292,23 +287,87 @@ ProviderResult MeteoAlarmAlertProvider::fetch(std::vector<weather_alert_t> &aler
     config.cert_pem = cert_GEANT_TLS_RSA_1;
     config.timeout_ms = 30000;
     config.method = HTTP_METHOD_GET;
-    config.event_handler = httpEventHandler;
-    config.user_data = &parser;
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
-    const esp_err_t err = esp_http_client_perform(client);
-    const int status = esp_http_client_get_status_code(client);
+    if (client == nullptr) {
+      result = ProviderResult::error(esp_err_to_name(ESP_FAIL));
+      LOG_INFO("%d %s", 0, result.detail().c_str());
+      ++attempts;
+      if (!result.isOk()) {
+        delay(100);
+      }
+      continue;
+    }
+
+    esp_err_t openErr = esp_http_client_open(client, 0);
+    int status = 0;
+    if (openErr != ESP_OK) {
+      result = ProviderResult::error(esp_err_to_name(openErr));
+      esp_http_client_cleanup(client);
+      LOG_INFO("%d %s", status, result.detail().c_str());
+      ++attempts;
+      if (!result.isOk()) {
+        delay(100);
+      }
+      continue;
+    }
+
+    // Fetch headers to obtain the status code; content length is ignored
+    // (the feed is chunked / close-delimited).
+    esp_http_client_fetch_headers(client);
+    status = esp_http_client_get_status_code(client);
+
+    if (status != kHttpStatusOk) {
+      if (status > 0) {
+        result = ProviderResult::error(getHttpResponsePhrase(status));
+      } else {
+        result = ProviderResult::error(esp_err_to_name(ESP_ERR_HTTP_FETCH_HEADER));
+      }
+      esp_http_client_close(client);
+      esp_http_client_cleanup(client);
+      LOG_INFO("%d %s", status, result.detail().c_str());
+      ++attempts;
+      if (!result.isOk()) {
+        delay(100);
+      }
+      continue;
+    }
+
+    // Stream the body in bounded chunks directly into the parser.
+    // Close early once the alert cap is reached. Buffer is heap-allocated
+    // (vector) to avoid 1 KB stack pressure; 1024 B balances TLS record
+    // size (~1.4 KB) and heap usage.
+    std::vector<char> buf(1024);
+    bool readFailed = false;
+    esp_err_t readErr = ESP_OK;
+    while (!parser.isAlertCapReached()) {
+      int n = esp_http_client_read(client, buf.data(), buf.size());
+      if (n > 0) {
+        parser.feed(buf.data(), static_cast<size_t>(n));
+      } else if (n == 0) {
+        break;
+      } else {
+        // n < 0: error or timeout (-ESP_ERR_HTTP_EAGAIN etc.)
+        readFailed = true;
+        if (n == -ESP_ERR_HTTP_EAGAIN) {
+          readErr = ESP_ERR_HTTP_EAGAIN;
+        } else {
+          readErr = ESP_FAIL;
+        }
+        break;
+      }
+    }
+
+    if (parser.isAlertCapReached()) {
+      LOG_INFO("MeteoAlarm: alert cap reached, closing connection early");
+    }
+    esp_http_client_close(client);
     esp_http_client_cleanup(client);
 
-    if (err == ESP_OK && status == kHttpStatusOk) {
-      result = parser.finish();
-    } else if (err == ESP_OK) {
-      result = ProviderResult::error(getHttpResponsePhrase(status));
+    if (readFailed && !parser.isAlertCapReached()) {
+      result = ProviderResult::error(esp_err_to_name(readErr));
     } else {
-      // esp_http_client's esp_err_t values fall outside the HTTP/HTTPClient/
-      // WiFi ranges getHttpResponsePhrase recognizes (it would silently
-      // return ""), so compose the diagnostic ourselves.
-      result = ProviderResult::error(esp_err_to_name(err));
+      result = parser.finish();
     }
 
     LOG_INFO("%d %s", status, result.isOk() ? getHttpResponsePhrase(status) : result.detail().c_str());
@@ -385,18 +444,16 @@ void MeteoAlarmAlertProvider::FeedParser::addEntry() {
 }  // MeteoAlarmAlertProvider::FeedParser::addEntry
 
 /* Streaming XML scanner for the MeteoAlarm Atom feed, fed in chunks by
- * httpEventHandler as esp_http_client delivers them. Each <entry> repeats
- * the CAP summary of a warning; only event, severity, effective, onset,
- * expires and polygon are captured, everything else is skipped, so the
- * document is never buffered in full.
+ * esp_http_client_read as the body is streamed. Each <entry> repeats the
+ * CAP summary of a warning; only event, severity, effective, onset, expires
+ * and polygon are captured, everything else is skipped, so the document is
+ * never buffered in full.
  *
  * feed() becomes a no-op once METEOALARM_NUM_ALERTS matching warnings have
- * been collected: parsing stops, but (unlike the previous Stream-based
- * implementation, which could simply stop pulling more bytes) the remaining
- * body is still delivered by the in-flight esp_http_client_perform() call
- * and is here simply discarded rather than short-circuited on the wire. */
+ * been collected; the caller checks isAlertCapReached() and closes the connection
+ * without reading the remainder (see fetch()). */
 void MeteoAlarmAlertProvider::FeedParser::feed(const char *data, size_t len) {
-  if (done_) {
+  if (alertCapReached_) {
     return;
   }
 
@@ -502,7 +559,7 @@ void MeteoAlarmAlertProvider::FeedParser::feed(const char *data, size_t len) {
           inEntry_ = false;
           entry_.reset();
           if (alerts_.size() >= METEOALARM_NUM_ALERTS) {
-            done_ = true;
+            alertCapReached_ = true;
             return;
           }
         }
@@ -530,7 +587,7 @@ void MeteoAlarmAlertProvider::FeedParser::feed(const char *data, size_t len) {
           // previous entry closed implicitly by a new one
           addEntry();
           if (alerts_.size() >= METEOALARM_NUM_ALERTS) {
-            done_ = true;
+            alertCapReached_ = true;
             return;
           }
         }
@@ -552,7 +609,7 @@ void MeteoAlarmAlertProvider::FeedParser::feed(const char *data, size_t len) {
  * A body that ends while still inside an entry means it was truncated (e.g.
  * by a connection drop), unless the alert cap was already reached. */
 ProviderResult MeteoAlarmAlertProvider::FeedParser::finish() {
-  if (done_) {
+  if (alertCapReached_) {
     LOG_DEBUG("feed: %u bytes -> %u alerts (cap reached) in %u ms", static_cast<unsigned>(total_),
               static_cast<unsigned>(alerts_.size()), static_cast<unsigned>(millis() - tStart_));
     return ProviderResult::ok();

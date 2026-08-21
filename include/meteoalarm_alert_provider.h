@@ -9,28 +9,33 @@
  * Fetches the legacy Atom feed of a country from feeds.meteoalarm.org. Each
  * feed entry repeats the CAP summary of a warning (event, severity, validity
  * period, area polygon), so no per-alert requests are required. The feed is
- * parsed incrementally as it is delivered by esp_http_client's event
- * callback, only the fields needed for the alert model are kept.
+ * parsed incrementally as it is delivered via esp_http_client_read in
+ * bounded chunks, only the fields needed for the alert model are kept. Once
+ * METEOALARM_NUM_ALERTS distinct hazards are collected the connection is
+ * closed without reading the remainder.
  */
 class MeteoAlarmAlertProvider : public AlertProvider {
  public:
   ProviderResult fetch(std::vector<weather_alert_t> &alerts) override;
 
-  /* Incremental parser for the MeteoAlarm Atom feed. Bytes are fed in as
-   * they arrive (e.g. from an esp_http_client HTTP_EVENT_ON_DATA callback)
-   * via feed(); collects alerts that have not expired (`now` is the current
-   * Unix time) and cover the optional location (lat/lon, NaN = no polygon
-   * filter; alerts without a polygon are always kept). feed() becomes a
-   * no-op once METEOALARM_NUM_ALERTS distinct-hazard warnings have been
-   * collected. Call finish() exactly once after the whole body has been fed
-   * (or the connection ended) to get the final result: a body that ends
-   * while still inside an entry is reported as truncated, unless the alert
-   * cap was already reached. Public for unit testing. */
+   /* Incremental parser for the MeteoAlarm Atom feed. Bytes are fed in as
+   * they arrive (e.g. from esp_http_client_read chunks) via feed(); collects
+   * alerts that have not expired (`now` is the current Unix time) and cover
+   * the optional location (lat/lon, NaN = no polygon filter; alerts without
+   * a polygon are always kept). feed() becomes a no-op once
+   * METEOALARM_NUM_ALERTS distinct-hazard warnings have been collected, at
+   * which point isAlertCapReached() returns true and the caller should close
+   * the connection without reading further. Call finish() exactly once after
+   * the whole body has been fed (or the connection ended/closed early) to get
+   * the final result: a body that ends while still inside an entry is
+   * reported as truncated, unless the alert cap was already reached. Public
+   * for unit testing. */
   class FeedParser {
    public:
     FeedParser(std::vector<weather_alert_t> &alerts, int64_t now, double lat = NAN, double lon = NAN);
     void feed(const char *data, size_t len);
     ProviderResult finish();
+    bool isAlertCapReached() const { return alertCapReached_; }
 
    private:
     enum class St { TEXT, ENTITY, TAG_NAME, TAG_ATTR, TAG_ATTR_QUOTED, SKIP };
@@ -59,7 +64,7 @@ class MeteoAlarmAlertProvider : public AlertProvider {
     bool inEntry_ = false;
     bool endTag_ = false;
     bool selfClosing_ = false;
-    bool done_ = false;  // true once METEOALARM_NUM_ALERTS have been collected
+    bool alertCapReached_ = false;  // true once METEOALARM_NUM_ALERTS have been collected
     char quote_ = 0;
     String tagName_;  // tag currently being parsed
     String capture_;  // entry element currently accumulating text
