@@ -1,35 +1,89 @@
+/* Unified OWM One Call provider — single class for weather+alerts.
+ * Copyright (C) 2026  Lumixen
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
 #include "config.h"
 #include "logger.h"
-
-#if defined(WEATHER_API_PROVIDER_OPEN_WEATHER_MAP)
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
 #include <WiFiClient.h>
-#if !defined(WEATHER_API_TRANSPORT_HTTP)
 #include <WiFiClientSecure.h>
-#endif
-#if defined(WEATHER_API_TRANSPORT_HTTPS_VERIFY)
 #include "cert.h"
-#endif
 #include "_locale.h"
 #include "client_utils.h"
+#include "owm_provider.h"
 #include "provider_result_utils.h"
-#include "owm_weather_provider.h"
 
-// OpenWeatherMaps does not specify a limit, but if you need more alerts you
-// are probably doomed.
 #define OWM_NUM_ALERTS 8
 
-const char *OWMWeatherProvider::getApiName() const {
-  return "One Call API";
-}  // OWMWeatherProvider::getApiName
+OWMProvider::OWMProvider() {
+  fetchMutex_ = xSemaphoreCreateMutex();
+}
 
-/* Perform an HTTP GET request to OpenWeatherMap's "One Call" API and map the
- * response into the generic forecast model.
- */
-ProviderResult OWMWeatherProvider::fetch(forecast_t &forecast) {
+OWMProvider::~OWMProvider() {
+  if (fetchMutex_) {
+    vSemaphoreDelete(fetchMutex_);
+    fetchMutex_ = nullptr;
+  }
+}
+
+const char *OWMProvider::getApiName() const {
+  return "One Call API";
+}
+
+ProviderResult OWMProvider::fetchInternal(forecast_t *forecast, std::vector<weather_alert_t> *alertsOut) {
+  // Unified fetch: handles both full forecast and alerts-only via single method.
+  // Chooses URI and deserializer based on what is requested.
+  bool isAlertsOnly = (forecast == nullptr && alertsOut != nullptr);
+#if defined(WEATHER_API_PROVIDER_OPEN_WEATHER_MAP) && defined(ALERTS_API_PROVIDER_OPEN_WEATHER_MAP)
+  // Piggyback: alerts-only first should still fetch full to cache forecast
+  // so treat alerts-only as full when piggyback
+  isAlertsOnly = false;
+#endif
+
+  if (isAlertsOnly) {
+#if defined(ALERTS_API_TRANSPORT_HTTP)
+    WiFiClient client;
+    const uint16_t port = 80;
+#elif defined(ALERTS_API_TRANSPORT_HTTPS_NO_VERIFY)
+    WiFiClientSecure client;
+    client.setInsecure();
+    const uint16_t port = 443;
+#else
+    WiFiClientSecure client;
+    client.setCACert(cert_USERTrust_RSA_Certification_Authority);
+    const uint16_t port = 443;
+#endif
+    String uri = "/data/" + OWM_ONECALL_VERSION + "/onecall?lat=" + LAT + "&lon=" + LON + "&lang=" + OWM_LANG +
+                 "&units=metric&exclude=current,minutely,hourly,daily";
+    String sanitizedUri = OWM_ENDPOINT + uri + "&appid={API key}";
+    uri += "&appid=" + OWM_APIKEY;
+    std::vector<weather_alert_t> tmp;
+    ProviderResult result = httpGetWithRetry(
+        client, OWM_ENDPOINT, port, uri, sanitizedUri, false, HTTP_CLIENT_TCP_TIMEOUT,
+        [&tmp](Stream &json, size_t) { return deserializeAlerts(json, tmp); });
+    if (result.isOk()) {
+      *alertsOut = tmp;
+      alerts_ = tmp;
+      haveAlerts_ = true;
+      fetchStatus_ = result;
+      fetched_ = true;
+    } else {
+      fetchStatus_ = result;
+      haveAlerts_ = false;
+      fetched_ = true;
+    }
+    return result;
+  }
+
+  // Full fetch (forecast or piggyback)
 #if defined(WEATHER_API_TRANSPORT_HTTP)
   WiFiClient client;
   const uint16_t port = 80;
@@ -37,170 +91,209 @@ ProviderResult OWMWeatherProvider::fetch(forecast_t &forecast) {
   WiFiClientSecure client;
   client.setInsecure();
   const uint16_t port = 443;
-#else  // WEATHER_API_TRANSPORT_HTTPS_VERIFY
+#else
   WiFiClientSecure client;
   client.setCACert(cert_USERTrust_RSA_Certification_Authority);
   const uint16_t port = 443;
 #endif
+
   String uri = "/data/" + OWM_ONECALL_VERSION + "/onecall?lat=" + LAT + "&lon=" + LON + "&lang=" + OWM_LANG +
                "&units=metric&exclude=minutely";
 #if !defined(ALERTS_API_PROVIDER_OPEN_WEATHER_MAP)
-  // exclude alerts
   uri += ",alerts";
 #endif
 
-  // This string is printed to terminal to help with debugging. The API key is
-  // censored to reduce the risk of users exposing their key.
   String sanitizedUri = OWM_ENDPOINT + uri + "&appid={API key}";
-
   uri += "&appid=" + OWM_APIKEY;
 
-  std::vector<weather_alert_t> *alerts = nullptr;
-#if defined(ALERTS_API_PROVIDER_OPEN_WEATHER_MAP)
-  alerts = &alerts_;
+  forecast_t tmpForecast;
+  std::vector<weather_alert_t> tmpAlerts;
+  forecast_t *fcPtr = nullptr;
+  std::vector<weather_alert_t> *alPtr = nullptr;
+
+#if defined(ALERTS_API_PROVIDER_OPEN_WEATHER_MAP) && defined(WEATHER_API_PROVIDER_OPEN_WEATHER_MAP)
+  if (forecast && alertsOut) {
+    fcPtr = forecast;
+    alPtr = alertsOut;
+  } else if (forecast && !alertsOut) {
+    fcPtr = forecast;
+    alPtr = &tmpAlerts;
+  } else if (!forecast && alertsOut) {
+    fcPtr = &tmpForecast;
+    alPtr = alertsOut;
+  } else {
+    fcPtr = &tmpForecast;
+    alPtr = &tmpAlerts;
+  }
+#elif defined(ALERTS_API_PROVIDER_OPEN_WEATHER_MAP)
+  if (forecast) {
+    fcPtr = forecast;
+    alPtr = nullptr;
+  } else if (alertsOut) {
+    fcPtr = &tmpForecast;
+    alPtr = alertsOut;
+  }
+#else
+  fcPtr = forecast ? forecast : &tmpForecast;
+  alPtr = nullptr;
 #endif
 
   ProviderResult result = httpGetWithRetry(
       client, OWM_ENDPOINT, port, uri, sanitizedUri, false, HTTP_CLIENT_TCP_TIMEOUT,
-      [this, &forecast, alerts](Stream &json, size_t) { return deserializeOneCall(json, forecast, alerts); });
+      [fcPtr, alPtr](Stream &json, size_t) { return deserializeOneCall(json, *fcPtr, alPtr); });
 
-  fetchStatus_ = result;
-  haveAlerts_ = result.isOk();
-  return result;
-}  // OWMWeatherProvider::fetch
-
-/* Serve national weather alerts extracted from the last One Call response.
- * No additional HTTP request is made.
- */
-ProviderResult OWMWeatherProvider::fetch(std::vector<weather_alert_t> &alerts) {
-  if (haveAlerts_) {
-    alerts = alerts_;
-    return ProviderResult::ok();
+  if (result.isOk()) {
+    if (forecast && fcPtr != forecast) {
+      *forecast = *fcPtr;
+    }
+    if (fcPtr) cachedForecast_ = *fcPtr;
+    if (alPtr) {
+      alerts_ = *alPtr;
+      haveAlerts_ = true;
+    } else {
+      haveAlerts_ = true;
+    }
+    fetchStatus_ = result;
+    fetched_ = true;
+  } else {
+    fetchStatus_ = result;
+    haveAlerts_ = false;
+    fetched_ = true;
   }
-  return fetchStatus_;
-}  // OWMWeatherProvider::fetch
+  return result;
+}
 
-/* Map an OpenWeatherMap weather condition id onto the unified weather
- * condition enum.
- *
- * References:
- *   https://openweathermap.org/weather-conditions
- */
-weather_condition OWMWeatherProvider::mapWeatherCode(int id) {
+ProviderResult OWMProvider::fetch(forecast_t &forecast) {
+  if (fetchMutex_) xSemaphoreTake(fetchMutex_, portMAX_DELAY);
+  if (fetched_) {
+    ProviderResult r = fetchStatus_;
+    if (r.isOk()) {
+      forecast = cachedForecast_;
+    }
+    if (fetchMutex_) xSemaphoreGive(fetchMutex_);
+    return r;
+  }
+  ProviderResult r = fetchInternal(&forecast, nullptr);
+  if (fetchMutex_) xSemaphoreGive(fetchMutex_);
+  return r;
+}
+
+ProviderResult OWMProvider::fetch(std::vector<weather_alert_t> &alerts) {
+  if (fetchMutex_) xSemaphoreTake(fetchMutex_, portMAX_DELAY);
+  if (fetched_) {
+    ProviderResult r = fetchStatus_;
+    if (r.isOk()) {
+      alerts = alerts_;
+    } else {
+      LOG_ERROR("Alerts API: %s", r.detail().c_str());
+      alerts.clear();
+    }
+    if (fetchMutex_) xSemaphoreGive(fetchMutex_);
+    if (r.isOk()) return ProviderResult::ok();
+    return r;
+  }
+  ProviderResult r = fetchInternal(nullptr, &alerts);
+  if (!r.isOk()) {
+    LOG_ERROR("Alerts API: %s", r.detail().c_str());
+    alerts.clear();
+  }
+  if (fetchMutex_) xSemaphoreGive(fetchMutex_);
+  return r;
+}
+
+weather_condition OWMProvider::mapWeatherCode(int id) {
   switch (id) {
-    // Group 2xx: Thunderstorm
-    case 200:  // Thunderstorm with light rain
-    case 201:  // Thunderstorm with rain
-    case 202:  // Thunderstorm with heavy rain
-    case 210:  // Light thunderstorm
-    case 211:  // Thunderstorm
-    case 212:  // Heavy thunderstorm
-    case 221:  // Ragged thunderstorm
+    case 200:
+    case 201:
+    case 202:
+    case 210:
+    case 211:
+    case 212:
+    case 221:
       return weather_condition::THUNDERSTORM;
-    case 230:  // Thunderstorm with light drizzle
-    case 231:  // Thunderstorm with drizzle
-    case 232:  // Thunderstorm with heavy drizzle
+    case 230:
+    case 231:
+    case 232:
       return weather_condition::THUNDERSTORM_HAIL;
-    // Group 3xx: Drizzle
-    case 300:  // Light intensity drizzle
-    case 301:  // Drizzle
-    case 302:  // Heavy intensity drizzle
-    case 310:  // Light intensity drizzle rain
-    case 311:  // Drizzle rain
-    case 312:  // Heavy intensity drizzle rain
-    case 313:  // Shower rain and drizzle
-    case 314:  // Heavy shower rain and drizzle
-    case 321:  // Shower drizzle
+    case 300:
+    case 301:
+    case 302:
+    case 310:
+    case 311:
+    case 312:
+    case 313:
+    case 314:
+    case 321:
       return weather_condition::DRIZZLE;
-    // Group 5xx: Rain
-    case 500:  // Light rain
-    case 501:  // Moderate rain
-    case 502:  // Heavy intensity rain
-    case 503:  // Very heavy rain
-    case 504:  // Extreme rain
+    case 500:
+    case 501:
+    case 502:
+    case 503:
+    case 504:
       return weather_condition::RAIN;
-    case 511:  // Freezing rain
+    case 511:
       return weather_condition::FREEZING_RAIN;
-    case 520:  // Light intensity shower rain
-    case 521:  // Shower rain
-    case 522:  // Heavy intensity shower rain
-    case 531:  // Ragged shower rain
+    case 520:
+    case 521:
+    case 522:
+    case 531:
       return weather_condition::RAIN_SHOWERS;
-    // Group 6xx: Snow
-    case 600:  // Light snow
-    case 601:  // Snow
-    case 602:  // Heavy snow
+    case 600:
+    case 601:
+    case 602:
       return weather_condition::SNOW;
-    case 611:  // Sleet
-    case 612:  // Light shower sleet
-    case 613:  // Shower sleet
+    case 611:
+    case 612:
+    case 613:
       return weather_condition::SLEET;
-    case 615:  // Light rain and snow
-    case 616:  // Rain and snow
-    case 620:  // Light shower snow
-    case 621:  // Shower snow
-    case 622:  // Heavy shower snow
+    case 615:
+    case 616:
+    case 620:
+    case 621:
+    case 622:
       return weather_condition::RAIN_SNOW_MIX;
-    // Group 7xx: Atmosphere
-    case 701:  // Mist
+    case 701:
       return weather_condition::MIST;
-    case 711:  // Smoke
+    case 711:
       return weather_condition::SMOKE;
-    case 721:  // Haze
+    case 721:
       return weather_condition::HAZE;
-    case 731:  // Sand/dust whirls
+    case 731:
       return weather_condition::SAND_WHIRLS;
-    case 741:  // Fog
+    case 741:
       return weather_condition::FOG;
-    case 751:  // Sand
+    case 751:
       return weather_condition::SAND;
-    case 761:  // Dust
+    case 761:
       return weather_condition::DUST;
-    case 762:  // Volcanic ash
+    case 762:
       return weather_condition::ASH;
-    case 771:  // Squalls
+    case 771:
       return weather_condition::SQUALL;
-    case 781:  // Tornado
+    case 781:
       return weather_condition::TORNADO;
-    // Group 800: Clear
-    case 800:  // Clear sky
+    case 800:
       return weather_condition::CLEAR;
-    // Group 80x: Clouds
-    case 801:  // Few clouds: 11-25%
+    case 801:
       return weather_condition::PARTLY_CLOUDY;
-    case 802:  // Scattered clouds: 25-50%
-    case 803:  // Broken clouds: 51-84%
+    case 802:
+    case 803:
       return weather_condition::CLOUDY;
-    case 804:  // Overcast clouds: 85-100%
+    case 804:
       return weather_condition::OVERCAST;
     default:
-      // maybe this is a new condition id in one of the existing groups
-      if (id >= 200 && id < 300) {
-        return weather_condition::THUNDERSTORM;
-      }
-      if (id >= 300 && id < 400) {
-        return weather_condition::DRIZZLE;
-      }
-      if (id >= 500 && id < 600) {
-        return weather_condition::RAIN;
-      }
-      if (id >= 600 && id < 700) {
-        return weather_condition::SNOW;
-      }
-      if (id >= 700 && id < 800) {
-        return weather_condition::FOG;
-      }
-      if (id >= 800 && id < 900) {
-        return weather_condition::CLOUDY;
-      }
+      if (id >= 200 && id < 300) return weather_condition::THUNDERSTORM;
+      if (id >= 300 && id < 400) return weather_condition::DRIZZLE;
+      if (id >= 500 && id < 600) return weather_condition::RAIN;
+      if (id >= 600 && id < 700) return weather_condition::SNOW;
+      if (id >= 700 && id < 800) return weather_condition::FOG;
+      if (id >= 800 && id < 900) return weather_condition::CLOUDY;
       return weather_condition::UNKNOWN;
   }
-}  // OWMWeatherProvider::mapWeatherCode
+}
 
-ProviderResult OWMWeatherProvider::deserializeOneCall(Stream &json, forecast_t &forecast,
-                                                      std::vector<weather_alert_t> *alerts) {
+ProviderResult OWMProvider::deserializeOneCall(Stream &json, forecast_t &forecast, std::vector<weather_alert_t> *alerts) {
   int i;
-
   JsonDocument filter;
   filter["current"] = true;
   filter["minutely"] = false;
@@ -209,8 +302,6 @@ ProviderResult OWMWeatherProvider::deserializeOneCall(Stream &json, forecast_t &
 #if !defined(ALERTS_API_PROVIDER_OPEN_WEATHER_MAP)
   filter["alerts"] = false;
 #else
-  // description can be very long so they are filtered out to save on memory
-  // along with sender_name
   for (int i = 0; i < OWM_NUM_ALERTS; ++i) {
     filter["alerts"][i]["sender_name"] = false;
     filter["alerts"][i]["event"] = true;
@@ -220,9 +311,7 @@ ProviderResult OWMWeatherProvider::deserializeOneCall(Stream &json, forecast_t &
     filter["alerts"][i]["tags"] = true;
   }
 #endif
-
   JsonDocument doc;
-
   DeserializationError error = deserializeJson(doc, json, DeserializationOption::Filter(filter));
   LOG_DEBUG("doc.overflowed() : %s", doc.overflowed() ? "true" : "false");
   if (LogLevel::TRACE >= g_logLevel) {
@@ -258,7 +347,6 @@ ProviderResult OWMWeatherProvider::deserializeOneCall(Stream &json, forecast_t &
   forecast.current.snow_1h = current["snow"]["1h"].as<float>();
   JsonObject current_weather = current["weather"][0];
   forecast.current.weather.condition = mapWeatherCode(current_weather["id"].as<int>());
-  // OpenWeatherMap indicates sun is up with d otherwise n for night
   forecast.current.is_day = current_weather["icon"].as<String>().endsWith("d");
 
   i = 0;
@@ -280,12 +368,8 @@ ProviderResult OWMWeatherProvider::deserializeOneCall(Stream &json, forecast_t &
     forecast.hourly[i].snow_1h = hourly["snow"]["1h"].as<float>();
     JsonObject hourly_weather = hourly["weather"][0];
     forecast.hourly[i].weather.condition = mapWeatherCode(hourly_weather["id"].as<int>());
-    // OpenWeatherMap indicates sun is up with d otherwise n for night
     forecast.hourly[i].is_day = hourly_weather["icon"].as<String>().endsWith("d");
-
-    if (i == NUM_HOURLY - 1) {
-      break;
-    }
+    if (i == NUM_HOURLY - 1) break;
     ++i;
   }
 
@@ -315,10 +399,7 @@ ProviderResult OWMWeatherProvider::deserializeOneCall(Stream &json, forecast_t &
     forecast.daily[i].snow = daily["snow"].as<float>();
     JsonObject daily_weather = daily["weather"][0];
     forecast.daily[i].weather.condition = mapWeatherCode(daily_weather["id"].as<int>());
-
-    if (i == NUM_DAILY - 1) {
-      break;
-    }
+    if (i == NUM_DAILY - 1) break;
     ++i;
   }
 
@@ -327,23 +408,51 @@ ProviderResult OWMWeatherProvider::deserializeOneCall(Stream &json, forecast_t &
     i = 0;
     for (JsonObject alert : doc["alerts"].as<JsonArray>()) {
       weather_alert_t new_alert = {};
-      // new_alert.sender_name = alert["sender_name"].as<const char *>();
       new_alert.event = alert["event"].as<const char *>();
       new_alert.start = alert["start"].as<int64_t>();
       new_alert.end = alert["end"].as<int64_t>();
-      // new_alert.description = alert["description"].as<const char *>();
       new_alert.tags = alert["tags"][0].as<const char *>();
       alerts->push_back(new_alert);
-
-      if (i == OWM_NUM_ALERTS - 1) {
-        break;
-      }
+      if (i == OWM_NUM_ALERTS - 1) break;
       ++i;
     }
   }
 #endif
 
   return mapDeserializationError(error);
-}  // OWMWeatherProvider::deserializeOneCall
+}
 
-#endif  // WEATHER_API_PROVIDER_OPEN_WEATHER_MAP
+ProviderResult OWMProvider::deserializeAlerts(Stream &json, std::vector<weather_alert_t> &alerts) {
+  JsonDocument filter;
+  for (int i = 0; i < OWM_NUM_ALERTS; ++i) {
+    filter["alerts"][i]["sender_name"] = false;
+    filter["alerts"][i]["event"] = true;
+    filter["alerts"][i]["start"] = true;
+    filter["alerts"][i]["end"] = true;
+    filter["alerts"][i]["description"] = false;
+    filter["alerts"][i]["tags"] = true;
+  }
+  JsonDocument doc;
+  DeserializationError error = deserializeJson(doc, json, DeserializationOption::Filter(filter));
+  LOG_DEBUG("doc.overflowed() : %s", doc.overflowed() ? "true" : "false");
+  if (LogLevel::TRACE >= g_logLevel) {
+    LOG_TRACE("pretty JSON dump:");
+    serializeJsonPretty(doc, Serial);
+    Serial.println();
+  }
+  if (error) {
+    return mapDeserializationError(error);
+  }
+  int i = 0;
+  for (JsonObject alert : doc["alerts"].as<JsonArray>()) {
+    weather_alert_t new_alert = {};
+    new_alert.event = alert["event"].as<const char *>();
+    new_alert.start = alert["start"].as<int64_t>();
+    new_alert.end = alert["end"].as<int64_t>();
+    new_alert.tags = alert["tags"][0].as<const char *>();
+    alerts.push_back(new_alert);
+    if (i == OWM_NUM_ALERTS - 1) break;
+    ++i;
+  }
+  return mapDeserializationError(error);
+}

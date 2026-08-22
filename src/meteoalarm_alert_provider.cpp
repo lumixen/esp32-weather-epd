@@ -378,6 +378,10 @@ ProviderResult MeteoAlarmAlertProvider::fetch(std::vector<weather_alert_t> &aler
     }
   }
 
+  if (!result.isOk()) {
+    LOG_ERROR("Alerts API: %s", result.detail().c_str());
+    alerts.clear();
+  }
   LOG_DEBUG("fetch total=%u ms ok=%u detail='%s'", static_cast<unsigned>(millis() - t0), result.isOk(),
             result.detail().c_str());
   return result;

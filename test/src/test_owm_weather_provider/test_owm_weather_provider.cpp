@@ -14,7 +14,7 @@
 #include <unity.h>
 
 #include "data_models.h"
-#include "owm_weather_provider.h"
+#include "owm_provider.h"
 
 void setUp(void) {}
 void tearDown(void) {}

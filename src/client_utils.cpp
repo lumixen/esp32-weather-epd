@@ -198,7 +198,8 @@ ProviderResult httpGetWithRetry(WiFiClient &client, const String &host, uint16_t
     }
     client.stop();
     http.end();
-    LOG_INFO("%d %s", httpResponse, result.isOk() ? getHttpResponsePhrase(httpResponse) : result.detail().c_str());
+    LOG_INFO("%d %s %s", httpResponse, result.isOk() ? getHttpResponsePhrase(httpResponse) : result.detail().c_str(),
+             host.c_str());
     ++attempts;
     if (!result.isOk()) {
       delay(100);

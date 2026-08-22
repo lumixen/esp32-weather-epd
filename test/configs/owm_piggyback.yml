@@ -1,0 +1,98 @@
+# Pinned configuration for the QEMU fetch-executor test run with the
+# OpenWeatherMap weather and alerts providers sharing one OWMProvider.
+#
+# This combination exercises the provider-factory aliasing path used when
+# weather and alerts are both served by the OWM One Call API. Credentials are
+# placeholders; the tests never go on the network.
+epdPanel: DKE_3C_86BF
+epdDriver: Waveshare
+locale: en_US
+weatherAPI:
+  provider: OpenWeatherMap
+  transport: HTTP
+airQualityAPI:
+  provider: Open-Meteo
+  transport: HTTP
+alertsAPI:
+  provider: OpenWeatherMap
+  transport: HTTP
+ntp:
+  server_1: 192.168.41.1
+  server_2: pool.ntp.org
+  syncIntervalWakeups: 6
+  rtcCorrection: true
+pin:
+  epdBusy: 4
+  epdCS: 5
+  epdRst: 16
+  epdDC: 17
+  epdPwr: 2
+useImperialUnitsAsDefault: false
+unitsTemp: Celsius
+unitsSpeed: km/h
+unitsPres: mbar
+unitsDistance: km
+unitsHourlyPrecip: probability of precipitation
+unitsDailyPrecip: mm
+windDirectionIndicator: arrow
+windArrowPrecision: secondary intercardinal
+font: FreeSans
+displayDailyPrecip: smart
+displayHourlyIcons: true
+batteryMonitoring: true
+statusBarExtrasBatVoltage: true
+statusBarExtrasWifiRSSI: false
+logLevel: debug
+wifi:
+  ssid: your-ssid
+  password: your-password
+owmOnecallVersion: '3.0'
+owmApikey: test
+latitude: '50.498878'
+longitude: '30.497396'
+city: Kyiv
+timezone: EET-2EEST,M3.5.0/3,M10.5.0/4
+timeFormat: '%H:%M'
+hourFormat: '%H'
+dateFormat: '%d/%m/%Y'
+refreshTimeFormat: '%x %H:%M'
+sleepDuration: 30
+bedTime: 0
+wakeTime: 0
+hourlyGraphMax: 24
+moonPhaseStyle: alternative
+bme:
+  type: BME280
+leftPanelLayout:
+  SUNRISE: 0
+  SUNSET: 1
+  MOONRISE: 2
+  MOONSET: 3
+  MOONPHASE: 4
+  HUMIDITY: 5
+  WIND: 6
+  INPRESSURE: 7
+  AIR_QUALITY: 8
+  VISIBILITY: 9
+homeAssistantMqtt:
+  enabled: true
+  server: 192.168.41.2
+  port: 1883
+  username: epd_weather
+  password: your-mqtt-password
+  discoveryPrefix: homeassistant
+colors:
+  outlookLowThresholdTemperature: 0
+  outlookHighThresholdTemperature: 30
+  outlookTemperatureLowColor: red
+  outlookTemperatureNormalColor: black
+  outlookTemperatureHighColor: red
+  outlookConditionsIconAccent: red
+  city: black
+  date: red
+  alert: red
+  errorIcon: red
+  statusBarBatteryWarning: red
+  statusBarWeakWifi: red
+  statusBarMessage: red
+  forecastPrecipitation: red
