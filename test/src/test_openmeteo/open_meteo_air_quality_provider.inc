@@ -176,10 +176,16 @@ static void test_exact_now_boundary(void) {
   TEST_ASSERT_EQUAL_FLOAT(48.0f, airQuality.components.pm2_5[23]);
 }
 
-/* Fewer entries than the model holds: the remaining slots stay untouched. */
+/* Fewer entries than the model holds: the remaining slots are reset instead
+ * of retaining values from a previous response. */
 static void test_fewer_entries_than_model(void) {
   setSystemTime(kSyntheticBase + 5 * 3600);
   air_quality_t airQuality = {};
+  for (int i = 0; i < NUM_AIR_POLLUTION; ++i) {
+    airQuality.dt[i] = 123456;
+    airQuality.components.pm2_5[i] = 99.0f;
+  }
+
   ProviderResult err = parseJson(makeSyntheticJson(5), airQuality);
   TEST_ASSERT_TRUE(err.isOk());
 
@@ -188,6 +194,7 @@ static void test_fewer_entries_than_model(void) {
   TEST_ASSERT_EQUAL_FLOAT(8.0f, airQuality.components.pm2_5[4]);
   TEST_ASSERT_EQUAL_INT64(0, airQuality.dt[5]);  // past the end
   TEST_ASSERT_EQUAL_FLOAT(0.0f, airQuality.components.pm2_5[5]);
+  TEST_ASSERT_EQUAL_FLOAT(0.0f, airQuality.components.pm10[0]);  // absent key
 }
 
 /* `now` before every timestamp: no entry qualifies, the model stays empty
@@ -236,16 +243,57 @@ static void test_missing_components(void) {
   TEST_ASSERT_EQUAL_FLOAT(0.0f, airQuality.components.nh3[3]);
 }
 
-/* Garbage and empty input are reported as deserialization errors. */
+/* Unknown sections and columns are consumed without affecting the selected
+ * pollutant values. Nested arrays are ignored because only direct children of
+ * `hourly` are data series. */
+static void test_unknown_fields(void) {
+  setSystemTime(kSyntheticBase + 2 * 3600 + 100);
+  air_quality_t airQuality = {};
+  const char *json =
+      "{\"metadata\":{\"time\":[9999]},\"hourly\":{\"time\":[946684800,946688400,946692000],"
+      "\"unknown\":[90,91,92],\"nested\":{\"ozone\":[80,81,82]},"
+      "\"pm2_5\":[1,2,3],\"ozone\":[4,5,6]}}";
+
+  ProviderResult err = parseJson(json, airQuality);
+  TEST_ASSERT_TRUE(err.isOk());
+  TEST_ASSERT_EQUAL_INT64(kSyntheticBase + 2 * 3600, airQuality.dt[2]);
+  TEST_ASSERT_EQUAL_FLOAT(1.0f, airQuality.components.pm2_5[0]);
+  TEST_ASSERT_EQUAL_FLOAT(3.0f, airQuality.components.pm2_5[2]);
+  TEST_ASSERT_EQUAL_FLOAT(4.0f, airQuality.components.o3[0]);
+  TEST_ASSERT_EQUAL_FLOAT(6.0f, airQuality.components.o3[2]);
+  TEST_ASSERT_EQUAL_FLOAT(0.0f, airQuality.components.co[0]);
+}
+
+/* Garbage and empty input are reported as deserialization errors, and a
+ * failed parse clears a destination that already held readings. */
 static void test_invalid_json(void) {
   air_quality_t airQuality = {};
+  airQuality.components.pm2_5[0] = 42.0f;
+  airQuality.dt[0] = 123456;
+
   ProviderResult err = parseJson("this is not json", airQuality);
   TEST_ASSERT_FALSE(err.isOk());
   TEST_ASSERT_TRUE(err.detail().startsWith(TXT_DESERIALIZATION_ERROR_INVALID_INPUT));
+  TEST_ASSERT_EQUAL_FLOAT(0.0f, airQuality.components.pm2_5[0]);
+  TEST_ASSERT_EQUAL_INT64(0, airQuality.dt[0]);
 
   err = parseJson("", airQuality);
   TEST_ASSERT_FALSE(err.isOk());
   TEST_ASSERT_EQUAL_STRING(TXT_DESERIALIZATION_ERROR_EMPTY_INPUT, err.detail().c_str());
+}
+
+/* A valid prefix that ends before the root document closes is incomplete, not
+ * a successful partial response, and must not leave any parsed values behind. */
+static void test_truncated_json(void) {
+  air_quality_t airQuality = {};
+  airQuality.components.o3[0] = 17.0f;
+  airQuality.dt[0] = 987654;
+
+  ProviderResult err = parseJson("{\"hourly\":{\"time\":[1000],\"ozone\":[4.5]", airQuality);
+  TEST_ASSERT_FALSE(err.isOk());
+  TEST_ASSERT_EQUAL_STRING(TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT, err.detail().c_str());
+  TEST_ASSERT_EQUAL_FLOAT(0.0f, airQuality.components.o3[0]);
+  TEST_ASSERT_EQUAL_INT64(0, airQuality.dt[0]);
 }
 
 void registerTests() {
@@ -257,7 +305,9 @@ void registerTests() {
   RUN_TEST(open_meteo_air_quality_tests::test_now_before_all_timestamps);
   RUN_TEST(open_meteo_air_quality_tests::test_non_air_quality_payloads);
   RUN_TEST(open_meteo_air_quality_tests::test_missing_components);
+  RUN_TEST(open_meteo_air_quality_tests::test_unknown_fields);
   RUN_TEST(open_meteo_air_quality_tests::test_invalid_json);
+  RUN_TEST(open_meteo_air_quality_tests::test_truncated_json);
 }
 
 }  // namespace open_meteo_air_quality_tests
