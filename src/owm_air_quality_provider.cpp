@@ -5,6 +5,7 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include <cstring>
 #include <WiFiClient.h>
 #if !defined(AIR_QUALITY_API_TRANSPORT_HTTP)
 #include <WiFiClientSecure.h>
@@ -51,6 +52,10 @@ ProviderResult OWMAirQualityProvider::fetch(air_quality_t &airQuality) {
 }  // OWMAirQualityProvider::fetch
 
 ProviderResult OWMAirQualityProvider::deserializeAirQuality(Stream &json, air_quality_t &airQuality) {
+  /* The destination is long-lived in the application. Clear it before every
+   * parse so short or malformed responses cannot retain stale readings. */
+  memset(&airQuality, 0, sizeof(air_quality_t));
+
   int i = 0;
 
   JsonDocument doc;

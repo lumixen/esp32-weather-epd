@@ -8,6 +8,7 @@ class OWMAirQualityProvider : public AirQualityProvider {
  public:
   ProviderResult fetch(air_quality_t &airQuality) override;
 
- private:
+  /* Map an OWM Air Pollution response into the generic air-quality model.
+   * Public for offline fixture-based unit testing. */
   static ProviderResult deserializeAirQuality(Stream &json, air_quality_t &airQuality);
 };
