@@ -1,8 +1,10 @@
 #include "config.h"
 #include "provider_factory.h"
+#include "fetch_operation.h"
+#include "provider_fetch_operations.h"
 
-#if defined(WEATHER_API_PROVIDER_OPEN_WEATHER_MAP)
-#include "owm_weather_provider.h"
+#if defined(WEATHER_API_PROVIDER_OPEN_WEATHER_MAP) || defined(ALERTS_API_PROVIDER_OPEN_WEATHER_MAP)
+#include "owm_provider.h"
 #endif
 #if defined(WEATHER_API_PROVIDER_OPEN_METEO)
 #include "open_meteo_weather_provider.h"
@@ -12,9 +14,6 @@
 #endif
 #if defined(AIR_QUALITY_API_PROVIDER_OPEN_METEO)
 #include "open_meteo_air_quality_provider.h"
-#endif
-#if defined(ALERTS_API_PROVIDER_OPEN_WEATHER_MAP) && !defined(WEATHER_API_PROVIDER_OPEN_WEATHER_MAP)
-#include "owm_alert_provider.h"
 #endif
 #if defined(ALERTS_API_PROVIDER_METEOALARM)
 #include "meteoalarm_alert_provider.h"
@@ -40,20 +39,49 @@ AirQualityProvider *createAirQualityProvider() {
 #endif
 }  // createAirQualityProvider
 
-AlertProvider *createAlertProvider(WeatherProvider *weatherProvider) {
-#if defined(ALERTS_API_PROVIDER_OPEN_WEATHER_MAP) && defined(WEATHER_API_PROVIDER_OPEN_WEATHER_MAP)
-  // OpenWeatherMap serves alerts in the same One Call response as the
-  // weather, so the weather provider itself implements AlertProvider.
-  return static_cast<OWMWeatherProvider *>(weatherProvider);
-#elif defined(ALERTS_API_PROVIDER_OPEN_WEATHER_MAP)
-  // The weather provider does not serve alerts, use a standalone alert
-  // provider that fetches them separately.
-  return new OWMAlertProvider();
+AlertProvider *createAlertProvider() {
+#if defined(ALERTS_API_PROVIDER_OPEN_WEATHER_MAP)
+  return new OWMProvider();
 #elif defined(ALERTS_API_PROVIDER_METEOALARM)
-  // MeteoAlarm national weather warnings from a dedicated Atom feed.
   return new MeteoAlarmAlertProvider();
 #else
-  // No alert source configured.
   return nullptr;
 #endif
 }  // createAlertProvider
+
+ProviderBundle createProviders() {
+  ProviderBundle bundle;
+#if defined(WEATHER_API_PROVIDER_OPEN_WEATHER_MAP)
+  bundle.weather = std::shared_ptr<WeatherProvider>(new OWMProvider());
+#elif defined(WEATHER_API_PROVIDER_OPEN_METEO)
+  bundle.weather = std::make_shared<OpenMeteoWeatherProvider>();
+#endif
+#if defined(AIR_QUALITY_API_PROVIDER_OPEN_WEATHER_MAP)
+  bundle.airQuality = std::make_shared<OWMAirQualityProvider>();
+#elif defined(AIR_QUALITY_API_PROVIDER_OPEN_METEO)
+  bundle.airQuality = std::make_shared<OpenMeteoAirQualityProvider>();
+#endif
+#if defined(ALERTS_API_PROVIDER_OPEN_WEATHER_MAP) && defined(WEATHER_API_PROVIDER_OPEN_WEATHER_MAP)
+  // Alias alert to weather — same OWMProvider block, Alert subobject
+  if (bundle.weather) {
+    // Convert through the concrete type: WeatherProvider and AlertProvider
+    // are unrelated interfaces, so casting directly between them is invalid.
+    auto *owm = static_cast<OWMProvider *>(bundle.weather.get());
+    bundle.alert = std::shared_ptr<AlertProvider>(bundle.weather, static_cast<AlertProvider *>(owm));
+  }
+#elif defined(ALERTS_API_PROVIDER_OPEN_WEATHER_MAP)
+  bundle.alert = std::make_shared<OWMProvider>();
+#elif defined(ALERTS_API_PROVIDER_METEOALARM)
+  bundle.alert = std::make_shared<MeteoAlarmAlertProvider>();
+#endif
+  return bundle;
+}
+
+FetchBundle createFetchBundle(forecast_t &forecast, air_quality_t &airQuality,
+                              std::vector<weather_alert_t> &alerts) {
+  FetchBundle fb;
+  fb.providers = createProviders();
+  fb.ops = createFetchOperations(fb.providers.weather.get(), fb.providers.airQuality.get(), fb.providers.alert.get(),
+                                 forecast, airQuality, alerts);
+  return fb;
+}

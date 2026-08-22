@@ -12,8 +12,11 @@
 #      (skipping the OWM provider, whose sources do not compile here).
 #   2. owm       - test/configs/owm.yml via ESP32_EPD_CONFIG. Runs only the
 #      OWM provider suite, which needs the OWM provider sources.
+#   3. owm_piggyback - test/configs/owm_piggyback.yml via ESP32_EPD_CONFIG.
+#      Runs the fetch-executor suite with OWM weather and alerts, exercising
+#      the shared-provider aliasing path.
 #
-# Adding a suite = one -f to the runs it must execute under. Both runs always
+# Adding a suite = one -f to the run where it is needed. All runs always
 # execute (a failing run does not skip the next config); the script exits
 # non-zero if any of them failed.
 #
@@ -50,6 +53,14 @@ echo "=================================================="
 ESP32_EPD_CONFIG=test/configs/owm.yml \
     "$PIO" test -e lolin_d32_qemu --without-uploading \
     -f test_owm_weather_provider \
+    "${EXTRA_ARGS[@]}" || status=1
+
+echo "=================================================="
+echo "  test run: config owm_piggyback (test/configs/owm_piggyback.yml)"
+echo "=================================================="
+ESP32_EPD_CONFIG=test/configs/owm_piggyback.yml \
+    "$PIO" test -e lolin_d32_qemu --without-uploading \
+    -f test_fetch_executor \
     "${EXTRA_ARGS[@]}" || status=1
 
 exit "$status"

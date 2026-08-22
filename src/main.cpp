@@ -35,6 +35,8 @@
 #include "logger.h"
 #include "provider_factory.h"
 #include "provider_result.h"
+#include "fetch_executor.h"
+#include "provider_fetch_operations.h"
 #include "renderer.h"
 #include "moon_tools.h"
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
@@ -326,38 +328,18 @@ void setup() {
   }
 
 
-#if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
   unsigned long apiRequestsStartTime = millis();
-#endif
-// MAKE API REQUESTS
-  WeatherProvider *weatherProvider = createWeatherProvider();
-  ProviderResult result = weatherProvider->fetch(environment_data);
-  if (!result.isOk()) {
-    statusStr = weatherProvider->getApiName();
-    tmpStr = result.detail();
-    handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
-                       wifiRSSI);
-  }
-  AlertProvider *alertProvider = createAlertProvider(weatherProvider);
-  if (alertProvider != nullptr) {
-    // alerts may be served from the weather provider's stored response, in
-    // which case no additional HTTP request is made
-    result = alertProvider->fetch(alerts);
-    if (!result.isOk()) {
-      // Alerts are a non-essential source: log the failure and continue
-      // without them instead of taking over the whole display.
-      LOG_ERROR("Alerts API: %s", result.detail().c_str());
-      alerts.clear();
+// MAKE API REQUESTS — parallel with bounded pool (max 2 concurrent), alerts first
+  auto fetchBundle = createFetchBundle(environment_data, air_pollution, alerts);
+  auto results = executeParallel(fetchBundle.ops);
+  for (size_t i = 0; i < fetchBundle.ops.size(); ++i) {
+    if (!results[i].isOk() && fetchBundle.ops[i]->shouldAbortOnFailure()) {
+      statusStr = fetchBundle.ops[i]->name();
+      tmpStr = results[i].detail();
+      handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
+                         wifiRSSI);
     }
-  }
-
-  AirQualityProvider *airQualityProvider = createAirQualityProvider();
-  result = airQualityProvider->fetch(air_pollution);
-  if (!result.isOk()) {
-    statusStr = "Air Pollution API";
-    tmpStr = result.detail();
-    handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
-                       wifiRSSI);
+    // non-critical failures (alerts) already logged and cleared in provider
   }
 // SEND MQTT STATUS (success case)
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
