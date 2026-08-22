@@ -6,7 +6,7 @@
 #include <unity.h>
 
 #include "fetch_executor.inc"
-#include "test_harness.h"
+#include "../test_harness.h"
 
 void setUp(void) { test_harness::dispatchSetUp(); }
 

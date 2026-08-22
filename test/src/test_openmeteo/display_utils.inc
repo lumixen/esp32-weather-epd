@@ -12,7 +12,7 @@
 
 #include "data_models.h"
 #include "display_utils.h"
-#include "test_harness.h"
+#include "../test_harness.h"
 
 namespace display_utils_tests {
 

@@ -8,7 +8,7 @@
 #include <unity.h>
 
 #include "time_utils.h"
-#include "test_harness.h"
+#include "../test_harness.h"
 
 namespace rtc_drift_correction_tests {
 

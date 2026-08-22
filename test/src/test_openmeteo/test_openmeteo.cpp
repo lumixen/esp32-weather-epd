@@ -8,7 +8,7 @@
 
 #include <unity.h>
 
-#include "test_harness.h"
+#include "../test_harness.h"
 
 #include "display_utils.inc"
 #include "moon_tools.inc"

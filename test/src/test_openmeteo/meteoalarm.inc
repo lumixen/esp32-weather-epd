@@ -16,7 +16,7 @@
 #include "meteoalarm_alert_provider.h"
 #include "feed_ukraine_real.inc"
 #include "feed_ukraine_latest.inc"
-#include "test_harness.h"
+#include "../test_harness.h"
 
 namespace meteoalarm_tests {
 

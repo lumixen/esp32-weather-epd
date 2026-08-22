@@ -5,7 +5,7 @@
 
 #include <unity.h>
 
-#include "test_harness.h"
+#include "../test_harness.h"
 #include "owm_weather_provider.inc"
 
 void setUp(void) { test_harness::dispatchSetUp(); }

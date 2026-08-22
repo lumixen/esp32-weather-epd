@@ -15,7 +15,7 @@
 #include "owm_provider.h"
 #include "provider_fetch_operations.h"
 #include "provider_factory.h"
-#include "test_harness.h"
+#include "../test_harness.h"
 
 namespace fetch_executor_tests {
 

@@ -18,7 +18,7 @@
 #include <unity.h>
 
 #include "moon_tools.h"
-#include "test_harness.h"
+#include "../test_harness.h"
 
 namespace moon_tools_tests {
 

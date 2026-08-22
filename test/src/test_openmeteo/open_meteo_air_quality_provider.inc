@@ -22,7 +22,7 @@
 #include "data_models.h"
 #include "open_meteo_air_quality_provider.h"
 #include "open_meteo_air_quality_real.inc"
-#include "test_harness.h"
+#include "../test_harness.h"
 
 namespace open_meteo_air_quality_tests {
 
