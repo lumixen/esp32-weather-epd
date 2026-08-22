@@ -64,17 +64,13 @@ class AirQualityHandler : public JsonHandler {
   void startObject(ElementPath) override {}
   void endObject(ElementPath) override {}
   void startArray(ElementPath path) override {
-    currentArray_ = Column::NONE;
-    if (path.getCount() != 2 || !keyIs(path.get(0), "hourly")) {
-      return;
-    }
-    currentArray_ = column(path.getCurrent());
+    isTimeArray_ = path.getCount() == 2 && keyIs(path.get(0), "hourly") && keyIs(path.getCurrent(), "time");
   }
   void endArray(ElementPath) override {
-    if (currentArray_ == Column::TIME) {
+    if (isTimeArray_) {
       finalizeWindow();
     }
-    currentArray_ = Column::NONE;
+    isTimeArray_ = false;
   }
   void whitespace(char) override {}
 
@@ -92,13 +88,9 @@ class AirQualityHandler : public JsonHandler {
     if (index < 0) {
       return;
     }
+    const char *field = fieldSelector->getKey();
 
-    const Column field = column(fieldSelector);
-    if (field == Column::NONE) {
-      return;
-    }
-
-    if (field == Column::TIME) {
+    if (keyIs(field, "time")) {
       if (value.isInt() || value.isFloat()) {
         storeTime(static_cast<int64_t>(value.getDouble()), index);
       } else if (value.isNull()) {
@@ -120,37 +112,11 @@ class AirQualityHandler : public JsonHandler {
   bool finishedDocument() const { return documentDone_; }
 
  private:
-  enum class Column : uint8_t { NONE, TIME, PM2_5, PM10, CO, NO, NO2, O3, SO2, NH3 };
-
   static bool keyIs(ElementSelector *selector, const char *key) {
-    return selector != nullptr && selector->isObject() && strcmp(selector->getKey(), key) == 0;
+    return selector != nullptr && selector->isObject() && keyIs(selector->getKey(), key);
   }
 
-  static Column column(ElementSelector *selector) {
-    if (!selector || !selector->isObject()) {
-      return Column::NONE;
-    }
-    const char *key = selector->getKey();
-    if (strcmp(key, "time") == 0)
-      return Column::TIME;
-    if (strcmp(key, "pm2_5") == 0)
-      return Column::PM2_5;
-    if (strcmp(key, "pm10") == 0)
-      return Column::PM10;
-    if (strcmp(key, "carbon_monoxide") == 0)
-      return Column::CO;
-    if (strcmp(key, "nitrogen_monoxide") == 0)
-      return Column::NO;
-    if (strcmp(key, "nitrogen_dioxide") == 0)
-      return Column::NO2;
-    if (strcmp(key, "ozone") == 0)
-      return Column::O3;
-    if (strcmp(key, "sulphur_dioxide") == 0)
-      return Column::SO2;
-    if (strcmp(key, "ammonia") == 0)
-      return Column::NH3;
-    return Column::NONE;
-  }
+  static bool keyIs(const char *str, const char *key) { return str != nullptr && strcmp(str, key) == 0; }
 
   void storeTime(int64_t timestamp, int index) {
     sawTime_ = true;
@@ -176,7 +142,7 @@ class AirQualityHandler : public JsonHandler {
     hasWindow_ = true;
   }
 
-  void storeComponent(Column field, int index, float value) {
+  void storeComponent(const char *field, int index, float value) {
     if (!hasWindow_ || index < selectedStart_ || index > closestIndex_) {
       return;
     }
@@ -185,34 +151,22 @@ class AirQualityHandler : public JsonHandler {
       return;
     }
 
-    switch (field) {
-      case Column::PM2_5:
-        airQuality_.components.pm2_5[destination] = value;
-        break;
-      case Column::PM10:
-        airQuality_.components.pm10[destination] = value;
-        break;
-      case Column::CO:
-        airQuality_.components.co[destination] = value;
-        break;
-      case Column::NO:
-        airQuality_.components.no[destination] = value;
-        break;
-      case Column::NO2:
-        airQuality_.components.no2[destination] = value;
-        break;
-      case Column::O3:
-        airQuality_.components.o3[destination] = value;
-        break;
-      case Column::SO2:
-        airQuality_.components.so2[destination] = value;
-        break;
-      case Column::NH3:
-        airQuality_.components.nh3[destination] = value;
-        break;
-      case Column::TIME:
-      case Column::NONE:
-        break;
+    if (keyIs(field, "pm2_5")) {
+      airQuality_.components.pm2_5[destination] = value;
+    } else if (keyIs(field, "pm10")) {
+      airQuality_.components.pm10[destination] = value;
+    } else if (keyIs(field, "carbon_monoxide")) {
+      airQuality_.components.co[destination] = value;
+    } else if (keyIs(field, "nitrogen_monoxide")) {
+      airQuality_.components.no[destination] = value;
+    } else if (keyIs(field, "nitrogen_dioxide")) {
+      airQuality_.components.no2[destination] = value;
+    } else if (keyIs(field, "ozone")) {
+      airQuality_.components.o3[destination] = value;
+    } else if (keyIs(field, "sulphur_dioxide")) {
+      airQuality_.components.so2[destination] = value;
+    } else if (keyIs(field, "ammonia")) {
+      airQuality_.components.nh3[destination] = value;
     }
   }
 
@@ -225,7 +179,7 @@ class AirQualityHandler : public JsonHandler {
   int closestIndex_ = -1;
   int selectedStart_ = 0;
   size_t timeCount_ = 0;
-  Column currentArray_ = Column::NONE;
+  bool isTimeArray_ = false;
 };
 
 ProviderResult OpenMeteoAirQualityProvider::deserializeAirQuality(Stream &json, air_quality_t &airQuality) {
