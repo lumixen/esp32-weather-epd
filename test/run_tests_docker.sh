@@ -5,8 +5,9 @@
 # in .pio/ on the host and the built image is cached across runs.
 #
 # The actual test orchestration lives in test/run_tests.sh (executed in the
-# container): it loops over the test configs in test/configs/, each reusing
-# the single lolin_d32_qemu env with a different compile-time config.
+# container): it loops over the pinned test configs in test/configs/. Each run
+# selects the matching configuration-rooted PlatformIO suite, so its feature
+# modules share one build and one QEMU boot.
 set -euo pipefail
 
 # Root of the git repo: the container mounts it read-write at /project, so

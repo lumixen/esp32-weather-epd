@@ -15,6 +15,9 @@
 
 #include "data_models.h"
 #include "owm_provider.h"
+#include "../test_harness.h"
+
+namespace owm_weather_tests {
 
 void setUp(void) {}
 void tearDown(void) {}
@@ -113,17 +116,15 @@ static void test_map_unknown(void) {
   TEST_ASSERT_EQUAL(weather_condition::UNKNOWN, OWMWeatherProvider::mapWeatherCode(-1));
 }
 
-void setup() {
-  delay(200);  // let the emulated UART settle
-  UNITY_BEGIN();
-  RUN_TEST(test_map_thunderstorm);
-  RUN_TEST(test_map_drizzle);
-  RUN_TEST(test_map_rain);
-  RUN_TEST(test_map_snow);
-  RUN_TEST(test_map_atmosphere);
-  RUN_TEST(test_map_clear_and_clouds);
-  RUN_TEST(test_map_unknown);
-  UNITY_END();
+void registerTests() {
+  test_harness::selectCallbacks(setUp, tearDown);
+  RUN_TEST(owm_weather_tests::test_map_thunderstorm);
+  RUN_TEST(owm_weather_tests::test_map_drizzle);
+  RUN_TEST(owm_weather_tests::test_map_rain);
+  RUN_TEST(owm_weather_tests::test_map_snow);
+  RUN_TEST(owm_weather_tests::test_map_atmosphere);
+  RUN_TEST(owm_weather_tests::test_map_clear_and_clouds);
+  RUN_TEST(owm_weather_tests::test_map_unknown);
 }
 
-void loop() {}
+}  // namespace owm_weather_tests

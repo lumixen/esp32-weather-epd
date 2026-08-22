@@ -1,24 +1,19 @@
 #!/usr/bin/env bash
 #
-# Runs the ESP32 QEMU unit tests for every test config. The config is baked
-# into the firmware at compile time, so each config reuses the single
-# lolin_d32_qemu env and recompiles it with a different configuration. Each
-# run lists its suites explicitly with the CLI filter (-f), so every suite
-# runs exactly once and only under a config that can link it:
+# Runs the ESP32 QEMU unit tests for every pinned test config. The config is
+# baked into the firmware at compile time, so each config reuses the single
+# lolin_d32_qemu env with a different configuration. Each configuration has
+# one PlatformIO suite containing feature-level .inc modules; this keeps one
+# build and one QEMU boot per config while Unity still reports every test:
 #
-#   1. openmeteo - test/configs/openmeteo.yml (the env default, wired in by
-#      scripts/select_test_env_config.py when ESP32_EPD_CONFIG is unset).
-#      Runs the config-independent suites plus the Open-Meteo provider suite
-#      (skipping the OWM provider, whose sources do not compile here).
-#   2. owm       - test/configs/owm.yml via ESP32_EPD_CONFIG. Runs only the
-#      OWM provider suite, which needs the OWM provider sources.
-#   3. owm_piggyback - test/configs/owm_piggyback.yml via ESP32_EPD_CONFIG.
-#      Runs the fetch-executor suite with OWM weather and alerts, exercising
-#      the shared-provider aliasing path.
+#   1. openmeteo       - test/configs/openmeteo.yml (the env default, wired in
+#      by scripts/select_test_env_config.py when ESP32_EPD_CONFIG is unset).
+#   2. owm             - test/configs/owm.yml via ESP32_EPD_CONFIG.
+#   3. owm_piggyback   - test/configs/owm_piggyback.yml via ESP32_EPD_CONFIG.
 #
-# Adding a suite = one -f to the run where it is needed. All runs always
-# execute (a failing run does not skip the next config); the script exits
-# non-zero if any of them failed.
+# The root suite selected for each run contains only test modules compatible
+# with that configuration. All runs always execute (a failing run does not
+# skip the next config); the script exits non-zero if any of them failed.
 #
 # Works inside the Docker test container (test/run_tests_docker.sh) and on a
 # host with PlatformIO + QEMU available (test_testing_command in
@@ -39,12 +34,7 @@ echo "  test run: config openmeteo (test/configs/openmeteo.yml)"
 echo "=================================================="
 status=0
 "$PIO" test -e lolin_d32_qemu --without-uploading \
-    -f test_display_utils \
-    -f test_rtc_drift_correction \
-    -f test_moon_tools \
-    -f test_open_meteo_weather_provider \
-    -f test_open_meteo_air_quality_provider \
-    -f test_meteoalarm \
+    -f test_openmeteo \
     "${EXTRA_ARGS[@]}" || status=1
 
 echo "=================================================="
@@ -52,7 +42,7 @@ echo "  test run: config owm (test/configs/owm.yml)"
 echo "=================================================="
 ESP32_EPD_CONFIG=test/configs/owm.yml \
     "$PIO" test -e lolin_d32_qemu --without-uploading \
-    -f test_owm_weather_provider \
+    -f test_owm \
     "${EXTRA_ARGS[@]}" || status=1
 
 echo "=================================================="
@@ -60,7 +50,7 @@ echo "  test run: config owm_piggyback (test/configs/owm_piggyback.yml)"
 echo "=================================================="
 ESP32_EPD_CONFIG=test/configs/owm_piggyback.yml \
     "$PIO" test -e lolin_d32_qemu --without-uploading \
-    -f test_fetch_executor \
+    -f test_owm_piggyback \
     "${EXTRA_ARGS[@]}" || status=1
 
 exit "$status"

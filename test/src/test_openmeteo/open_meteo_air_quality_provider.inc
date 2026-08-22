@@ -22,6 +22,9 @@
 #include "data_models.h"
 #include "open_meteo_air_quality_provider.h"
 #include "open_meteo_air_quality_real.inc"
+#include "../test_harness.h"
+
+namespace open_meteo_air_quality_tests {
 
 // Frozen epochs of the Lima fixture (2026-08-18/19, hourly stamps in UTC).
 // `now` pinned to the fixture's hour 1787119200 (2026-08-19T06:00:00Z, the
@@ -57,7 +60,7 @@ static ProviderResult parseJson(const String &json, air_quality_t &airQuality) {
 static String makeSyntheticJson(size_t count) {
   String j = "{\"hourly\":{\"time\":[";
   for (size_t i = 0; i < count; ++i) {
-    j += String(kSyntheticBase + (int64_t)i * 3600) + (i + 1 < count ? "," : "");
+    j += String(kSyntheticBase + (int64_t) i * 3600) + (i + 1 < count ? "," : "");
   }
   j += "],\"pm2_5\":[";
   for (size_t i = 0; i < count; ++i) {
@@ -156,7 +159,7 @@ static void test_more_entries_than_model(void) {
   TEST_ASSERT_EQUAL_INT64(kSyntheticBase + 6 * 3600, airQuality.dt[0]);
   TEST_ASSERT_EQUAL_INT64(kSyntheticBase + 29 * 3600, airQuality.dt[23]);
   TEST_ASSERT_EQUAL_FLOAT(12.0f, airQuality.components.pm2_5[0]);  // 2 * 6
-TEST_ASSERT_EQUAL_FLOAT(203.0f, airQuality.components.o3[23]);  // 7 * 29
+  TEST_ASSERT_EQUAL_FLOAT(203.0f, airQuality.components.o3[23]);   // 7 * 29
 }
 
 /* An entry whose timestamp equals `now` is the boundary the window ends on
@@ -219,8 +222,7 @@ static void test_non_air_quality_payloads(void) {
  * concentrations must not crash and default to zero. */
 static void test_missing_components(void) {
   air_quality_t airQuality = {};
-  const char *json =
-      "{\"hourly\":{\"time\":[1000,2000,3000],\"pm2_5\":[1.5,null,3.5],\"ozone\":[4.0,5.0]}}";
+  const char *json = "{\"hourly\":{\"time\":[1000,2000,3000],\"pm2_5\":[1.5,null,3.5],\"ozone\":[4.0,5.0]}}";
   ProviderResult err = parseJson(json, airQuality);
   TEST_ASSERT_TRUE(err.isOk());
 
@@ -246,18 +248,16 @@ static void test_invalid_json(void) {
   TEST_ASSERT_EQUAL_STRING(TXT_DESERIALIZATION_ERROR_EMPTY_INPUT, err.detail().c_str());
 }
 
-void setup() {
-  delay(200);  // let the emulated UART settle
-  UNITY_BEGIN();
-  RUN_TEST(test_real_fixture_window);
-  RUN_TEST(test_more_entries_than_model);
-  RUN_TEST(test_exact_now_boundary);
-  RUN_TEST(test_fewer_entries_than_model);
-  RUN_TEST(test_now_before_all_timestamps);
-  RUN_TEST(test_non_air_quality_payloads);
-  RUN_TEST(test_missing_components);
-  RUN_TEST(test_invalid_json);
-  UNITY_END();
+void registerTests() {
+  test_harness::selectCallbacks(setUp, tearDown);
+  RUN_TEST(open_meteo_air_quality_tests::test_real_fixture_window);
+  RUN_TEST(open_meteo_air_quality_tests::test_more_entries_than_model);
+  RUN_TEST(open_meteo_air_quality_tests::test_exact_now_boundary);
+  RUN_TEST(open_meteo_air_quality_tests::test_fewer_entries_than_model);
+  RUN_TEST(open_meteo_air_quality_tests::test_now_before_all_timestamps);
+  RUN_TEST(open_meteo_air_quality_tests::test_non_air_quality_payloads);
+  RUN_TEST(open_meteo_air_quality_tests::test_missing_components);
+  RUN_TEST(open_meteo_air_quality_tests::test_invalid_json);
 }
 
-void loop() {}
+}  // namespace open_meteo_air_quality_tests
