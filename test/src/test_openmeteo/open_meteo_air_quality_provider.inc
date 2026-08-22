@@ -249,10 +249,9 @@ static void test_missing_components(void) {
 static void test_unknown_fields(void) {
   setSystemTime(kSyntheticBase + 2 * 3600 + 100);
   air_quality_t airQuality = {};
-  const char *json =
-      "{\"metadata\":{\"time\":[9999]},\"hourly\":{\"time\":[946684800,946688400,946692000],"
-      "\"unknown\":[90,91,92],\"nested\":{\"ozone\":[80,81,82]},"
-      "\"pm2_5\":[1,2,3],\"ozone\":[4,5,6]}}";
+  const char *json = "{\"metadata\":{\"time\":[9999]},\"hourly\":{\"time\":[946684800,946688400,946692000],"
+                     "\"unknown\":[90,91,92],\"nested\":{\"ozone\":[80,81,82]},"
+                     "\"pm2_5\":[1,2,3],\"ozone\":[4,5,6]}}";
 
   ProviderResult err = parseJson(json, airQuality);
   TEST_ASSERT_TRUE(err.isOk());

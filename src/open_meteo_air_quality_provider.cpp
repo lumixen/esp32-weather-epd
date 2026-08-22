@@ -131,15 +131,24 @@ class AirQualityHandler : public JsonHandler {
       return Column::NONE;
     }
     const char *key = selector->getKey();
-    if (strcmp(key, "time") == 0) return Column::TIME;
-    if (strcmp(key, "pm2_5") == 0) return Column::PM2_5;
-    if (strcmp(key, "pm10") == 0) return Column::PM10;
-    if (strcmp(key, "carbon_monoxide") == 0) return Column::CO;
-    if (strcmp(key, "nitrogen_monoxide") == 0) return Column::NO;
-    if (strcmp(key, "nitrogen_dioxide") == 0) return Column::NO2;
-    if (strcmp(key, "ozone") == 0) return Column::O3;
-    if (strcmp(key, "sulphur_dioxide") == 0) return Column::SO2;
-    if (strcmp(key, "ammonia") == 0) return Column::NH3;
+    if (strcmp(key, "time") == 0)
+      return Column::TIME;
+    if (strcmp(key, "pm2_5") == 0)
+      return Column::PM2_5;
+    if (strcmp(key, "pm10") == 0)
+      return Column::PM10;
+    if (strcmp(key, "carbon_monoxide") == 0)
+      return Column::CO;
+    if (strcmp(key, "nitrogen_monoxide") == 0)
+      return Column::NO;
+    if (strcmp(key, "nitrogen_dioxide") == 0)
+      return Column::NO2;
+    if (strcmp(key, "ozone") == 0)
+      return Column::O3;
+    if (strcmp(key, "sulphur_dioxide") == 0)
+      return Column::SO2;
+    if (strcmp(key, "ammonia") == 0)
+      return Column::NH3;
     return Column::NONE;
   }
 
