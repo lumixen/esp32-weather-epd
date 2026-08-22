@@ -10,6 +10,7 @@
 #include "fetch_executor.h"
 
 #include <Arduino.h>
+#include <atomic>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <freertos/task.h>
@@ -19,26 +20,38 @@
 
 namespace {
 
-struct TaskArgs {
-  FetchOperation *op;
-  ProviderResult *out;
-  SemaphoreHandle_t poolSem;
+struct WorkerContext {
+  std::vector<std::unique_ptr<FetchOperation>> *ops;
+  std::vector<ProviderResult> *results;
+  size_t operationCount;
+  std::atomic<size_t> nextIndex{0};
   SemaphoreHandle_t doneSem;
 };
 
-void fetchTask(void *pvParameters) {
-  TaskArgs *args = static_cast<TaskArgs *>(pvParameters);
-  if (xSemaphoreTake(args->poolSem, portMAX_DELAY) == pdTRUE) {
-    uint32_t t0 = millis();
-    *(args->out) = args->op->execute();
-    LOG_DEBUG("FetchTask %s: done in %ums ok=%d", args->op->name(), static_cast<unsigned>(millis() - t0),
-              args->out->isOk());
-    xSemaphoreGive(args->poolSem);
-  } else {
-    *(args->out) = ProviderResult::error("pool take failed");
+bool claimNext(WorkerContext &context, size_t &index) {
+  size_t candidate = context.nextIndex.load(std::memory_order_relaxed);
+  while (candidate < context.operationCount &&
+         !context.nextIndex.compare_exchange_weak(candidate, candidate + 1, std::memory_order_relaxed,
+                                                  std::memory_order_relaxed)) {
   }
-  xSemaphoreGive(args->doneSem);
-  delete args;
+  if (candidate >= context.operationCount) {
+    return false;
+  }
+  index = candidate;
+  return true;
+}
+
+void fetchWorker(void *pvParameters) {
+  WorkerContext *context = static_cast<WorkerContext *>(pvParameters);
+  size_t index = 0;
+  while (claimNext(*context, index)) {
+    FetchOperation *op = (*context->ops)[index].get();
+    uint32_t t0 = millis();
+    (*context->results)[index] = op->execute();
+    LOG_DEBUG("FetchWorker %s: done in %ums ok=%d", op->name(), static_cast<unsigned>(millis() - t0),
+              (*context->results)[index].isOk());
+  }
+  xSemaphoreGive(context->doneSem);
   vTaskDelete(nullptr);
 }
 
@@ -56,51 +69,47 @@ std::vector<ProviderResult> executeParallel(std::vector<std::unique_ptr<FetchOpe
     return results;
   }
 
-  SemaphoreHandle_t poolSem = xSemaphoreCreateCounting(FETCH_MAX_CONCURRENCY, FETCH_MAX_CONCURRENCY);
-  SemaphoreHandle_t doneSem = xSemaphoreCreateCounting(n, 0);
+  const size_t workerCount = n < FETCH_MAX_CONCURRENCY ? n : FETCH_MAX_CONCURRENCY;
+  SemaphoreHandle_t doneSem = xSemaphoreCreateCounting(workerCount, 0);
 
-  if (poolSem == nullptr || doneSem == nullptr) {
+  if (doneSem == nullptr) {
     LOG_WARNING("FetchExecutor: semaphore create failed, falling back to sequential");
-    if (poolSem) vSemaphoreDelete(poolSem);
-    if (doneSem) vSemaphoreDelete(doneSem);
     for (size_t i = 0; i < n; ++i) {
       results[i] = ops[i]->execute();
     }
     return results;
   }
 
+  // Keep the number of task stacks bounded: workers claim operations until none remain.
+  WorkerContext context{&ops, &results, n, 0, doneSem};
   size_t created = 0;
-  for (size_t i = 0; i < n; ++i) {
-    TaskArgs *args = new TaskArgs{ops[i].get(), &results[i], poolSem, doneSem};
+  for (size_t i = 0; i < workerCount; ++i) {
     char taskName[16];
-    snprintf(taskName, sizeof(taskName), "Fetch%u", static_cast<unsigned>(i));
-    BaseType_t ok = xTaskCreate(fetchTask, taskName, FETCH_STACK_BYTES, args, FETCH_TASK_PRIORITY, nullptr);
+    snprintf(taskName, sizeof(taskName), "FetchWorker%u", static_cast<unsigned>(i));
+    BaseType_t ok = xTaskCreate(fetchWorker, taskName, FETCH_STACK_BYTES, &context, FETCH_TASK_PRIORITY, nullptr);
     if (ok != pdPASS) {
-      LOG_WARNING("FetchExecutor: xTaskCreate failed for %s, running sequentially", ops[i]->name());
-      delete args;
-      // Fallback: wait indefinitely for already-created tasks to complete before
-      // touching results/poolSem/doneSem to avoid use-after-free
+      LOG_WARNING("FetchExecutor: worker task creation failed, running remainder sequentially");
+      // Wait for existing workers before accessing results or destroying doneSem.
       for (size_t j = 0; j < created; ++j) {
         xSemaphoreTake(doneSem, portMAX_DELAY);
       }
-      // Run current and remaining sequentially
-      for (size_t k = i; k < n; ++k) {
+      // Workers claim indices monotonically; after they finish, all claimed operations
+      // are complete and the unclaimed suffix can run sequentially.
+      const size_t firstUnclaimed = context.nextIndex.load(std::memory_order_acquire);
+      for (size_t k = firstUnclaimed; k < n; ++k) {
         results[k] = ops[k]->execute();
       }
-      vSemaphoreDelete(poolSem);
       vSemaphoreDelete(doneSem);
       return results;
     }
     ++created;
   }
 
-  // Wait indefinitely for all tasks — bounded by HTTP timeouts (3×5000 + 3×30000)
-  // to avoid use-after-free on poolSem/doneSem/results
+  // Wait indefinitely for all workers. Provider-level HTTP timeouts bound execution time.
   for (size_t i = 0; i < created; ++i) {
     xSemaphoreTake(doneSem, portMAX_DELAY);
   }
 
-  vSemaphoreDelete(poolSem);
   vSemaphoreDelete(doneSem);
   return results;
 }

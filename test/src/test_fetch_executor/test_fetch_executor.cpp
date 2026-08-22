@@ -69,6 +69,26 @@ static void test_pool_limits_concurrency_to_two(void) {
   TEST_ASSERT_LESS_OR_EQUAL(2, g_maxActive.load());
 }
 
+static void test_worker_pool_processes_all_operations(void) {
+  resetCounters();
+  static const char *names[] = {"Op0", "Op1", "Op2", "Op3", "Op4", "Op5"};
+  static const char *details[] = {"result 0", "result 1", "result 2", "result 3", "result 4", "result 5"};
+  constexpr size_t operationCount = sizeof(names) / sizeof(names[0]);
+  std::vector<std::unique_ptr<FetchOperation>> ops;
+  for (size_t i = 0; i < operationCount; ++i) {
+    ops.push_back(std::make_unique<MockFetchOperation>(names[i], true, 5, ProviderResult::error(details[i])));
+  }
+
+  auto results = executeParallel(ops);
+  TEST_ASSERT_EQUAL(operationCount, g_executed.load());
+  TEST_ASSERT_EQUAL(operationCount, results.size());
+  for (size_t i = 0; i < operationCount; ++i) {
+    TEST_ASSERT_FALSE(results[i].isOk());
+    TEST_ASSERT_EQUAL_STRING(details[i], results[i].detail().c_str());
+  }
+  TEST_ASSERT_LESS_OR_EQUAL(2, g_maxActive.load());
+}
+
 static void test_execute_parallel_single_op_no_task(void) {
   resetCounters();
   std::vector<std::unique_ptr<FetchOperation>> ops;
@@ -150,6 +170,7 @@ void setup() {
   delay(200);
   UNITY_BEGIN();
   RUN_TEST(test_pool_limits_concurrency_to_two);
+  RUN_TEST(test_worker_pool_processes_all_operations);
   RUN_TEST(test_execute_parallel_single_op_no_task);
   RUN_TEST(test_execute_parallel_empty);
   RUN_TEST(test_execute_parallel_propagates_results);
