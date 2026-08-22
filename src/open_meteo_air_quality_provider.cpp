@@ -187,8 +187,6 @@ ProviderResult OpenMeteoAirQualityProvider::deserializeAirQuality(Stream &json, 
   // short, malformed, or otherwise incomplete response cannot leave stale
   // readings behind.
   memset(&airQuality, 0, sizeof(air_quality_t));
-  LOG_DEBUG("heap before streamed JSON parse: %u B free", ESP.getFreeHeap());
-
   AirQualityHandler handler(airQuality);
   ArduinoStreamParser parser;
   parser.setHandler(&handler);
@@ -201,7 +199,6 @@ ProviderResult OpenMeteoAirQualityProvider::deserializeAirQuality(Stream &json, 
     parser.write(&b, 1);
   }
 
-  LOG_DEBUG("heap after streamed JSON parse: %u B free", ESP.getFreeHeap());
   if (parser.hasParseError()) {
     LOG_WARNING("Open-Meteo air quality JSON parse error: %s", parser.getErrorMessage());
     memset(&airQuality, 0, sizeof(air_quality_t));
