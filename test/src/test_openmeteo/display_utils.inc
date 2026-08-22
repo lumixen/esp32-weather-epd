@@ -12,6 +12,9 @@
 
 #include "data_models.h"
 #include "display_utils.h"
+#include "test_harness.h"
+
+namespace display_utils_tests {
 
 void setUp(void) {}
 void tearDown(void) {}
@@ -51,14 +54,12 @@ static void test_unmatched_is_not_found(void) {
   TEST_ASSERT_EQUAL(alert_category::NOT_FOUND, getAlertCategory(alert));
 }
 
-void setup() {
-  delay(200);  // let the emulated UART settle
-  UNITY_BEGIN();
-  RUN_TEST(test_squall_is_strong_wind);
-  RUN_TEST(test_wind_is_strong_wind);
-  RUN_TEST(test_squall_line_is_lightning);
-  RUN_TEST(test_unmatched_is_not_found);
-  UNITY_END();
+void registerTests() {
+  test_harness::selectCallbacks(setUp, tearDown);
+  RUN_TEST(display_utils_tests::test_squall_is_strong_wind);
+  RUN_TEST(display_utils_tests::test_wind_is_strong_wind);
+  RUN_TEST(display_utils_tests::test_squall_line_is_lightning);
+  RUN_TEST(display_utils_tests::test_unmatched_is_not_found);
 }
 
-void loop() {}
+}  // namespace display_utils_tests

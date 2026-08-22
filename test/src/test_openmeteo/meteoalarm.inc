@@ -16,6 +16,9 @@
 #include "meteoalarm_alert_provider.h"
 #include "feed_ukraine_real.inc"
 #include "feed_ukraine_latest.inc"
+#include "test_harness.h"
+
+namespace meteoalarm_tests {
 
 // Fixed clock for deterministic expiry filtering: 2026-08-07 18:00:00 UTC.
 static const int64_t kNow = 1786125600LL;
@@ -664,30 +667,28 @@ static void test_large_feed_full_consumption(void) {
   TEST_ASSERT_EQUAL_UINT(gen.totalLength(), fed);
 }
 
-void setup() {
-  delay(200);  // let the emulated UART settle
-  UNITY_BEGIN();
-  RUN_TEST(test_parse_iso8601);
-  RUN_TEST(test_hazard_from_event);
-  RUN_TEST(test_color_from_severity);
-  RUN_TEST(test_parse_real_feed);
-  RUN_TEST(test_expired_skip);
-  RUN_TEST(test_onset_fallback);
-  RUN_TEST(test_entities);
-  RUN_TEST(test_truncated_feed);
-  RUN_TEST(test_garbage);
-  RUN_TEST(test_alert_cap);
-  RUN_TEST(test_severity_colors);
-  RUN_TEST(test_point_in_polygon);
-  RUN_TEST(test_polygon_filter_fixture);
-  RUN_TEST(test_polygon_missing_kept);
-  RUN_TEST(test_merge_union_span);
-  RUN_TEST(test_merge_distinct_hazards);
-  RUN_TEST(test_merge_severity_upgrade);
-  RUN_TEST(test_latest_feed_polygon_filter);
-  RUN_TEST(test_latest_feed_expiry);
-  RUN_TEST(test_large_feed_full_consumption);
-  UNITY_END();
+void registerTests() {
+  test_harness::selectCallbacks(setUp, tearDown);
+  RUN_TEST(meteoalarm_tests::test_parse_iso8601);
+  RUN_TEST(meteoalarm_tests::test_hazard_from_event);
+  RUN_TEST(meteoalarm_tests::test_color_from_severity);
+  RUN_TEST(meteoalarm_tests::test_parse_real_feed);
+  RUN_TEST(meteoalarm_tests::test_expired_skip);
+  RUN_TEST(meteoalarm_tests::test_onset_fallback);
+  RUN_TEST(meteoalarm_tests::test_entities);
+  RUN_TEST(meteoalarm_tests::test_truncated_feed);
+  RUN_TEST(meteoalarm_tests::test_garbage);
+  RUN_TEST(meteoalarm_tests::test_alert_cap);
+  RUN_TEST(meteoalarm_tests::test_severity_colors);
+  RUN_TEST(meteoalarm_tests::test_point_in_polygon);
+  RUN_TEST(meteoalarm_tests::test_polygon_filter_fixture);
+  RUN_TEST(meteoalarm_tests::test_polygon_missing_kept);
+  RUN_TEST(meteoalarm_tests::test_merge_union_span);
+  RUN_TEST(meteoalarm_tests::test_merge_distinct_hazards);
+  RUN_TEST(meteoalarm_tests::test_merge_severity_upgrade);
+  RUN_TEST(meteoalarm_tests::test_latest_feed_polygon_filter);
+  RUN_TEST(meteoalarm_tests::test_latest_feed_expiry);
+  RUN_TEST(meteoalarm_tests::test_large_feed_full_consumption);
 }
 
-void loop() {}
+}  // namespace meteoalarm_tests

@@ -16,6 +16,9 @@
 #include "data_models.h"
 #include "open_meteo_weather_provider.h"
 #include "open_meteo_lima_real.inc"
+#include "test_harness.h"
+
+namespace open_meteo_weather_tests {
 
 // Frozen epochs of the Lima fixture (2026-08-18, America/Lima = UTC-5).
 static const int64_t kCurrentTime = 1787068800LL;  // 2026-08-18T12:00:00+00:00
@@ -114,12 +117,12 @@ static void test_lima_current(void) {
   TEST_ASSERT_EQUAL_INT64(kSunset, forecast.current.sunset);
   TEST_ASSERT_EQUAL_FLOAT(21.5f, forecast.current.temp);
   TEST_ASSERT_EQUAL_FLOAT(20.6f, forecast.current.feels_like);
-  TEST_ASSERT_EQUAL_INT(1001, forecast.current.pressure);   // 1001.7 hPa
+  TEST_ASSERT_EQUAL_INT(1001, forecast.current.pressure);  // 1001.7 hPa
   TEST_ASSERT_EQUAL_INT(60, forecast.current.humidity);
   TEST_ASSERT_EQUAL_FLOAT(13.4f, forecast.current.dew_point);
   TEST_ASSERT_EQUAL_INT(45, forecast.current.clouds);
-  TEST_ASSERT_EQUAL_FLOAT(8.45f, forecast.current.uvi);     // daily[0] uv_index_max
-  TEST_ASSERT_EQUAL_INT(2460, forecast.current.visibility); // 2460.00 m
+  TEST_ASSERT_EQUAL_FLOAT(8.45f, forecast.current.uvi);      // daily[0] uv_index_max
+  TEST_ASSERT_EQUAL_INT(2460, forecast.current.visibility);  // 2460.00 m
   TEST_ASSERT_EQUAL_FLOAT(5.81f, forecast.current.wind_speed);
   TEST_ASSERT_EQUAL_FLOAT(14.50f, forecast.current.wind_gust);
   TEST_ASSERT_EQUAL_INT(153, forecast.current.wind_deg);
@@ -252,10 +255,9 @@ static void test_shorter_arrays(void) {
 /* Optional fields that the provider does not request but would parse if the
  * API ever returned them. */
 static void test_optional_fields_present(void) {
-  const char *json =
-      "{\"current\":{\"time\":1},"
-      "\"hourly\":{\"time\":[2],\"soil_temperature_18cm\":[17.25]},"
-      "\"daily\":{\"time\":[3],\"shortwave_radiation_sum\":[14.5]}}";
+  const char *json = "{\"current\":{\"time\":1},"
+                     "\"hourly\":{\"time\":[2],\"soil_temperature_18cm\":[17.25]},"
+                     "\"daily\":{\"time\":[3],\"shortwave_radiation_sum\":[14.5]}}";
   forecast_t forecast = {};
   ProviderResult err = parseJson(json, forecast);
   TEST_ASSERT_TRUE(err.isOk());
@@ -285,8 +287,8 @@ static void test_non_forecast_payloads_rejected(void) {
   TEST_ASSERT_FALSE(err.isOk());
 
   // All three sections but current.time missing.
-  err = parseJson("{\"current\":{\"temperature_2m\":12.5},\"hourly\":{\"time\":[1]},\"daily\":{\"time\":[2]}}",
-                  forecast);
+  err =
+      parseJson("{\"current\":{\"temperature_2m\":12.5},\"hourly\":{\"time\":[1]},\"daily\":{\"time\":[2]}}", forecast);
   TEST_ASSERT_FALSE(err.isOk());
 
   // current.time present but the hourly/daily time arrays empty.
@@ -322,8 +324,9 @@ static void test_exponent_form_numbers(void) {
   TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_FLOAT(150.0f, forecast.current.temp);
 
-  err = parseJson("{\"current\":{\"time\":1,\"temperature_2m\":-15E-1},\"hourly\":{\"time\":[2]},\"daily\":{\"time\":[3]}}",
-                  forecast);
+  err = parseJson(
+      "{\"current\":{\"time\":1,\"temperature_2m\":-15E-1},\"hourly\":{\"time\":[2]},\"daily\":{\"time\":[3]}}",
+      forecast);
   TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_FLOAT(-1.5f, forecast.current.temp);
 }
@@ -332,9 +335,8 @@ static void test_exponent_form_numbers(void) {
  * accepted; the absent fields must not crash and default to zero. */
 static void test_missing_optional_fields(void) {
   forecast_t forecast = {};
-  ProviderResult err =
-      parseJson("{\"current\":{\"time\":123,\"is_day\":0},\"hourly\":{\"time\":[1]},\"daily\":{\"time\":[2]}}",
-                forecast);
+  ProviderResult err = parseJson(
+      "{\"current\":{\"time\":123,\"is_day\":0},\"hourly\":{\"time\":[1]},\"daily\":{\"time\":[2]}}", forecast);
   TEST_ASSERT_TRUE(err.isOk());
   TEST_ASSERT_EQUAL_INT64(123, forecast.current.dt);
   TEST_ASSERT_FALSE(forecast.current.is_day);
@@ -386,25 +388,23 @@ static void test_trailing_bytes_after_valid_document(void) {
   TEST_ASSERT_EQUAL_INT64(kCurrentTime, forecast.current.dt);
 }
 
-void setup() {
-  delay(200);  // let the emulated UART settle
-  UNITY_BEGIN();
-  RUN_TEST(test_get_api_name);
-  RUN_TEST(test_map_weather_code);
-  RUN_TEST(test_lima_current);
-  RUN_TEST(test_lima_hourly);
-  RUN_TEST(test_lima_daily);
-  RUN_TEST(test_hourly_and_daily_cap);
-  RUN_TEST(test_shorter_arrays);
-  RUN_TEST(test_optional_fields_present);
-  RUN_TEST(test_missing_optional_fields);
-  RUN_TEST(test_minimal_forecast_keys_accepted);
-  RUN_TEST(test_exponent_form_numbers);
-  RUN_TEST(test_non_forecast_payloads_rejected);
-  RUN_TEST(test_invalid_json);
-  RUN_TEST(test_truncated_body);
-  RUN_TEST(test_trailing_bytes_after_valid_document);
-  UNITY_END();
+void registerTests() {
+  test_harness::selectCallbacks(setUp, tearDown);
+  RUN_TEST(open_meteo_weather_tests::test_get_api_name);
+  RUN_TEST(open_meteo_weather_tests::test_map_weather_code);
+  RUN_TEST(open_meteo_weather_tests::test_lima_current);
+  RUN_TEST(open_meteo_weather_tests::test_lima_hourly);
+  RUN_TEST(open_meteo_weather_tests::test_lima_daily);
+  RUN_TEST(open_meteo_weather_tests::test_hourly_and_daily_cap);
+  RUN_TEST(open_meteo_weather_tests::test_shorter_arrays);
+  RUN_TEST(open_meteo_weather_tests::test_optional_fields_present);
+  RUN_TEST(open_meteo_weather_tests::test_missing_optional_fields);
+  RUN_TEST(open_meteo_weather_tests::test_minimal_forecast_keys_accepted);
+  RUN_TEST(open_meteo_weather_tests::test_exponent_form_numbers);
+  RUN_TEST(open_meteo_weather_tests::test_non_forecast_payloads_rejected);
+  RUN_TEST(open_meteo_weather_tests::test_invalid_json);
+  RUN_TEST(open_meteo_weather_tests::test_truncated_body);
+  RUN_TEST(open_meteo_weather_tests::test_trailing_bytes_after_valid_document);
 }
 
-void loop() {}
+}  // namespace open_meteo_weather_tests

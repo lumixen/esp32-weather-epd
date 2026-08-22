@@ -15,6 +15,9 @@
 #include "owm_provider.h"
 #include "provider_fetch_operations.h"
 #include "provider_factory.h"
+#include "test_harness.h"
+
+namespace fetch_executor_tests {
 
 void setUp(void) {}
 void tearDown(void) {}
@@ -34,7 +37,8 @@ class MockFetchOperation : public FetchOperation {
     while (cur > prevMax && !g_maxActive.compare_exchange_weak(prevMax, cur)) {
     }
     g_executed++;
-    if (delayMs_ > 0) vTaskDelay(pdMS_TO_TICKS(delayMs_));
+    if (delayMs_ > 0)
+      vTaskDelay(pdMS_TO_TICKS(delayMs_));
     --g_active;
     return result_;
   }
@@ -64,7 +68,8 @@ static void test_pool_limits_concurrency_to_two(void) {
   auto results = executeParallel(ops);
   TEST_ASSERT_EQUAL(3, g_executed.load());
   TEST_ASSERT_EQUAL(3, results.size());
-  for (auto &r : results) TEST_ASSERT_TRUE(r.isOk());
+  for (auto &r : results)
+    TEST_ASSERT_TRUE(r.isOk());
   // max concurrent should be <=2 (pool limit)
   TEST_ASSERT_LESS_OR_EQUAL(2, g_maxActive.load());
 }
@@ -130,8 +135,10 @@ static void test_create_fetch_operations_alerts_first(void) {
     TEST_ASSERT_FALSE(ops[0]->shouldAbortOnFailure());
     bool foundWeather = false, foundAir = false;
     for (size_t i = 1; i < ops.size(); ++i) {
-      if (String(ops[i]->name()) == String(providers.weather->getApiName())) foundWeather = true;
-      if (String(ops[i]->name()) == "Air Pollution API") foundAir = true;
+      if (String(ops[i]->name()) == String(providers.weather->getApiName()))
+        foundWeather = true;
+      if (String(ops[i]->name()) == "Air Pollution API")
+        foundAir = true;
     }
     TEST_ASSERT_TRUE(foundWeather);
     TEST_ASSERT_TRUE(foundAir);
@@ -166,18 +173,16 @@ static void test_owm_provider_always_defined(void) {
   TEST_ASSERT_EQUAL(weather_condition::CLEAR, OWMProvider::mapWeatherCode(800));
 }
 
-void setup() {
-  delay(200);
-  UNITY_BEGIN();
-  RUN_TEST(test_pool_limits_concurrency_to_two);
-  RUN_TEST(test_worker_pool_processes_all_operations);
-  RUN_TEST(test_execute_parallel_single_op_no_task);
-  RUN_TEST(test_execute_parallel_empty);
-  RUN_TEST(test_execute_parallel_propagates_results);
-  RUN_TEST(test_create_fetch_operations_alerts_first);
-  RUN_TEST(test_should_abort_flags);
-  RUN_TEST(test_owm_provider_always_defined);
-  UNITY_END();
+void registerTests() {
+  test_harness::selectCallbacks(setUp, tearDown);
+  RUN_TEST(fetch_executor_tests::test_pool_limits_concurrency_to_two);
+  RUN_TEST(fetch_executor_tests::test_worker_pool_processes_all_operations);
+  RUN_TEST(fetch_executor_tests::test_execute_parallel_single_op_no_task);
+  RUN_TEST(fetch_executor_tests::test_execute_parallel_empty);
+  RUN_TEST(fetch_executor_tests::test_execute_parallel_propagates_results);
+  RUN_TEST(fetch_executor_tests::test_create_fetch_operations_alerts_first);
+  RUN_TEST(fetch_executor_tests::test_should_abort_flags);
+  RUN_TEST(fetch_executor_tests::test_owm_provider_always_defined);
 }
 
-void loop() {}
+}  // namespace fetch_executor_tests

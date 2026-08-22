@@ -8,6 +8,12 @@
 #include <unity.h>
 
 #include "time_utils.h"
+#include "test_harness.h"
+
+namespace rtc_drift_correction_tests {
+
+void setUp(void) {}
+void tearDown(void) {}
 
 using namespace rtc_drift;
 
@@ -44,10 +50,10 @@ void test_scale_identity(void) {
 void test_scale_ratio(void) {
   const uint64_t us = 1800ULL * 1000000ULL;
   for (int i = 0; i <= 20; ++i) {
-    const double k = RTC_DRIFT_MIN_FACTOR + (double)i * (RTC_DRIFT_MAX_FACTOR - RTC_DRIFT_MIN_FACTOR) / 20.0;
+    const double k = RTC_DRIFT_MIN_FACTOR + (double) i * (RTC_DRIFT_MAX_FACTOR - RTC_DRIFT_MIN_FACTOR) / 20.0;
     const uint64_t scaled = scaleSleepUs(us, k);
-    const double restored = (double)scaled * k;
-    assertNear(restored, (double)us, 1e-6);
+    const double restored = (double) scaled * k;
+    assertNear(restored, (double) us, 1e-6);
     TEST_ASSERT_TRUE_MESSAGE(scaled != 0, "scaled duration must stay non-zero");
   }
 }
@@ -57,7 +63,7 @@ void test_scale_monotonic(void) {
   const uint64_t us = 60ULL * 1000000ULL;
   uint64_t prev = 0;
   for (int i = 20; i >= 0; --i) {
-    const double k = RTC_DRIFT_MIN_FACTOR + (double)i * (RTC_DRIFT_MAX_FACTOR - RTC_DRIFT_MIN_FACTOR) / 20.0;
+    const double k = RTC_DRIFT_MIN_FACTOR + (double) i * (RTC_DRIFT_MAX_FACTOR - RTC_DRIFT_MIN_FACTOR) / 20.0;
     const uint64_t scaled = scaleSleepUs(us, k);
     TEST_ASSERT_TRUE_MESSAGE(scaled >= prev, "scaled duration must be monotonic in 1/k");
     prev = scaled;
@@ -69,18 +75,18 @@ void test_scale_monotonic(void) {
 void test_wake_shift_consistency(void) {
   const uint64_t us = 10ULL * 3600ULL * 1000000ULL;  // 10 h, critical case
   for (int i = 0; i <= 20; ++i) {
-    const double k = RTC_DRIFT_MIN_FACTOR + (double)i * (RTC_DRIFT_MAX_FACTOR - RTC_DRIFT_MIN_FACTOR) / 20.0;
+    const double k = RTC_DRIFT_MIN_FACTOR + (double) i * (RTC_DRIFT_MAX_FACTOR - RTC_DRIFT_MIN_FACTOR) / 20.0;
     const uint64_t claimed = scaleSleepUs(us, k);
     const int64_t shift = wakeShiftUs(claimed, k);
-    const double corrected = (double)claimed + (double)shift;
-    assertNear(corrected, (double)us, 1e-6);
+    const double corrected = (double) claimed + (double) shift;
+    assertNear(corrected, (double) us, 1e-6);
   }
 }
 
 /* Absurd factors must not produce absurd shifts (clamp at 10%). */
 void test_wake_shift_clamp(void) {
   const uint64_t claimed = 3600ULL * 1000000ULL;  // 1 h
-  const int64_t bound = (int64_t)((double)claimed * RTC_DRIFT_MAX_SHIFT_RATIO);
+  const int64_t bound = (int64_t) ((double) claimed * RTC_DRIFT_MAX_SHIFT_RATIO);
 
   const int64_t shiftSlow = wakeShiftUs(claimed, 0.5);
   TEST_ASSERT_TRUE_MESSAGE(shiftSlow < 0 && shiftSlow >= -bound, "slow-clock shift must be clamped");
@@ -108,8 +114,7 @@ void test_update_factor_ema(void) {
   // k converges towards the sample factor.
   const double next = updateFactor(expected, 0.01);
   assertNear(next, expected + RTC_DRIFT_LEARN_ALPHA * (sample - expected), 1e-9);
-  TEST_ASSERT_TRUE_MESSAGE(std::fabs(next - sample) < std::fabs(expected - sample),
-                           "EMA must move towards the sample");
+  TEST_ASSERT_TRUE_MESSAGE(std::fabs(next - sample) < std::fabs(expected - sample), "EMA must move towards the sample");
 }
 
 /* The learned factor is clamped to [RTC_DRIFT_MIN_FACTOR, RTC_DRIFT_MAX_FACTOR]. */
@@ -137,26 +142,24 @@ void test_learning_convergence(void) {
   const uint64_t claimed = scaleSleepUs(desiredUs, k);
   const int64_t shift = wakeShiftUs(claimed, k);
 
-  const double realElapsed = (double)claimed * kTrue;
-  assertNear(realElapsed, (double)desiredUs, 1e-4);
-  assertNear((double)claimed + (double)shift, (double)desiredUs, 1e-4);
+  const double realElapsed = (double) claimed * kTrue;
+  assertNear(realElapsed, (double) desiredUs, 1e-4);
+  assertNear((double) claimed + (double) shift, (double) desiredUs, 1e-4);
 }
 
 // ------------------------------------------------------------------ driver
 
-void setup() {
-  delay(200);  // let the emulated UART settle
-  UNITY_BEGIN();
-  RUN_TEST(test_scale_identity);
-  RUN_TEST(test_scale_ratio);
-  RUN_TEST(test_scale_monotonic);
-  RUN_TEST(test_wake_shift_consistency);
-  RUN_TEST(test_wake_shift_clamp);
-  RUN_TEST(test_sample_factor);
-  RUN_TEST(test_update_factor_ema);
-  RUN_TEST(test_update_factor_clamp);
-  RUN_TEST(test_learning_convergence);
-  UNITY_END();
+void registerTests() {
+  test_harness::selectCallbacks(setUp, tearDown);
+  RUN_TEST(rtc_drift_correction_tests::test_scale_identity);
+  RUN_TEST(rtc_drift_correction_tests::test_scale_ratio);
+  RUN_TEST(rtc_drift_correction_tests::test_scale_monotonic);
+  RUN_TEST(rtc_drift_correction_tests::test_wake_shift_consistency);
+  RUN_TEST(rtc_drift_correction_tests::test_wake_shift_clamp);
+  RUN_TEST(rtc_drift_correction_tests::test_sample_factor);
+  RUN_TEST(rtc_drift_correction_tests::test_update_factor_ema);
+  RUN_TEST(rtc_drift_correction_tests::test_update_factor_clamp);
+  RUN_TEST(rtc_drift_correction_tests::test_learning_convergence);
 }
 
-void loop() {}
+}  // namespace rtc_drift_correction_tests

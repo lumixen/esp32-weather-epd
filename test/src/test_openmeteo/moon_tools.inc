@@ -18,6 +18,12 @@
 #include <unity.h>
 
 #include "moon_tools.h"
+#include "test_harness.h"
+
+namespace moon_tools_tests {
+
+void setUp(void) {}
+void tearDown(void) {}
 
 static const float kLatitudes[] = {0.0f, 45.0f, 70.0f};
 static const size_t kNumLatitudes = sizeof(kLatitudes) / sizeof(kLatitudes[0]);
@@ -37,8 +43,7 @@ void test_moonset_after_moonrise(void) {
         continue;  // polar periods without events are legitimate
       }
       ++checked;
-      TEST_ASSERT_TRUE_MESSAGE(moon.moonset > moon.moonrise,
-                               "moonset must follow moonrise");
+      TEST_ASSERT_TRUE_MESSAGE(moon.moonset > moon.moonrise, "moonset must follow moonrise");
       TEST_ASSERT_TRUE_MESSAGE(moon.moonset - moon.moonrise < 16 * kDay,
                                "moonset must be reachable by the search walk");
     }
@@ -63,21 +68,17 @@ void test_inverted_pairs_get_fixed(void) {
       }
       ++inverted;
       moon_state_t moon = getMoonState(lat, 0.0f, t);
-      TEST_ASSERT_TRUE_MESSAGE(moon.moonrise == mr.riseTime,
-                               "moonrise must not be altered");
-      TEST_ASSERT_TRUE_MESSAGE(moon.moonset > moon.moonrise,
-                               "inverted raw pair must be corrected");
+      TEST_ASSERT_TRUE_MESSAGE(moon.moonrise == mr.riseTime, "moonrise must not be altered");
+      TEST_ASSERT_TRUE_MESSAGE(moon.moonset > moon.moonrise, "inverted raw pair must be corrected");
     }
   }
   TEST_ASSERT_TRUE_MESSAGE(inverted > 50, "sweep found too few inverted pairs");
 }
 
-void setup() {
-  delay(200);  // let the emulated UART settle
-  UNITY_BEGIN();
-  RUN_TEST(test_moonset_after_moonrise);
-  RUN_TEST(test_inverted_pairs_get_fixed);
-  UNITY_END();
+void registerTests() {
+  test_harness::selectCallbacks(setUp, tearDown);
+  RUN_TEST(moon_tools_tests::test_moonset_after_moonrise);
+  RUN_TEST(moon_tools_tests::test_inverted_pairs_get_fixed);
 }
 
-void loop() {}
+}  // namespace moon_tools_tests
