@@ -177,6 +177,18 @@ static void test_invalid_json_clears_model(void) {
   TEST_ASSERT_EQUAL_FLOAT(0.0f, airQuality.components.pm2_5[0]);
 }
 
+static void test_empty_input_clears_model(void) {
+  air_quality_t airQuality = {};
+  airQuality.dt[0] = 123456;
+  airQuality.components.pm2_5[0] = 42.0f;
+
+  ProviderResult result = parseJson("", airQuality);
+  TEST_ASSERT_FALSE(result.isOk());
+  TEST_ASSERT_EQUAL_STRING(TXT_DESERIALIZATION_ERROR_EMPTY_INPUT, result.detail().c_str());
+  TEST_ASSERT_EQUAL_INT64(0, airQuality.dt[0]);
+  TEST_ASSERT_EQUAL_FLOAT(0.0f, airQuality.components.pm2_5[0]);
+}
+
 static void test_truncated_json_clears_model(void) {
   air_quality_t airQuality = {};
   airQuality.dt[0] = 123456;
@@ -198,6 +210,7 @@ void registerTests() {
   RUN_TEST(owm_air_quality_tests::test_unknown_fields);
   RUN_TEST(owm_air_quality_tests::test_empty_or_missing_list_clears_model);
   RUN_TEST(owm_air_quality_tests::test_invalid_json_clears_model);
+  RUN_TEST(owm_air_quality_tests::test_empty_input_clears_model);
   RUN_TEST(owm_air_quality_tests::test_truncated_json_clears_model);
 }
 
