@@ -1,3 +1,20 @@
+/* Time and RTC utilities for esp32-weather-epd.
+ * Copyright (C) 2026  Max Bodaniuk
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #include "time_utils.h"
 #include "logger.h"
 
@@ -15,10 +32,10 @@ static RTC_DATA_ATTR uint32_t cyclesSinceLastNtpSync = 0;
  * sleep; cleared only by a power-on reset, which forces re-learning).
  */
 static RTC_DATA_ATTR struct {
-  bool valid;               // baseline established
-  double k;                 // learned correction factor (deep sleep / awake period ratio)
-  uint64_t lastSyncRtcUs;   // esp_rtc_get_time_us() at the last NTP sync
-  int64_t lastSyncEpoch;    // Unix time (s) at the last NTP sync
+  bool valid;              // baseline established
+  double k;                // learned correction factor (deep sleep / awake period ratio)
+  uint64_t lastSyncRtcUs;  // esp_rtc_get_time_us() at the last NTP sync
+  int64_t lastSyncEpoch;   // Unix time (s) at the last NTP sync
 } rtcDrift = {};
 
 // Deep-sleep duration (us) requested last time it slept; used to correct the
@@ -49,17 +66,17 @@ void rtcDriftOnNtpSync(uint64_t rtcUsNow, time_t epochNow) {
     return;
   }
 
-  const long long elapsedRealUs = ((long long)epochNow - rtcDrift.lastSyncEpoch) * 1000000LL;
-  const long long elapsedRtcUs = (long long)(rtcUsNow - rtcDrift.lastSyncRtcUs);
+  const long long elapsedRealUs = ((long long) epochNow - rtcDrift.lastSyncEpoch) * 1000000LL;
+  const long long elapsedRtcUs = (long long) (rtcUsNow - rtcDrift.lastSyncRtcUs);
   rtcDrift.lastSyncRtcUs = rtcUsNow;
   rtcDrift.lastSyncEpoch = epochNow;
 
-  if (elapsedRealUs < (long long)rtc_drift::RTC_DRIFT_MIN_LEARN_INTERVAL_US || elapsedRtcUs <= 0) {
+  if (elapsedRealUs < (long long) rtc_drift::RTC_DRIFT_MIN_LEARN_INTERVAL_US || elapsedRtcUs <= 0) {
     LOG_DEBUG("RTC drift correction: interval too short (%lld s), skipping sample", elapsedRealUs / 1000000LL);
     return;
   }
 
-  const double rateError = ((double)elapsedRtcUs - (double)elapsedRealUs) / (double)elapsedRealUs;
+  const double rateError = ((double) elapsedRtcUs - (double) elapsedRealUs) / (double) elapsedRealUs;
   if (std::fabs(rateError) > rtc_drift::RTC_DRIFT_MAX_RATE_ERROR) {
     // Outlier (NTP hiccup, timezone change, ...): re-baseline, do not learn.
     LOG_WARNING("RTC drift correction: rejecting outlier drift of %+.0f ppm", rateError * 1e6);
@@ -67,8 +84,8 @@ void rtcDriftOnNtpSync(uint64_t rtcUsNow, time_t epochNow) {
   }
 
   rtcDrift.k = rtc_drift::updateFactor(rtcDrift.k, rateError);
-  LOG_INFO("RTC drift: %+.0f ppm over %lld min, correction factor %.6f", rateError * 1e6,
-           elapsedRealUs / 60000000LL, rtcDrift.k);
+  LOG_INFO("RTC drift: %+.0f ppm over %lld min, correction factor %.6f", rateError * 1e6, elapsedRealUs / 60000000LL,
+           rtcDrift.k);
 }  // end rtcDriftOnNtpSync
 
 void rtcDriftApplyWakeupCorrection() {
@@ -91,7 +108,7 @@ void rtcDriftApplyWakeupCorrection() {
   // was claimed * k; shift the wall clock accordingly.
   struct timeval tv;
   gettimeofday(&tv, nullptr);
-  long long us = (long long)tv.tv_sec * 1000000LL + tv.tv_usec + shiftUs;
+  long long us = (long long) tv.tv_sec * 1000000LL + tv.tv_usec + shiftUs;
   tv.tv_sec = us / 1000000LL;
   tv.tv_usec = us % 1000000LL;
   settimeofday(&tv, nullptr);

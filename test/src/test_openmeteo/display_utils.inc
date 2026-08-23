@@ -5,6 +5,8 @@
  * this function lowercased (drawAlerts runs filterAlerts first), so the
  * fixtures mirror that.
  *
+ * Copyright (C) 2026  Max Bodaniuk
+ *
  * GPL-3.0, see LICENSE.
  */
 

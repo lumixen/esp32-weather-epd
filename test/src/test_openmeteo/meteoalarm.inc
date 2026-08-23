@@ -4,6 +4,8 @@
  * QEMU emulator. The primary fixture (feed_ukraine_real.inc) is a verbatim
  * excerpt of the live Ukraine feed captured on 2026-08-07.
  *
+ * Copyright (C) 2026  Max Bodaniuk
+ *
  * GPL-3.0, see LICENSE.
  */
 

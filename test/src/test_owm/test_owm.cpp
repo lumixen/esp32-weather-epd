@@ -1,5 +1,7 @@
 /* OpenWeatherMap configuration test driver.
  *
+ * Copyright (C) 2026  Max Bodaniuk
+ *
  * GPL-3.0, see LICENSE.
  */
 

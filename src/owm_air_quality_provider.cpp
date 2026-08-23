@@ -1,3 +1,20 @@
+/* OpenWeatherMap air-quality provider for esp32-weather-epd.
+ * Copyright (C) 2026  Max Bodaniuk
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #include "config.h"
 #include "logger.h"
 
@@ -131,14 +148,22 @@ class OWMAirQualityHandler : public JsonHandler {
       return Column::NONE;
     }
     const char *key = selector->getKey();
-    if (keyIs(key, "co")) return Column::CO;
-    if (keyIs(key, "no")) return Column::NO;
-    if (keyIs(key, "no2")) return Column::NO2;
-    if (keyIs(key, "o3")) return Column::O3;
-    if (keyIs(key, "so2")) return Column::SO2;
-    if (keyIs(key, "pm2_5")) return Column::PM2_5;
-    if (keyIs(key, "pm10")) return Column::PM10;
-    if (keyIs(key, "nh3")) return Column::NH3;
+    if (keyIs(key, "co"))
+      return Column::CO;
+    if (keyIs(key, "no"))
+      return Column::NO;
+    if (keyIs(key, "no2"))
+      return Column::NO2;
+    if (keyIs(key, "o3"))
+      return Column::O3;
+    if (keyIs(key, "so2"))
+      return Column::SO2;
+    if (keyIs(key, "pm2_5"))
+      return Column::PM2_5;
+    if (keyIs(key, "pm10"))
+      return Column::PM10;
+    if (keyIs(key, "nh3"))
+      return Column::NH3;
     return Column::NONE;
   }
 

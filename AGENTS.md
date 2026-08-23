@@ -64,6 +64,16 @@ bash test/run_tests_docker.sh
 - Files carry the GPL-3.0 header (see existing files). Match the existing code style when editing.
 - Constants use `UPPER_SNAKE_CASE` (e.g. `NTP_SYNC_INTERVAL_WAKEUPS`, `RTC_DRIFT_LEARN_ALPHA`); types, functions and variables use camelCase. Prefer a domain prefix (`RTC_DRIFT_*`, `HTTP_CLIENT_*`) over bare generic names.
 
+## Copyright and formatting
+
+- The canonical copyright holder for new original work is `Max Bodaniuk`.
+- A file created entirely from Max's original work may list only `Max Bodaniuk`. A new filename, file move, reformat, wrapper, translation, or other derived work is not automatically original.
+- Inherited or derived files must retain `Luke Marzen` and all applicable third-party copyright, license, and embedded-content notices. Add Max on a separate line only for substantive original contributions.
+- Project-owned `Lumixen` copyright notices are represented as `Max Bodaniuk`; do not perform a global replacement of the word `Lumixen`. Dependency URLs, repository names, branding, and other non-copyright references remain unchanged.
+- Formatting-only changes do not justify changing copyright ownership. Copyright years identify contribution years and must not be rewritten to erase historical authorship. Check file provenance before adding a copyright claim to a new file.
+- Generated assets, `managed_components/`, `.pio/`, raw API/feed fixtures, and external-license text are excluded from routine header and formatting changes. Preserve fixture-specific and third-party rights verbatim.
+- Use the checked-in `.clang-format` for selected C/C++ sources, headers, tests, and C/C++ feature `.inc` files. Python, shell, and Markdown files use their native formatting; Python and shell files may still receive language-native copyright comments.
+
 ## Tooling
 
 - `default.bash` timeout is `120000 ms` by default — too short for PlatformIO/QEMU. Always use `timeout: 600000` (10 min) for `pio run` / `pio test` / `test/run_tests_docker.sh`.

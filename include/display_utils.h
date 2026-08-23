@@ -1,5 +1,6 @@
 /* Display helper utility declarations for esp32-weather-epd.
  * Copyright (C) 2022-2025  Luke Marzen
+ * Copyright (C) 2026  Max Bodaniuk
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,10 +51,7 @@ enum alert_category {
   STRONG_WIND
 };
 
-enum conditions_accent {
-  WORTH_ACCENTING,
-  NOT_WORTH_ACCENTING
-};
+enum conditions_accent { WORTH_ACCENTING, NOT_WORTH_ACCENTING };
 
 bool readBatteryVoltage(uint32_t &batteryVoltage);
 uint8_t calcBatPercent(uint32_t v, uint32_t minv, uint32_t maxv);

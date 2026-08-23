@@ -1,6 +1,7 @@
 #!/bin/bash
 # Scalar vector icons to Adafruit GFX format script for esp32-weather-epd.
 # Copyright (C) 2022-2025  Luke Marzen
+# Copyright (C) 2026  Max Bodaniuk
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

@@ -10,6 +10,8 @@
  * The sweep covers moderate latitudes (ordering checks) and lat 70
  * (polar stretches where the moon stays up for days at a time).
  *
+ * Copyright (C) 2026  Max Bodaniuk
+ *
  * GPL-3.0, see LICENSE.
  */
 

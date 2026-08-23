@@ -1,5 +1,6 @@
 /* Custom strftime declaration for esp32-weather-epd.
  * Copyright (C) 2023  Luke Marzen
+ * Copyright (C) 2026  Max Bodaniuk
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +19,4 @@
 
 #include <time.h>
 
-size_t _strftime(char *s, size_t maxsize, const char *format,
-                 const struct tm *timeptr);
-
+size_t _strftime(char *s, size_t maxsize, const char *format, const struct tm *timeptr);

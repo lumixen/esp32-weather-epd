@@ -1,5 +1,5 @@
 /* Unified OWM One Call provider — single class for weather+alerts.
- * Copyright (C) 2026  Lumixen
+ * Copyright (C) 2026  Max Bodaniuk
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,9 +23,7 @@
 
 #define OWM_NUM_ALERTS 8
 
-OWMProvider::OWMProvider() {
-  fetchMutex_ = xSemaphoreCreateMutex();
-}
+OWMProvider::OWMProvider() { fetchMutex_ = xSemaphoreCreateMutex(); }
 
 OWMProvider::~OWMProvider() {
   if (fetchMutex_) {
@@ -34,9 +32,7 @@ OWMProvider::~OWMProvider() {
   }
 }
 
-const char *OWMProvider::getApiName() const {
-  return "One Call API";
-}
+const char *OWMProvider::getApiName() const { return "One Call API"; }
 
 ProviderResult OWMProvider::fetchInternal(forecast_t *forecast, std::vector<weather_alert_t> *alertsOut) {
   // Unified fetch: handles both full forecast and alerts-only via single method.
@@ -66,9 +62,9 @@ ProviderResult OWMProvider::fetchInternal(forecast_t *forecast, std::vector<weat
     String sanitizedUri = OWM_ENDPOINT + uri + "&appid={API key}";
     uri += "&appid=" + OWM_APIKEY;
     std::vector<weather_alert_t> tmp;
-    ProviderResult result = httpGetWithRetry(
-        client, OWM_ENDPOINT, port, uri, sanitizedUri, false, HTTP_CLIENT_TCP_TIMEOUT,
-        [&tmp](Stream &json, size_t) { return deserializeAlerts(json, tmp); });
+    ProviderResult result =
+        httpGetWithRetry(client, OWM_ENDPOINT, port, uri, sanitizedUri, false, HTTP_CLIENT_TCP_TIMEOUT,
+                         [&tmp](Stream &json, size_t) { return deserializeAlerts(json, tmp); });
     if (result.isOk()) {
       *alertsOut = tmp;
       alerts_ = tmp;
@@ -138,15 +134,16 @@ ProviderResult OWMProvider::fetchInternal(forecast_t *forecast, std::vector<weat
   alPtr = nullptr;
 #endif
 
-  ProviderResult result = httpGetWithRetry(
-      client, OWM_ENDPOINT, port, uri, sanitizedUri, false, HTTP_CLIENT_TCP_TIMEOUT,
-      [fcPtr, alPtr](Stream &json, size_t) { return deserializeOneCall(json, *fcPtr, alPtr); });
+  ProviderResult result =
+      httpGetWithRetry(client, OWM_ENDPOINT, port, uri, sanitizedUri, false, HTTP_CLIENT_TCP_TIMEOUT,
+                       [fcPtr, alPtr](Stream &json, size_t) { return deserializeOneCall(json, *fcPtr, alPtr); });
 
   if (result.isOk()) {
     if (forecast && fcPtr != forecast) {
       *forecast = *fcPtr;
     }
-    if (fcPtr) cachedForecast_ = *fcPtr;
+    if (fcPtr)
+      cachedForecast_ = *fcPtr;
     if (alPtr) {
       alerts_ = *alPtr;
       haveAlerts_ = true;
@@ -164,22 +161,26 @@ ProviderResult OWMProvider::fetchInternal(forecast_t *forecast, std::vector<weat
 }
 
 ProviderResult OWMProvider::fetch(forecast_t &forecast) {
-  if (fetchMutex_) xSemaphoreTake(fetchMutex_, portMAX_DELAY);
+  if (fetchMutex_)
+    xSemaphoreTake(fetchMutex_, portMAX_DELAY);
   if (fetched_) {
     ProviderResult r = fetchStatus_;
     if (r.isOk()) {
       forecast = cachedForecast_;
     }
-    if (fetchMutex_) xSemaphoreGive(fetchMutex_);
+    if (fetchMutex_)
+      xSemaphoreGive(fetchMutex_);
     return r;
   }
   ProviderResult r = fetchInternal(&forecast, nullptr);
-  if (fetchMutex_) xSemaphoreGive(fetchMutex_);
+  if (fetchMutex_)
+    xSemaphoreGive(fetchMutex_);
   return r;
 }
 
 ProviderResult OWMProvider::fetch(std::vector<weather_alert_t> &alerts) {
-  if (fetchMutex_) xSemaphoreTake(fetchMutex_, portMAX_DELAY);
+  if (fetchMutex_)
+    xSemaphoreTake(fetchMutex_, portMAX_DELAY);
   if (fetched_) {
     ProviderResult r = fetchStatus_;
     if (r.isOk()) {
@@ -188,8 +189,10 @@ ProviderResult OWMProvider::fetch(std::vector<weather_alert_t> &alerts) {
       LOG_ERROR("Alerts API: %s", r.detail().c_str());
       alerts.clear();
     }
-    if (fetchMutex_) xSemaphoreGive(fetchMutex_);
-    if (r.isOk()) return ProviderResult::ok();
+    if (fetchMutex_)
+      xSemaphoreGive(fetchMutex_);
+    if (r.isOk())
+      return ProviderResult::ok();
     return r;
   }
   ProviderResult r = fetchInternal(nullptr, &alerts);
@@ -197,7 +200,8 @@ ProviderResult OWMProvider::fetch(std::vector<weather_alert_t> &alerts) {
     LOG_ERROR("Alerts API: %s", r.detail().c_str());
     alerts.clear();
   }
-  if (fetchMutex_) xSemaphoreGive(fetchMutex_);
+  if (fetchMutex_)
+    xSemaphoreGive(fetchMutex_);
   return r;
 }
 
@@ -282,17 +286,24 @@ weather_condition OWMProvider::mapWeatherCode(int id) {
     case 804:
       return weather_condition::OVERCAST;
     default:
-      if (id >= 200 && id < 300) return weather_condition::THUNDERSTORM;
-      if (id >= 300 && id < 400) return weather_condition::DRIZZLE;
-      if (id >= 500 && id < 600) return weather_condition::RAIN;
-      if (id >= 600 && id < 700) return weather_condition::SNOW;
-      if (id >= 700 && id < 800) return weather_condition::FOG;
-      if (id >= 800 && id < 900) return weather_condition::CLOUDY;
+      if (id >= 200 && id < 300)
+        return weather_condition::THUNDERSTORM;
+      if (id >= 300 && id < 400)
+        return weather_condition::DRIZZLE;
+      if (id >= 500 && id < 600)
+        return weather_condition::RAIN;
+      if (id >= 600 && id < 700)
+        return weather_condition::SNOW;
+      if (id >= 700 && id < 800)
+        return weather_condition::FOG;
+      if (id >= 800 && id < 900)
+        return weather_condition::CLOUDY;
       return weather_condition::UNKNOWN;
   }
 }
 
-ProviderResult OWMProvider::deserializeOneCall(Stream &json, forecast_t &forecast, std::vector<weather_alert_t> *alerts) {
+ProviderResult OWMProvider::deserializeOneCall(Stream &json, forecast_t &forecast,
+                                               std::vector<weather_alert_t> *alerts) {
   int i;
   JsonDocument filter;
   filter["current"] = true;
@@ -369,7 +380,8 @@ ProviderResult OWMProvider::deserializeOneCall(Stream &json, forecast_t &forecas
     JsonObject hourly_weather = hourly["weather"][0];
     forecast.hourly[i].weather.condition = mapWeatherCode(hourly_weather["id"].as<int>());
     forecast.hourly[i].is_day = hourly_weather["icon"].as<String>().endsWith("d");
-    if (i == NUM_HOURLY - 1) break;
+    if (i == NUM_HOURLY - 1)
+      break;
     ++i;
   }
 
@@ -399,7 +411,8 @@ ProviderResult OWMProvider::deserializeOneCall(Stream &json, forecast_t &forecas
     forecast.daily[i].snow = daily["snow"].as<float>();
     JsonObject daily_weather = daily["weather"][0];
     forecast.daily[i].weather.condition = mapWeatherCode(daily_weather["id"].as<int>());
-    if (i == NUM_DAILY - 1) break;
+    if (i == NUM_DAILY - 1)
+      break;
     ++i;
   }
 
@@ -413,7 +426,8 @@ ProviderResult OWMProvider::deserializeOneCall(Stream &json, forecast_t &forecas
       new_alert.end = alert["end"].as<int64_t>();
       new_alert.tags = alert["tags"][0].as<const char *>();
       alerts->push_back(new_alert);
-      if (i == OWM_NUM_ALERTS - 1) break;
+      if (i == OWM_NUM_ALERTS - 1)
+        break;
       ++i;
     }
   }
@@ -451,7 +465,8 @@ ProviderResult OWMProvider::deserializeAlerts(Stream &json, std::vector<weather_
     new_alert.end = alert["end"].as<int64_t>();
     new_alert.tags = alert["tags"][0].as<const char *>();
     alerts.push_back(new_alert);
-    if (i == OWM_NUM_ALERTS - 1) break;
+    if (i == OWM_NUM_ALERTS - 1)
+      break;
     ++i;
   }
   return mapDeserializationError(error);

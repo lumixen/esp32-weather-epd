@@ -1,5 +1,6 @@
 /* Provider-agnostic data models for esp32-weather-epd.
  * Copyright (C) 2022-2025  Luke Marzen
+ * Copyright (C) 2026  Max Bodaniuk
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,32 +41,32 @@ struct sensor_readings {
  */
 enum class weather_condition {
   UNKNOWN,
-  CLEAR,            // WMO 0, OWM 800
-  PARTLY_CLOUDY,    // WMO 1, OWM 801
-  CLOUDY,           // WMO 2, OWM 802, 803
-  OVERCAST,         // WMO 3, OWM 804
-  FOG,              // WMO 45, 48, OWM 741
-  DRIZZLE,          // WMO 51, 53, 55, OWM 300-321
-  FREEZING_DRIZZLE, // WMO 56, 57
-  RAIN,             // WMO 61, 63, 65, OWM 500-504
-  FREEZING_RAIN,    // WMO 66, 67, OWM 511
-  RAIN_SHOWERS,     // WMO 80-82, OWM 520-531
-  SNOW,             // WMO 71-75, OWM 600-602
-  SNOW_GRAINS,      // WMO 77
-  SNOW_SHOWERS,     // WMO 85, 86
-  SLEET,            // OWM 611-613
-  RAIN_SNOW_MIX,    // OWM 615-622
-  THUNDERSTORM,     // WMO 95, OWM 200-221
+  CLEAR,              // WMO 0, OWM 800
+  PARTLY_CLOUDY,      // WMO 1, OWM 801
+  CLOUDY,             // WMO 2, OWM 802, 803
+  OVERCAST,           // WMO 3, OWM 804
+  FOG,                // WMO 45, 48, OWM 741
+  DRIZZLE,            // WMO 51, 53, 55, OWM 300-321
+  FREEZING_DRIZZLE,   // WMO 56, 57
+  RAIN,               // WMO 61, 63, 65, OWM 500-504
+  FREEZING_RAIN,      // WMO 66, 67, OWM 511
+  RAIN_SHOWERS,       // WMO 80-82, OWM 520-531
+  SNOW,               // WMO 71-75, OWM 600-602
+  SNOW_GRAINS,        // WMO 77
+  SNOW_SHOWERS,       // WMO 85, 86
+  SLEET,              // OWM 611-613
+  RAIN_SNOW_MIX,      // OWM 615-622
+  THUNDERSTORM,       // WMO 95, OWM 200-221
   THUNDERSTORM_HAIL,  // WMO 96, 99, OWM 230-232
-  MIST,             // OWM 701
-  SMOKE,            // OWM 711
-  HAZE,             // OWM 721
-  SAND_WHIRLS,      // OWM 731
-  SAND,             // OWM 751
-  DUST,             // OWM 761
-  ASH,              // OWM 762
-  SQUALL,           // OWM 771
-  TORNADO           // OWM 781
+  MIST,               // OWM 701
+  SMOKE,              // OWM 711
+  HAZE,               // OWM 721
+  SAND_WHIRLS,        // OWM 731
+  SAND,               // OWM 751
+  DUST,               // OWM 761
+  ASH,                // OWM 762
+  SQUALL,             // OWM 771
+  TORNADO             // OWM 781
 };
 
 /*
@@ -103,8 +104,8 @@ typedef struct current {
   float
       dew_point;  // Atmospheric temperature (varying according to pressure and humidity) below which water droplets
                   // begin to condense and dew can form. Units – default: kelvin, metric: Celsius, imperial: Fahrenheit.
-  int clouds;        // Cloudiness, %
-  float uvi;         // Current UV index
+  int clouds;     // Cloudiness, %
+  float uvi;      // Current UV index
   int visibility;    // Average visibility, metres. The maximum value of the visibility is 10km
   float wind_speed;  // Wind speed. Wind speed. Units – default: metre/sec, metric: metre/sec, imperial: miles/hour.
   float wind_gust;  // (where available) Wind gust. Units – default: metre/sec, metric: metre/sec, imperial: miles/hour.
@@ -129,8 +130,8 @@ typedef struct hourly {
   float
       dew_point;  // Atmospheric temperature (varying according to pressure and humidity) below which water droplets
                   // begin to condense and dew can form. Units – default: kelvin, metric: Celsius, imperial: Fahrenheit.
-  int clouds;        // Cloudiness, %
-  float uvi;         // Current UV index
+  int clouds;     // Cloudiness, %
+  float uvi;      // Current UV index
   int visibility;    // Average visibility, metres. The maximum value of the visibility is 10km
   float wind_speed;  // Wind speed. Wind speed. Units – default: metre/sec, metric: metre/sec, imperial: miles/hour.
   float wind_gust;  // (where available) Wind gust. Units – default: metre/sec, metric: metre/sec, imperial: miles/hour.
@@ -146,17 +147,17 @@ typedef struct hourly {
  * Daily forecast weather data
  */
 typedef struct daily {
-  int64_t dt;        // Time of the forecasted data, unix, UTC
-  int64_t sunrise;   // Sunrise time, Unix, UTC
-  int64_t sunset;    // Sunset time, Unix, UTC
+  int64_t dt;       // Time of the forecasted data, unix, UTC
+  int64_t sunrise;  // Sunrise time, Unix, UTC
+  int64_t sunset;   // Sunset time, Unix, UTC
   temperature_t temp;
   int pressure;  // Atmospheric pressure on the sea level, hPa
   int humidity;  // Humidity, %
   float
       dew_point;  // Atmospheric temperature (varying according to pressure and humidity) below which water droplets
                   // begin to condense and dew can form. Units – default: kelvin, metric: Celsius, imperial: Fahrenheit.
-  int clouds;        // Cloudiness, %
-  float uvi;         // Current UV index
+  int clouds;     // Cloudiness, %
+  float uvi;      // Current UV index
   int visibility;    // Average visibility, metres. The maximum value of the visibility is 10km
   float wind_speed;  // Wind speed. Wind speed. Units – default: metre/sec, metric: metre/sec, imperial: miles/hour.
   float wind_gust;  // (where available) Wind gust. Units – default: metre/sec, metric: metre/sec, imperial: miles/hour.

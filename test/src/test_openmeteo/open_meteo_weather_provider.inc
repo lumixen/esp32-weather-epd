@@ -5,6 +5,8 @@
  * verbatim excerpt of the live Open-Meteo forecast API response for Lima,
  * Peru, captured on 2026-08-18 (negative lat/lon, UTC-5 timezone).
  *
+ * Copyright (C) 2026  Max Bodaniuk
+ *
  * GPL-3.0, see LICENSE.
  */
 

@@ -3,6 +3,8 @@
  * All feature modules are registered in one Unity session so PlatformIO can
  * build and boot this configuration only once.
  *
+ * Copyright (C) 2026  Max Bodaniuk
+ *
  * GPL-3.0, see LICENSE.
  */
 

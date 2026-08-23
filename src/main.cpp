@@ -1,5 +1,6 @@
 /* Main program for esp32-weather-epd.
  * Copyright (C) 2022-2025  Luke Marzen
+ * Copyright (C) 2026  Max Bodaniuk
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -327,9 +328,8 @@ void setup() {
                        batteryPercent, wifiRSSI);
   }
 
-
   unsigned long apiRequestsStartTime = millis();
-// MAKE API REQUESTS — parallel with bounded pool (max 2 concurrent), alerts first
+  // MAKE API REQUESTS — parallel with bounded pool (max 2 concurrent), alerts first
   auto fetchBundle = createFetchBundle(environment_data, air_pollution, alerts);
   auto results = executeParallel(fetchBundle.ops);
   for (size_t i = 0; i < fetchBundle.ops.size(); ++i) {

@@ -1,5 +1,6 @@
 /* Locale data declarations for esp32-weather-epd.
  * Copyright (C) 2022-2024  Luke Marzen
+ * Copyright (C) 2026  Max Bodaniuk
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -130,7 +131,7 @@ extern const char *TXT_UNKNOWN;
 // All Lowercase
 extern const char *TXT_NOT_FOUND;
 extern const char *TXT_READ_FAILED;
-// Complete 
+// Complete
 extern const char *TXT_FAILED_TO_GET_TIME;
 extern const char *TXT_HIBERNATING_INDEFINITELY_NOTICE;
 extern const char *TXT_REFERENCING_OLDER_TIME_NOTICE;
@@ -284,4 +285,3 @@ extern const char *TXT_WL_CONNECTED;
 extern const char *TXT_WL_CONNECT_FAILED;
 extern const char *TXT_WL_CONNECTION_LOST;
 extern const char *TXT_WL_DISCONNECTED;
-

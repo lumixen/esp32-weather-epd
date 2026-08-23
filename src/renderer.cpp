@@ -1,5 +1,6 @@
 /* Renderer for esp32-weather-epd.
  * Copyright (C) 2022-2025  Luke Marzen
+ * Copyright (C) 2026  Max Bodaniuk
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -786,8 +787,8 @@ void drawCurrentVisibility(const current_t &current) {
   /* This function is responsible for drawing the current conditions and
    * associated icons.
    */
-  void drawCurrentConditions(const current_t &current, const air_quality_t &air_quality, std::optional<float> inPressure,
-                             const moon_state_t &moon) {
+  void drawCurrentConditions(const current_t &current, const air_quality_t &air_quality,
+                             std::optional<float> inPressure, const moon_state_t &moon) {
     String dataStr, unitStr;
     // current weather icon
     display.drawInvertedBitmap(0, 0, getCurrentConditionsBitmap196(current, moon), 196, 196, GxEPD_BLACK);
@@ -1231,9 +1232,10 @@ void drawCurrentVisibility(const current_t &current) {
       dataStr = String(tempVal);
 #if defined(UNITS_TEMP_CELSIUS) || defined(UNITS_TEMP_FAHRENHEIT)
       dataStr += "\260";
-      uint16_t tempColor = tempVal < COLORS_OUTLOOK_LOW_THRESHOLD_TEMPERATURE   ? COLORS_OUTLOOK_TEMPERATURE_LOW_COLOR
-                         : tempVal > COLORS_OUTLOOK_HIGH_THRESHOLD_TEMPERATURE  ? COLORS_OUTLOOK_TEMPERATURE_HIGH_COLOR
-                                                                                : COLORS_OUTLOOK_TEMPERATURE_NORMAL_COLOR;
+      uint16_t tempColor = tempVal < COLORS_OUTLOOK_LOW_THRESHOLD_TEMPERATURE ? COLORS_OUTLOOK_TEMPERATURE_LOW_COLOR
+                           : tempVal > COLORS_OUTLOOK_HIGH_THRESHOLD_TEMPERATURE
+                               ? COLORS_OUTLOOK_TEMPERATURE_HIGH_COLOR
+                               : COLORS_OUTLOOK_TEMPERATURE_NORMAL_COLOR;
 #else
     uint16_t tempColor = GxEPD_BLACK;
 #endif
@@ -1306,12 +1308,14 @@ void drawCurrentVisibility(const current_t &current) {
 
         // determine colors
         auto tempToColor = [](float t) -> uint16_t {
-          if (t < COLORS_OUTLOOK_LOW_THRESHOLD_TEMPERATURE)  return COLORS_OUTLOOK_TEMPERATURE_LOW_COLOR;
-          if (t > COLORS_OUTLOOK_HIGH_THRESHOLD_TEMPERATURE) return COLORS_OUTLOOK_TEMPERATURE_HIGH_COLOR;
+          if (t < COLORS_OUTLOOK_LOW_THRESHOLD_TEMPERATURE)
+            return COLORS_OUTLOOK_TEMPERATURE_LOW_COLOR;
+          if (t > COLORS_OUTLOOK_HIGH_THRESHOLD_TEMPERATURE)
+            return COLORS_OUTLOOK_TEMPERATURE_HIGH_COLOR;
           return COLORS_OUTLOOK_TEMPERATURE_NORMAL_COLOR;
         };
         uint16_t previousColor = tempToColor(hourly[i - 1].temp);
-        uint16_t currentColor  = tempToColor(hourly[i].temp);
+        uint16_t currentColor = tempToColor(hourly[i].temp);
 
         if (previousColor == currentColor) {
           // No crossing, draw single line
@@ -1324,9 +1328,10 @@ void drawCurrentVisibility(const current_t &current) {
           float t0 = hourly[i - 1].temp;
           float t1 = hourly[i].temp;
           // Determine which threshold was crossed.
-          float crossedThreshold = (t0 < COLORS_OUTLOOK_LOW_THRESHOLD_TEMPERATURE || t1 < COLORS_OUTLOOK_LOW_THRESHOLD_TEMPERATURE)
-                                       ? COLORS_OUTLOOK_LOW_THRESHOLD_TEMPERATURE
-                                       : COLORS_OUTLOOK_HIGH_THRESHOLD_TEMPERATURE;
+          float crossedThreshold =
+              (t0 < COLORS_OUTLOOK_LOW_THRESHOLD_TEMPERATURE || t1 < COLORS_OUTLOOK_LOW_THRESHOLD_TEMPERATURE)
+                  ? COLORS_OUTLOOK_LOW_THRESHOLD_TEMPERATURE
+                  : COLORS_OUTLOOK_HIGH_THRESHOLD_TEMPERATURE;
           float ratio = (crossedThreshold - t0) / (t1 - t0);  // ratio of distance from t0 to threshold
 
           int x_cross = x0_t + (x1_t - x0_t) * ratio;

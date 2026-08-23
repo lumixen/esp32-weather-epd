@@ -1,5 +1,5 @@
 /* FetchExecutor — bounded FreeRTOS pool for provider fetches.
- * Copyright (C) 2026  Lumixen
+ * Copyright (C) 2026  Max Bodaniuk
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

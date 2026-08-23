@@ -1,3 +1,20 @@
+/* Moon rise, set, and phase helpers for esp32-weather-epd.
+ * Copyright (C) 2026  Max Bodaniuk
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #include "config.h"
 #include "logger.h"
 #include "moon_tools.h"
@@ -15,9 +32,7 @@ static constexpr time_t HALF_LUNAR_DAY = 45000;  // 12h30m
 static constexpr time_t LUNAR_DAY = 89400;       // 24h50m
 static constexpr int MAX_SEARCH_STEPS = 16;      // ~16 days: longest polar stretches
 
-moon_state_t getMoonState(float latitude, float longitude) {
-  return getMoonState(latitude, longitude, time(nullptr));
-}
+moon_state_t getMoonState(float latitude, float longitude) { return getMoonState(latitude, longitude, time(nullptr)); }
 
 moon_state_t getMoonState(float latitude, float longitude, time_t now) {
   MoonRise mr;
