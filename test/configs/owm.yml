@@ -13,7 +13,7 @@ weatherAPI:
   provider: OpenWeatherMap
   transport: HTTP
 airQualityAPI:
-  provider: Open-Meteo
+  provider: OpenWeatherMap
   transport: HTTP
 alertsAPI:
   provider: MeteoAlarm
