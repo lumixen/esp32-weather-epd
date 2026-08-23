@@ -147,7 +147,6 @@ wifi:
   #   subnet: XXX.XXX.XXX.XXX
   #   dns1: XXX.XXX.XXX.XXX
 owmApikey:
-owmOnecallVersion: ""
 latitude: "64"
 longitude: "-22"
 city: ESPLand

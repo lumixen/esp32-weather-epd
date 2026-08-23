@@ -88,8 +88,7 @@ wifi:
   #   dns1: 8.8.8.8
   #   dns2: 8.8.4.4
 
-# OpenWeatherMap API key and API version (only used with the OWM provider).
-owmOnecallVersion: '3.0'
+# OpenWeatherMap API key (only used with the OWM provider).
 # owmApikey: your-owm-api-key
 
 # Location (per device).

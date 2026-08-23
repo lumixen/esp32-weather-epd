@@ -46,7 +46,6 @@ logLevel: debug
 wifi:
   ssid: your-ssid
   password: your-password
-owmOnecallVersion: '3.0'
 owmApikey: test
 latitude: '50.498878'
 longitude: '30.497396'
