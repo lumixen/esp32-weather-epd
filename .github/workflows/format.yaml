@@ -11,7 +11,8 @@ permissions:
 
 jobs:
   clang-format:
-    runs-on: ubuntu-latest
+    # Keep the Ubuntu package source and clang-format-18 availability stable.
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Check out repository
