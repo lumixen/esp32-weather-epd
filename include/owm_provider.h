@@ -33,9 +33,15 @@ class OWMProvider : public WeatherProvider, public AlertProvider {
 
   static weather_condition mapWeatherCode(int id);
 
- private:
+  /* Map an OWM One Call response into the generic forecast model. Public for
+   * offline fixture-based unit testing. */
   static ProviderResult deserializeOneCall(Stream &json, forecast_t &forecast, std::vector<weather_alert_t> *alerts);
+
+  /* Map the alerts portion of an OWM One Call response into the generic
+   * alert model. Public for offline fixture-based unit testing. */
   static ProviderResult deserializeAlerts(Stream &json, std::vector<weather_alert_t> &alerts);
+
+ private:
   ProviderResult fetchInternal(forecast_t *forecast, std::vector<weather_alert_t> *alertsOut);
 
   std::vector<weather_alert_t> alerts_;

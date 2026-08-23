@@ -304,7 +304,17 @@ weather_condition OWMProvider::mapWeatherCode(int id) {
 ProviderResult OWMProvider::deserializeOneCall(Stream &json, forecast_t &forecast,
                                                std::vector<weather_alert_t> *alerts) {
   int i;
+  // The destination is long-lived in the application. Clear it before every
+  // parse so omitted fields cannot retain values from an earlier response.
+  forecast.reset();
+  if (alerts != nullptr)
+    alerts->clear();
+
   JsonDocument filter;
+  filter["lat"] = true;
+  filter["lon"] = true;
+  filter["timezone"] = true;
+  filter["timezone_offset"] = true;
   filter["current"] = true;
   filter["minutely"] = false;
   filter["hourly"] = true;
@@ -436,6 +446,8 @@ ProviderResult OWMProvider::deserializeOneCall(Stream &json, forecast_t &forecas
 }
 
 ProviderResult OWMProvider::deserializeAlerts(Stream &json, std::vector<weather_alert_t> &alerts) {
+  alerts.clear();
+
   JsonDocument filter;
   for (int i = 0; i < OWM_NUM_ALERTS; ++i) {
     filter["alerts"][i]["sender_name"] = false;
