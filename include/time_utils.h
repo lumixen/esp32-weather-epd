@@ -1,3 +1,20 @@
+/* Time and RTC utility declarations for esp32-weather-epd.
+ * Copyright (C) 2026  Max Bodaniuk
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #pragma once
 
 #include <Arduino.h>
@@ -24,10 +41,10 @@ bool configureTime(tm *timeInfo);
 namespace rtc_drift {
 
 // Drift-learning constants.
-constexpr double RTC_DRIFT_MIN_FACTOR = 0.90;       // clamp of the learned factor
+constexpr double RTC_DRIFT_MIN_FACTOR = 0.90;  // clamp of the learned factor
 constexpr double RTC_DRIFT_MAX_FACTOR = 1.10;
-constexpr double RTC_DRIFT_LEARN_ALPHA = 0.25;      // EMA smoothing of new samples
-constexpr double RTC_DRIFT_MAX_RATE_ERROR = 0.10;   // reject outlier samples (> 10%)
+constexpr double RTC_DRIFT_LEARN_ALPHA = 0.25;     // EMA smoothing of new samples
+constexpr double RTC_DRIFT_MAX_RATE_ERROR = 0.10;  // reject outlier samples (> 10%)
 constexpr uint64_t RTC_DRIFT_MIN_LEARN_INTERVAL_US = 45ULL * 60ULL * 1000000ULL;
 constexpr double RTC_DRIFT_MAX_SHIFT_RATIO = 0.10;  // clamp of the post-wake shift
 
@@ -59,11 +76,11 @@ inline uint64_t scaleSleepUs(uint64_t us, double k) {
   if (k <= 0.0 || k == 1.0 || us == 0) {
     return us;
   }
-  double scaled = (double)us / k + 0.5;
+  double scaled = (double) us / k + 0.5;
   if (scaled < 0.0) {
     return 0;
   }
-  return (uint64_t)scaled;
+  return (uint64_t) scaled;
 }
 
 // Clock adjustment (us) to apply after waking from a deep sleep that lasted
@@ -74,14 +91,14 @@ inline int64_t wakeShiftUs(uint64_t claimedUs, double k) {
   if (k <= 0.0 || k == 1.0 || claimedUs == 0) {
     return 0;
   }
-  double shift = (double)claimedUs * (k - 1.0);
-  const double bound = (double)claimedUs * RTC_DRIFT_MAX_SHIFT_RATIO;
+  double shift = (double) claimedUs * (k - 1.0);
+  const double bound = (double) claimedUs * RTC_DRIFT_MAX_SHIFT_RATIO;
   if (shift > bound) {
     shift = bound;
   } else if (shift < -bound) {
     shift = -bound;
   }
-  return (int64_t)shift;
+  return (int64_t) shift;
 }
 
 }  // namespace rtc_drift

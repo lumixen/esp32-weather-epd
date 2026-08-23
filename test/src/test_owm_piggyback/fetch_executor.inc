@@ -1,5 +1,5 @@
 /* Tests for parallel fetch pool — bounded concurrency, alerts-first, shouldAbort.
- * Copyright (C) 2026  Lumixen
+ * Copyright (C) 2026  Max Bodaniuk
  *
  * GPL-3.0, see LICENSE.
  */

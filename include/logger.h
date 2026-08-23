@@ -1,4 +1,21 @@
 /* Leveled logging helpers for esp32-weather-epd.
+ * Copyright (C) 2026  Max Bodaniuk
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/* Leveled logging helpers for esp32-weather-epd.
  */
 #pragma once
 
@@ -45,44 +62,44 @@ inline void log_output(LogLevel level, const char *file, int line, const char *f
   }
 }
 
-#define LOG_TRACE(...)                                                                             \
-  do {                                                                                             \
-    if (LogLevel::TRACE >= g_logLevel) {                                                           \
-      log_output(LogLevel::TRACE, LOG_FILENAME, __LINE__, __VA_ARGS__);                            \
-    }                                                                                              \
+#define LOG_TRACE(...) \
+  do { \
+    if (LogLevel::TRACE >= g_logLevel) { \
+      log_output(LogLevel::TRACE, LOG_FILENAME, __LINE__, __VA_ARGS__); \
+    } \
   } while (0)
 
-#define LOG_DEBUG(...)                                                                             \
-  do {                                                                                             \
-    if (LogLevel::DEBUG >= g_logLevel) {                                                           \
-      log_output(LogLevel::DEBUG, LOG_FILENAME, __LINE__, __VA_ARGS__);                            \
-    }                                                                                              \
+#define LOG_DEBUG(...) \
+  do { \
+    if (LogLevel::DEBUG >= g_logLevel) { \
+      log_output(LogLevel::DEBUG, LOG_FILENAME, __LINE__, __VA_ARGS__); \
+    } \
   } while (0)
 
-#define LOG_INFO(...)                                                                              \
-  do {                                                                                             \
-    if (LogLevel::INFO >= g_logLevel) {                                                            \
-      log_output(LogLevel::INFO, LOG_FILENAME, __LINE__, __VA_ARGS__);                             \
-    }                                                                                              \
+#define LOG_INFO(...) \
+  do { \
+    if (LogLevel::INFO >= g_logLevel) { \
+      log_output(LogLevel::INFO, LOG_FILENAME, __LINE__, __VA_ARGS__); \
+    } \
   } while (0)
 
-#define LOG_WARNING(...)                                                                           \
-  do {                                                                                             \
-    if (LogLevel::WARNING >= g_logLevel) {                                                         \
-      log_output(LogLevel::WARNING, LOG_FILENAME, __LINE__, __VA_ARGS__);                          \
-    }                                                                                              \
+#define LOG_WARNING(...) \
+  do { \
+    if (LogLevel::WARNING >= g_logLevel) { \
+      log_output(LogLevel::WARNING, LOG_FILENAME, __LINE__, __VA_ARGS__); \
+    } \
   } while (0)
 
-#define LOG_ERROR(...)                                                                             \
-  do {                                                                                             \
-    if (LogLevel::ERROR >= g_logLevel) {                                                           \
-      log_output(LogLevel::ERROR, LOG_FILENAME, __LINE__, __VA_ARGS__);                            \
-    }                                                                                              \
+#define LOG_ERROR(...) \
+  do { \
+    if (LogLevel::ERROR >= g_logLevel) { \
+      log_output(LogLevel::ERROR, LOG_FILENAME, __LINE__, __VA_ARGS__); \
+    } \
   } while (0)
 
-#define LOG_CRITICAL(...)                                                                          \
-  do {                                                                                             \
-    if (LogLevel::CRITICAL >= g_logLevel) {                                                        \
-      log_output(LogLevel::CRITICAL, LOG_FILENAME, __LINE__, __VA_ARGS__);                         \
-    }                                                                                              \
+#define LOG_CRITICAL(...) \
+  do { \
+    if (LogLevel::CRITICAL >= g_logLevel) { \
+      log_output(LogLevel::CRITICAL, LOG_FILENAME, __LINE__, __VA_ARGS__); \
+    } \
   } while (0)

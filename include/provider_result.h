@@ -8,6 +8,8 @@
  * TXT_DESERIALIZATION_ERROR_*) plus an optional diagnostic suffix. The
  * numeric HTTP/WiFi status stays private to the fetch layer for logging.
  *
+ * Copyright (C) 2026  Max Bodaniuk
+ *
  * GPL-3.0, see LICENSE.
  */
 #pragma once

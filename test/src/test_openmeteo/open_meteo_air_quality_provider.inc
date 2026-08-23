@@ -9,6 +9,8 @@
  * Open-Meteo air quality API response for Lima, Peru, captured on 2026-08-19
  * (negative lat/lon, ammonia values null in the API response).
  *
+ * Copyright (C) 2026  Max Bodaniuk
+ *
  * GPL-3.0, see LICENSE.
  */
 

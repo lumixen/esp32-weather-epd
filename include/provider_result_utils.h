@@ -3,6 +3,8 @@
  * maps 1:1 to its localized phrase, so every provider produces identical
  * wording for the same parse failure.
  *
+ * Copyright (C) 2026  Max Bodaniuk
+ *
  * GPL-3.0, see LICENSE.
  */
 #pragma once

@@ -1,5 +1,5 @@
 /* Provider fetch adapters — wrap concrete providers into generic FetchOperation.
- * Copyright (C) 2026  Lumixen
+ * Copyright (C) 2026  Max Bodaniuk
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,6 +56,8 @@ class AlertFetchOperation : public FetchOperation {
 /* Build fetch operations in alerts-first order so alerts goes first into the
  * bounded pool (max 2 concurrent). Caller owns providers; operations borrow them.
  */
-std::vector<std::unique_ptr<FetchOperation>> createFetchOperations(
-    WeatherProvider *weatherProvider, AirQualityProvider *airQualityProvider, AlertProvider *alertProvider,
-    forecast_t &forecast, air_quality_t &airQuality, std::vector<weather_alert_t> &alerts);
+std::vector<std::unique_ptr<FetchOperation>> createFetchOperations(WeatherProvider *weatherProvider,
+                                                                   AirQualityProvider *airQualityProvider,
+                                                                   AlertProvider *alertProvider, forecast_t &forecast,
+                                                                   air_quality_t &airQuality,
+                                                                   std::vector<weather_alert_t> &alerts);

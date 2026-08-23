@@ -5,6 +5,8 @@
  * history endpoint; synthetic responses cover bounds, missing values, and
  * parser failures. Tests never access the network.
  *
+ * Copyright (C) 2026  Max Bodaniuk
+ *
  * GPL-3.0, see LICENSE.
  */
 

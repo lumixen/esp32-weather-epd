@@ -1,5 +1,7 @@
 /* Unit tests for the RTC slow-clock drift auto-correction (time_utils.cpp).
  *
+ * Copyright (C) 2026  Max Bodaniuk
+ *
  * GPL-3.0, see LICENSE.
  */
 

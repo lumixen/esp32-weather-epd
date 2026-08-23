@@ -1,5 +1,5 @@
 /* Unified OWM One Call provider — single class for weather+alerts.
- * Copyright (C) 2026  Lumixen
+ * Copyright (C) 2026  Max Bodaniuk
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,8 +34,7 @@ class OWMProvider : public WeatherProvider, public AlertProvider {
   static weather_condition mapWeatherCode(int id);
 
  private:
-  static ProviderResult deserializeOneCall(Stream &json, forecast_t &forecast,
-                                           std::vector<weather_alert_t> *alerts);
+  static ProviderResult deserializeOneCall(Stream &json, forecast_t &forecast, std::vector<weather_alert_t> *alerts);
   static ProviderResult deserializeAlerts(Stream &json, std::vector<weather_alert_t> &alerts);
   ProviderResult fetchInternal(forecast_t *forecast, std::vector<weather_alert_t> *alertsOut);
 

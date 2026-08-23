@@ -1,5 +1,6 @@
 /* German locale data for esp32-weather-epd.
  * Copyright (C) 2022-2024  Luke Marzen
+ * Copyright (C) 2026  Max Bodaniuk
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,37 +40,34 @@
 //   LC_TIME category.
 //   https://www.gnu.org/software/libc/sources.html
 // D_T_FMT                 string for formatting date and time
-const char *LC_D_T_FMT     = "%a %d %b %Y %T %Z";
+const char *LC_D_T_FMT = "%a %d %b %Y %T %Z";
 // LC_D_FMT                date format string
-const char *LC_D_FMT       = "%d.%m.%y";
+const char *LC_D_FMT = "%d.%m.%y";
 // T_FMT                   time format string
-const char *LC_T_FMT       = "%T";
+const char *LC_T_FMT = "%T";
 // T_FMT_AMPM              a.m. or p.m. time format string
-const char *LC_T_FMT_AMPM  = "";
+const char *LC_T_FMT_AMPM = "";
 // AM_STR                  Ante Meridian affix
-const char *LC_AM_STR      = "";
+const char *LC_AM_STR = "";
 // PM_STR                  Post Meridian affix
-const char *LC_PM_STR      = "";
+const char *LC_PM_STR = "";
 // DAY_{1-7}               name of the n-th day of the week
-const char *LC_DAY[7]      = {"Sonntag", "Montag", "Dienstag", "Mittwoch",
-                              "Donnerstag", "Freitag", "Samstag"};
+const char *LC_DAY[7] = {"Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"};
 // ABDAY_{1-7}             abbreviated name of the n-th day of the week
-const char *LC_ABDAY[7]    = {"So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"};
+const char *LC_ABDAY[7] = {"So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"};
 // MON_{1-12}              name of the n-th month of the year
-const char *LC_MON[12]     = { "Januar",    "Februar",  "M\344rz",  "April",
-                               "Mai",       "Juni",     "Juli",     "August",
-                               "September", "Oktober",  "November", "Dezember"};
+const char *LC_MON[12] = {"Januar", "Februar", "M\344rz",   "April",   "Mai",      "Juni",
+                          "Juli",   "August",  "September", "Oktober", "November", "Dezember"};
 // ABMON_{1-12}            abbreviated name of the n-th month of the year
-const char *LC_ABMON[12]   = {"Jan", "Feb", "M\344r", "Apr", "Mai", "Jun",
-                              "Jul", "Aug", "Sep",    "Okt", "Nov", "Dez"};
+const char *LC_ABMON[12] = {"Jan", "Feb", "M\344r", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"};
 // ERA                     era description segments
-const char *LC_ERA         = "";
+const char *LC_ERA = "";
 // ERA_D_FMT               era date format string
-const char *LC_ERA_D_FMT   = "";
+const char *LC_ERA_D_FMT = "";
 // ERA_D_T_FMT             era date and time format string
 const char *LC_ERA_D_T_FMT = "";
 // ERA_T_FMT               era time format string
-const char *LC_ERA_T_FMT   = "";
+const char *LC_ERA_T_FMT = "";
 
 // OWM LANGUAGE
 // For full list of languages, see
@@ -78,75 +76,75 @@ const char *LC_ERA_T_FMT   = "";
 const String OWM_LANG = "de";
 
 // CURRENT CONDITIONS
-const char *TXT_FEELS_LIKE         = "Gef\374hlt";
-const char *TXT_SUNRISE            = "Aufgang";
-const char *TXT_SUNSET             = "Untergang";
-const char *TXT_MOONRISE           = "Mondaufgang";
-const char *TXT_MOONSET            = "Monduntergang";
-const char *TXT_WIND               = "Wind";
-const char *TXT_HUMIDITY           = "Feuchtigkeit";
-const char *TXT_UV_INDEX           = "UV Index";
-const char *TXT_PRESSURE           = "Druck";
-const char *TXT_AIR_QUALITY        = "Luftqualit\344t";
-const char *TXT_AIR_POLLUTION      = "Luftverschmutzung";
-const char *TXT_VISIBILITY         = "Sichtweite";
+const char *TXT_FEELS_LIKE = "Gef\374hlt";
+const char *TXT_SUNRISE = "Aufgang";
+const char *TXT_SUNSET = "Untergang";
+const char *TXT_MOONRISE = "Mondaufgang";
+const char *TXT_MOONSET = "Monduntergang";
+const char *TXT_WIND = "Wind";
+const char *TXT_HUMIDITY = "Feuchtigkeit";
+const char *TXT_UV_INDEX = "UV Index";
+const char *TXT_PRESSURE = "Druck";
+const char *TXT_AIR_QUALITY = "Luftqualit\344t";
+const char *TXT_AIR_POLLUTION = "Luftverschmutzung";
+const char *TXT_VISIBILITY = "Sichtweite";
 const char *TXT_INDOOR_TEMPERATURE = "Temperatur";
-const char *TXT_INDOOR_HUMIDITY    = "Feuchtigkeit";
-const char *TXT_INDOOR_PRESSURE    = "Druck";
-const char *TXT_DEWPOINT           = "Taupunkt";
+const char *TXT_INDOOR_HUMIDITY = "Feuchtigkeit";
+const char *TXT_INDOOR_PRESSURE = "Druck";
+const char *TXT_DEWPOINT = "Taupunkt";
 
 // MOON PHASE
-const char *TXT_MOONPHASE       = "Mondphase";
-const char *TXT_NEW_MOON        = "Neumond";
+const char *TXT_MOONPHASE = "Mondphase";
+const char *TXT_NEW_MOON = "Neumond";
 const char *TXT_WAXING_CRESCENT = "Zunehmende Sichel";
-const char *TXT_FIRST_QUARTER   = "Erstes Viertel";
-const char *TXT_WAXING_GIBBOUS  = "Zunehmender Gibbous";
-const char *TXT_FULL_MOON       = "Vollmond";
-const char *TXT_WANING_GIBBOUS  = "Abnehmender Gibbous";
-const char *TXT_THIRD_QUARTER   = "Letztes Viertel";
+const char *TXT_FIRST_QUARTER = "Erstes Viertel";
+const char *TXT_WAXING_GIBBOUS = "Zunehmender Gibbous";
+const char *TXT_FULL_MOON = "Vollmond";
+const char *TXT_WANING_GIBBOUS = "Abnehmender Gibbous";
+const char *TXT_THIRD_QUARTER = "Letztes Viertel";
 const char *TXT_WANING_CRESCENT = "Abnehmende Sichel";
 
 // UV INDEX
-const char *TXT_UV_LOW       = "Schwach";
-const char *TXT_UV_MODERATE  = "Mittel";
-const char *TXT_UV_HIGH      = "Hoch";
+const char *TXT_UV_LOW = "Schwach";
+const char *TXT_UV_MODERATE = "Mittel";
+const char *TXT_UV_HIGH = "Hoch";
 const char *TXT_UV_VERY_HIGH = "Sehr hoch";
-const char *TXT_UV_EXTREME   = "Extrem";
+const char *TXT_UV_EXTREME = "Extrem";
 
 // WIFI
-const char *TXT_WIFI_EXCELLENT     = "Hervorragend";
-const char *TXT_WIFI_GOOD          = "Gut";
-const char *TXT_WIFI_FAIR          = "Ausreichend";
-const char *TXT_WIFI_WEAK          = "Schwach";
+const char *TXT_WIFI_EXCELLENT = "Hervorragend";
+const char *TXT_WIFI_GOOD = "Gut";
+const char *TXT_WIFI_FAIR = "Ausreichend";
+const char *TXT_WIFI_WEAK = "Schwach";
 const char *TXT_WIFI_NO_CONNECTION = "Keine Verbindung";
 
 // UNIT SYMBOLS - TEMPERATURE
-const char *TXT_UNITS_TEMP_KELVIN     = "K";
-const char *TXT_UNITS_TEMP_CELSIUS    = "\260C";
+const char *TXT_UNITS_TEMP_KELVIN = "K";
+const char *TXT_UNITS_TEMP_CELSIUS = "\260C";
 const char *TXT_UNITS_TEMP_FAHRENHEIT = "\260F";
 // UNIT SYMBOLS - WIND SPEED
-const char *TXT_UNITS_SPEED_METERSPERSECOND   = "m/s";
-const char *TXT_UNITS_SPEED_FEETPERSECOND     = "ft/s";
+const char *TXT_UNITS_SPEED_METERSPERSECOND = "m/s";
+const char *TXT_UNITS_SPEED_FEETPERSECOND = "ft/s";
 const char *TXT_UNITS_SPEED_KILOMETERSPERHOUR = "km/h";
-const char *TXT_UNITS_SPEED_MILESPERHOUR      = "mph";
-const char *TXT_UNITS_SPEED_KNOTS             = "kt";
-const char *TXT_UNITS_SPEED_BEAUFORT          = "";
+const char *TXT_UNITS_SPEED_MILESPERHOUR = "mph";
+const char *TXT_UNITS_SPEED_KNOTS = "kt";
+const char *TXT_UNITS_SPEED_BEAUFORT = "";
 // UNIT SYMBOLS - PRESSURE
-const char *TXT_UNITS_PRES_HECTOPASCALS             = "hPa";
-const char *TXT_UNITS_PRES_PASCALS                  = "Pa";
-const char *TXT_UNITS_PRES_MILLIMETERSOFMERCURY     = "mmHg";
-const char *TXT_UNITS_PRES_INCHESOFMERCURY          = "inHg";
-const char *TXT_UNITS_PRES_MILLIBARS                = "mbar";
-const char *TXT_UNITS_PRES_ATMOSPHERES              = "atm";
+const char *TXT_UNITS_PRES_HECTOPASCALS = "hPa";
+const char *TXT_UNITS_PRES_PASCALS = "Pa";
+const char *TXT_UNITS_PRES_MILLIMETERSOFMERCURY = "mmHg";
+const char *TXT_UNITS_PRES_INCHESOFMERCURY = "inHg";
+const char *TXT_UNITS_PRES_MILLIBARS = "mbar";
+const char *TXT_UNITS_PRES_ATMOSPHERES = "atm";
 const char *TXT_UNITS_PRES_GRAMSPERSQUARECENTIMETER = "g/cm\262";
-const char *TXT_UNITS_PRES_POUNDSPERSQUAREINCH      = "lb/in\262";
+const char *TXT_UNITS_PRES_POUNDSPERSQUAREINCH = "lb/in\262";
 // UNITS SYMBOLS - VISIBILITY DISTANCE
 const char *TXT_UNITS_DIST_KILOMETERS = "km";
-const char *TXT_UNITS_DIST_MILES      = "mi";
+const char *TXT_UNITS_DIST_MILES = "mi";
 // UNITS SYMBOLS - PRECIPITATION
 const char *TXT_UNITS_PRECIP_MILLIMETERS = "mm";
 const char *TXT_UNITS_PRECIP_CENTIMETERS = "cm";
-const char *TXT_UNITS_PRECIP_INCHES      = "in";
+const char *TXT_UNITS_PRECIP_INCHES = "in";
 
 // MISCELLANEOUS MESSAGES
 // Title Case
@@ -162,7 +160,7 @@ const char *TXT_CONNECTING_TO = "Connecting to";
 const char *TXT_COULD_NOT_CONNECT_TO = "Could not connect to";
 const char *TXT_ENTERING_DEEP_SLEEP_FOR = "Entering deep sleep for";
 const char *TXT_READING_FROM = "Reading from";
-const char *TXT_FAILED  = "Failed";
+const char *TXT_FAILED = "Failed";
 const char *TXT_SUCCESS = "Success";
 const char *TXT_UNKNOWN = "Unknown";
 // All Lowercase
@@ -197,64 +195,42 @@ const char *TXT_CRIT_LOW_BATTERY_VOLTAGE = "Critically low battery voltage!";
 //
 // Here are a few examples, uncomment the array for your region (or create your
 // own).
-// const std::vector<String> ALERT_URGENCY = {"outlook", "statement", "watch", "advisory", "warning", "emergency"}; // US National Weather Service
-// const std::vector<String> ALERT_URGENCY = {"yellow", "amber", "red"};                 // United Kingdom's national weather service (MET Office)
-const std::vector<String> ALERT_URGENCY = {"minor", "moderate", "severe", "extreme"}; // METEO
-// const std::vector<String> ALERT_URGENCY = {}; // Disable urgency interpretation (algorithm will fallback to only prefer the most recently issued alerts)
+// const std::vector<String> ALERT_URGENCY = {"outlook", "statement", "watch", "advisory", "warning", "emergency"}; //
+// US National Weather Service const std::vector<String> ALERT_URGENCY = {"yellow", "amber", "red"};                 //
+// United Kingdom's national weather service (MET Office)
+const std::vector<String> ALERT_URGENCY = {"minor", "moderate", "severe", "extreme"};  // METEO
+// const std::vector<String> ALERT_URGENCY = {}; // Disable urgency interpretation (algorithm will fallback to only
+// prefer the most recently issued alerts)
 
 // ALERT TERMINOLOGY
 // Weather terminology associated with each alert icon
-const std::vector<String> TERM_SMOG =
-    {"smog"};
-const std::vector<String> TERM_SMOKE =
-    {"smoke"};
-const std::vector<String> TERM_FOG =
-    {"fog", "haar"};
-const std::vector<String> TERM_METEOR =
-    {"meteor", "asteroid"};
-const std::vector<String> TERM_NUCLEAR =
-    {"nuclear", "ionizing radiation"};
-const std::vector<String> TERM_BIOHAZARD =
-    {"biohazard", "biological hazard"};
-const std::vector<String> TERM_EARTHQUAKE =
-    {"earthquake"};
-const std::vector<String> TERM_FIRE =
-    {"fire", "red flag"};
-const std::vector<String> TERM_HEAT =
-    {"heat"};
-const std::vector<String> TERM_WINTER =
-    {"blizzard", "winter", "ice", "icy", "snow", "sleet", "cold",
-     "freezing rain", "wind chill", "freeze", "frost", "hail"};
-const std::vector<String> TERM_TSUNAMI =
-    {"tsunami", "surf"};
-const std::vector<String> TERM_LIGHTNING =
-    {"thunderstorm", "storm cell", "pulse storm", "squall line", "supercell",
-     "lightning"};
-const std::vector<String> TERM_SANDSTORM =
-    {"sandstorm", "blowing dust", "dust storm"};
-const std::vector<String> TERM_FLOOD =
-    {"flood", "storm surge", "seiche", "swell", "high seas", "high tides",
-     "tidal surge", "hydrologic"};
-const std::vector<String> TERM_VOLCANO =
-    {"volcanic", "ash", "volcano", "eruption"};
-const std::vector<String> TERM_AIR_QUALITY =
-    {"air", "stagnation", "pollution"};
-const std::vector<String> TERM_TORNADO =
-    {"tornado"};
-const std::vector<String> TERM_SMALL_CRAFT_ADVISORY =
-    {"small craft", "wind advisory"};
-const std::vector<String> TERM_GALE_WARNING =
-    {"gale"};
-const std::vector<String> TERM_STORM_WARNING =
-    {"storm warning"};
-const std::vector<String> TERM_HURRICANE_WARNING =
-    {"hurricane force wind", "extreme wind", "high wind"};
-const std::vector<String> TERM_HURRICANE =
-    {"hurricane", "tropical storm", "typhoon", "cyclone"};
-const std::vector<String> TERM_DUST =
-    {"dust", "sand"};
-const std::vector<String> TERM_STRONG_WIND =
-    {"squall", "wind", "monsoon"};
+const std::vector<String> TERM_SMOG = {"smog"};
+const std::vector<String> TERM_SMOKE = {"smoke"};
+const std::vector<String> TERM_FOG = {"fog", "haar"};
+const std::vector<String> TERM_METEOR = {"meteor", "asteroid"};
+const std::vector<String> TERM_NUCLEAR = {"nuclear", "ionizing radiation"};
+const std::vector<String> TERM_BIOHAZARD = {"biohazard", "biological hazard"};
+const std::vector<String> TERM_EARTHQUAKE = {"earthquake"};
+const std::vector<String> TERM_FIRE = {"fire", "red flag"};
+const std::vector<String> TERM_HEAT = {"heat"};
+const std::vector<String> TERM_WINTER = {"blizzard", "winter",        "ice",        "icy",    "snow",  "sleet",
+                                         "cold",     "freezing rain", "wind chill", "freeze", "frost", "hail"};
+const std::vector<String> TERM_TSUNAMI = {"tsunami", "surf"};
+const std::vector<String> TERM_LIGHTNING = {"thunderstorm", "storm cell", "pulse storm",
+                                            "squall line",  "supercell",  "lightning"};
+const std::vector<String> TERM_SANDSTORM = {"sandstorm", "blowing dust", "dust storm"};
+const std::vector<String> TERM_FLOOD = {"flood",     "storm surge", "seiche",      "swell",
+                                        "high seas", "high tides",  "tidal surge", "hydrologic"};
+const std::vector<String> TERM_VOLCANO = {"volcanic", "ash", "volcano", "eruption"};
+const std::vector<String> TERM_AIR_QUALITY = {"air", "stagnation", "pollution"};
+const std::vector<String> TERM_TORNADO = {"tornado"};
+const std::vector<String> TERM_SMALL_CRAFT_ADVISORY = {"small craft", "wind advisory"};
+const std::vector<String> TERM_GALE_WARNING = {"gale"};
+const std::vector<String> TERM_STORM_WARNING = {"storm warning"};
+const std::vector<String> TERM_HURRICANE_WARNING = {"hurricane force wind", "extreme wind", "high wind"};
+const std::vector<String> TERM_HURRICANE = {"hurricane", "tropical storm", "typhoon", "cyclone"};
+const std::vector<String> TERM_DUST = {"dust", "sand"};
+const std::vector<String> TERM_STRONG_WIND = {"squall", "wind", "monsoon"};
 
 // AIR QUALITY INDEX
 extern "C" {
@@ -269,113 +245,99 @@ extern "C" {
 //   UNITED_STATES_AQI
 const aqi_scale_t AQI_SCALE = EUROPEAN_UNION_CAQI;
 
-const char *AUSTRALIA_AQI_TXT[6] =
-{
-  "Very Good",
-  "Good",
-  "Fair",
-  "Poor",
-  "Very Poor",
-  "Hazardous",
+const char *AUSTRALIA_AQI_TXT[6] = {
+    "Very Good", "Good", "Fair", "Poor", "Very Poor", "Hazardous",
 };
-const char *CANADA_AQHI_TXT[4] =
-{
-  "Low",
-  "Moderate",
-  "High",
-  "Very High",
+const char *CANADA_AQHI_TXT[4] = {
+    "Low",
+    "Moderate",
+    "High",
+    "Very High",
 };
-const char *EUROPEAN_UNION_CAQI_TXT[5] =
-{
-  "Sehr niedrig",
-  "Niedrig",
-  "Mittel",
-  "Hoch",
-  "Sehr Hoch",
+const char *EUROPEAN_UNION_CAQI_TXT[5] = {
+    "Sehr niedrig", "Niedrig", "Mittel", "Hoch", "Sehr Hoch",
 };
-const char *HONG_KONG_AQHI_TXT[5] =
-{
-  "Low",
-  "Moderate",
-  "High",
-  "Very High",
-  "Hazardous",
+const char *HONG_KONG_AQHI_TXT[5] = {
+    "Low", "Moderate", "High", "Very High", "Hazardous",
 };
-const char *INDIA_AQI_TXT[6] =
-{
-  "Good",
-  "Satisfactory",
-  "Moderate",
-  "Poor",
-  "Very Poor",
-  "Severe",
+const char *INDIA_AQI_TXT[6] = {
+    "Good", "Satisfactory", "Moderate", "Poor", "Very Poor", "Severe",
 };
-const char *CHINA_AQI_TXT[6] =
-{
-  "Excellent",
-  "Good",
-  "Lightly Polluted",
-  "Moderately Polluted",
-  "Heavily Polluted",
-  "Severely Polluted",
+const char *CHINA_AQI_TXT[6] = {
+    "Excellent", "Good", "Lightly Polluted", "Moderately Polluted", "Heavily Polluted", "Severely Polluted",
 };
-const char *SINGAPORE_PSI_TXT[5] =
-{
-  "Good",
-  "Moderate",
-  "Unhealthy",
-  "Very Unhealthy",
-  "Hazardous",
+const char *SINGAPORE_PSI_TXT[5] = {
+    "Good", "Moderate", "Unhealthy", "Very Unhealthy", "Hazardous",
 };
-const char *SOUTH_KOREA_CAI_TXT[4] =
-{
-  "Good",
-  "Medium",
-  "Unhealthy",
-  "Very Unhealthy",
+const char *SOUTH_KOREA_CAI_TXT[4] = {
+    "Good",
+    "Medium",
+    "Unhealthy",
+    "Very Unhealthy",
 };
-const char *UNITED_KINGDOM_DAQI_TXT[4] =
-{
-  "Low",
-  "Moderate",
-  "High",
-  "Very High",
+const char *UNITED_KINGDOM_DAQI_TXT[4] = {
+    "Low",
+    "Moderate",
+    "High",
+    "Very High",
 };
-const char *UNITED_STATES_AQI_TXT[6] =
-{
-  "Good",
-  "Moderate",
-  "Unhealthy for Sensitive Groups",
-  "Unhealthy",
-  "Very Unhealthy",
-  "Hazardous",
+const char *UNITED_STATES_AQI_TXT[6] = {
+    "Good", "Moderate", "Unhealthy for Sensitive Groups", "Unhealthy", "Very Unhealthy", "Hazardous",
 };
-} // end extern "C"
+}  // end extern "C"
 
 // COMPASS POINT
 const char *COMPASS_POINT_NOTATION[32] = {
-//   0°   11.25°   22.5°   33.75°   45°   56.25°   67.5°   78.75°
-   "N",  "NzO",  "NNO",   "NOzN",  "NO", "NOzO",  "ONO",  "OzN",
-//  90°  101.25°  112.5°  123.75°  135°  146.25°  157.5°  168.75°
-   "O",  "OzS",   "OSO",  "SOzO",  "SO", "SOzS",  "SSO",  "SzO",
-// 180°  191.25°  202.5°  213.75°  225°  236.25°  247.5°  258.75°
-   "S",  "SzW",   "SSW",  "SWzS",  "SW", "SWzW",  "WSW",  "WzS",
-// 270°  281.25°  292.5°  303.75°  315°  326.25°  337.5°  348.75°
-   "W",  "WzN",   "WNW",  "NWzW",  "NW", "NWzN",  "NNW",  "NzW",
+    //   0°   11.25°   22.5°   33.75°   45°   56.25°   67.5°   78.75°
+    "N",
+    "NzO",
+    "NNO",
+    "NOzN",
+    "NO",
+    "NOzO",
+    "ONO",
+    "OzN",
+    //  90°  101.25°  112.5°  123.75°  135°  146.25°  157.5°  168.75°
+    "O",
+    "OzS",
+    "OSO",
+    "SOzO",
+    "SO",
+    "SOzS",
+    "SSO",
+    "SzO",
+    // 180°  191.25°  202.5°  213.75°  225°  236.25°  247.5°  258.75°
+    "S",
+    "SzW",
+    "SSW",
+    "SWzS",
+    "SW",
+    "SWzW",
+    "WSW",
+    "WzS",
+    // 270°  281.25°  292.5°  303.75°  315°  326.25°  337.5°  348.75°
+    "W",
+    "WzN",
+    "WNW",
+    "NWzW",
+    "NW",
+    "NWzN",
+    "NNW",
+    "NzW",
 };
 
 // HTTP CLIENT ERRORS
-const char *TXT_HTTPC_ERROR_CONNECTION_REFUSED   = "Connection Refused";
-const char *TXT_HTTPC_ERROR_SEND_HEADER_FAILED   = "Send Header Failed";
-const char *TXT_HTTPC_ERROR_SEND_PAYLOAD_FAILED  = "Send Payload Failed";
-const char *TXT_HTTPC_ERROR_NOT_CONNECTED        = "Not Connected";
-const char *TXT_HTTPC_ERROR_CONNECTION_LOST      = "Connection Lost";
-const char *TXT_HTTPC_ERROR_NO_STREAM            = "No Stream";
-const char *TXT_HTTPC_ERROR_NO_HTTP_SERVER       = "No HTTP Server";
-const char *TXT_HTTPC_ERROR_TOO_LESS_RAM         = "Too Less Ram";
-const char *TXT_HTTPC_ERROR_ENCODING             = "Transfer-Encoding Not Supported";
-const char *TXT_HTTPC_ERROR_STREAM_WRITE         = "Stream Write Error";
-const char *TXT_HTTPC_ERROR_READ_TIMEOUT         = "Read Timeout";
+const char *TXT_HTTPC_ERROR_CONNECTION_REFUSED = "Connection Refused";
+const char *TXT_HTTPC_ERROR_SEND_HEADER_FAILED = "Send Header Failed";
+const char *TXT_HTTPC_ERROR_SEND_PAYLOAD_FAILED = "Send Payload Failed";
+const char *TXT_HTTPC_ERROR_NOT_CONNECTED = "Not Connected";
+const char *TXT_HTTPC_ERROR_CONNECTION_LOST = "Connection Lost";
+const char *TXT_HTTPC_ERROR_NO_STREAM = "No Stream";
+const char *TXT_HTTPC_ERROR_NO_HTTP_SERVER = "No HTTP Server";
+const char *TXT_HTTPC_ERROR_TOO_LESS_RAM = "Too Less Ram";
+const char *TXT_HTTPC_ERROR_ENCODING = "Transfer-Encoding Not Supported";
+const char *TXT_HTTPC_ERROR_STREAM_WRITE = "Stream Write Error";
+const char *TXT_HTTPC_ERROR_READ_TIMEOUT = "Read Timeout";
 
 // HTTP RESPONSE STATUS CODES
 // 1xx - Informational Responses
@@ -447,19 +409,19 @@ const char *TXT_HTTP_RESPONSE_510 = "Not Extended";
 const char *TXT_HTTP_RESPONSE_511 = "Network Authentication Required";
 
 // DESERIALIZATION ERROR MESSAGES (used in provider failure details)
-const char *TXT_DESERIALIZATION_ERROR_OK               = "Deserialization OK";
-const char *TXT_DESERIALIZATION_ERROR_EMPTY_INPUT      = "Deserialization Empty Input";
+const char *TXT_DESERIALIZATION_ERROR_OK = "Deserialization OK";
+const char *TXT_DESERIALIZATION_ERROR_EMPTY_INPUT = "Deserialization Empty Input";
 const char *TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT = "Deserialization Incomplete Input";
-const char *TXT_DESERIALIZATION_ERROR_INVALID_INPUT    = "Deserialization Invalid Input";
-const char *TXT_DESERIALIZATION_ERROR_NO_MEMORY        = "Deserialization No Memory";
-const char *TXT_DESERIALIZATION_ERROR_TOO_DEEP         = "Deserialization Too Deep";
+const char *TXT_DESERIALIZATION_ERROR_INVALID_INPUT = "Deserialization Invalid Input";
+const char *TXT_DESERIALIZATION_ERROR_NO_MEMORY = "Deserialization No Memory";
+const char *TXT_DESERIALIZATION_ERROR_TOO_DEEP = "Deserialization Too Deep";
 
 // WIFI STATUS
-const char *TXT_WL_NO_SHIELD       = "No Shield";
-const char *TXT_WL_IDLE_STATUS     = "Idle";
-const char *TXT_WL_NO_SSID_AVAIL   = "No SSID Available";
-const char *TXT_WL_SCAN_COMPLETED  = "Scan Complete";
-const char *TXT_WL_CONNECTED       = "Connected";
-const char *TXT_WL_CONNECT_FAILED  = "Connection Failed";
+const char *TXT_WL_NO_SHIELD = "No Shield";
+const char *TXT_WL_IDLE_STATUS = "Idle";
+const char *TXT_WL_NO_SSID_AVAIL = "No SSID Available";
+const char *TXT_WL_SCAN_COMPLETED = "Scan Complete";
+const char *TXT_WL_CONNECTED = "Connected";
+const char *TXT_WL_CONNECT_FAILED = "Connection Failed";
 const char *TXT_WL_CONNECTION_LOST = "Connection Lost";
-const char *TXT_WL_DISCONNECTED    = "Disconnected";
+const char *TXT_WL_DISCONNECTED = "Disconnected";
