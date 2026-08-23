@@ -153,7 +153,6 @@ TYPED_TYPES = {
     "WIFI_STATIC_IP_DNS2": STRING,
     # owm
     "OWM_APIKEY": "String",
-    "OWM_ONECALL_VERSION": "String",
     # alerts
     "METEOALARM_COUNTRY": "String",
     # location
@@ -409,7 +408,6 @@ def generate(config_path, header_path, write_header=True):
     # OpenWeatherMap configuration
     header_lines.append("// OpenWeatherMap configuration")
     emit_typed(header_lines, "OWM_APIKEY", config.owmApikey)
-    emit_typed(header_lines, "OWM_ONECALL_VERSION", config.owmOnecallVersion)
 
     # location configuration
     header_lines.append("// location configuration")

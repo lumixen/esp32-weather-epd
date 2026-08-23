@@ -57,7 +57,7 @@ ProviderResult OWMProvider::fetchInternal(forecast_t *forecast, std::vector<weat
     client.setCACert(cert_USERTrust_RSA_Certification_Authority);
     const uint16_t port = 443;
 #endif
-    String uri = "/data/" + OWM_ONECALL_VERSION + "/onecall?lat=" + LAT + "&lon=" + LON + "&lang=" + OWM_LANG +
+    String uri = "/data/3.0/onecall?lat=" + LAT + "&lon=" + LON + "&lang=" + OWM_LANG +
                  "&units=metric&exclude=current,minutely,hourly,daily";
     String sanitizedUri = OWM_ENDPOINT + uri + "&appid={API key}";
     uri += "&appid=" + OWM_APIKEY;
@@ -93,8 +93,7 @@ ProviderResult OWMProvider::fetchInternal(forecast_t *forecast, std::vector<weat
   const uint16_t port = 443;
 #endif
 
-  String uri = "/data/" + OWM_ONECALL_VERSION + "/onecall?lat=" + LAT + "&lon=" + LON + "&lang=" + OWM_LANG +
-               "&units=metric&exclude=minutely";
+  String uri = "/data/3.0/onecall?lat=" + LAT + "&lon=" + LON + "&lang=" + OWM_LANG + "&units=metric&exclude=minutely";
 #if !defined(ALERTS_API_PROVIDER_OPEN_WEATHER_MAP)
   uri += ",alerts";
 #endif

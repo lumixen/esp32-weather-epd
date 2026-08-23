@@ -567,7 +567,6 @@ class ConfigSchema(BaseModel):
     pin: PinsConfig = Field(default_factory=PinsConfig)
     wifi: Wifi = Field(default_factory=Wifi)
     owmApikey: str | None = None
-    owmOnecallVersion: str = "3.0"
     latitude: str
     longitude: str
     city: str
