@@ -31,6 +31,7 @@ jobs:
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           BEFORE_SHA: ${{ github.event.before }}
@@ -42,6 +43,8 @@ jobs:
           trap 'rm -f "$diff_file" "$eligible_file"' EXIT
 
           if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            git fetch --no-tags origin "refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF"
+            git cat-file -e "$BASE_SHA^{commit}"
             git diff --name-only --diff-filter=ACMR -z "$BASE_SHA...$HEAD_SHA" > "$diff_file"
           elif [[ "$BEFORE_SHA" == "0000000000000000000000000000000000000000" ]]; then
             empty_tree=$(git hash-object -t tree /dev/null)
