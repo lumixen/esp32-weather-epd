@@ -1,0 +1,84 @@
+name: Format
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  clang-format:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y clang-format-18
+          clang-format-18 --version
+
+      - name: Check formatting of changed C++ files
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          diff_file=$(mktemp)
+          eligible_file=$(mktemp)
+          trap 'rm -f "$diff_file" "$eligible_file"' EXIT
+
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            git diff --name-only --diff-filter=ACMR -z "$BASE_SHA...$HEAD_SHA" > "$diff_file"
+          elif [[ "$BEFORE_SHA" == "0000000000000000000000000000000000000000" ]]; then
+            empty_tree=$(git hash-object -t tree /dev/null)
+            git diff --name-only --diff-filter=ACMR -z "$empty_tree" "$HEAD_SHA" > "$diff_file"
+          else
+            git diff --name-only --diff-filter=ACMR -z "$BEFORE_SHA" "$HEAD_SHA" > "$diff_file"
+          fi
+
+          while IFS= read -r -d '' file; do
+            case "$file" in
+              src/*|include/*|test/src/*)
+                case "$file" in
+                  include/cert.h|test/src/*feed*.inc|test/src/*real.inc)
+                    continue
+                    ;;
+                  *.c|*.cc|*.cpp|*.cxx|*.h|*.hh|*.hpp|*.hxx|*.inc)
+                    printf '%s\0' "$file" >> "$eligible_file"
+                    ;;
+                esac
+                ;;
+            esac
+          done < "$diff_file"
+
+          if [[ ! -s "$eligible_file" ]]; then
+            echo "No eligible changed C++ files found; clang-format check passed."
+            exit 0
+          fi
+
+          failed=0
+          while IFS= read -r -d '' file; do
+            echo "::group::Checking $file"
+            if ! clang-format-18 --style=file --dry-run --Werror "$file"; then
+              failed=1
+            fi
+            echo "::endgroup::"
+          done < "$eligible_file"
+
+          if (( failed != 0 )); then
+            echo "clang-format found formatting differences in one or more changed files."
+            exit "$failed"
+          fi
