@@ -14,6 +14,7 @@
 
 #include "display_utils.inc"
 #include "moon_tools.inc"
+#include "sun_tools.inc"
 #include "meteoalarm.inc"
 #include "open_meteo_air_quality_provider.inc"
 #include "open_meteo_weather_provider.inc"
@@ -30,6 +31,7 @@ void setup() {
   display_utils_tests::registerTests();
   rtc_drift_correction_tests::registerTests();
   moon_tools_tests::registerTests();
+  sun_tools_tests::registerTests();
   open_meteo_weather_tests::registerTests();
   open_meteo_air_quality_tests::registerTests();
   meteoalarm_tests::registerTests();

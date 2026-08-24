@@ -188,16 +188,6 @@ class WeatherHandler : public JsonHandler {
       forecast_.daily[idx].temp.max = static_cast<float>(value);
     } else if (keyIs(field, "temperature_2m_min")) {
       forecast_.daily[idx].temp.min = static_cast<float>(value);
-    } else if (keyIs(field, "sunrise")) {
-      if (idx == 0) {
-        forecast_.current.sunrise = static_cast<int64_t>(value);
-      }
-      forecast_.daily[idx].sunrise = static_cast<int64_t>(value);
-    } else if (keyIs(field, "sunset")) {
-      if (idx == 0) {
-        forecast_.current.sunset = static_cast<int64_t>(value);
-      }
-      forecast_.daily[idx].sunset = static_cast<int64_t>(value);
     } else if (keyIs(field, "uv_index_max")) {
       if (idx == 0) {
         forecast_.current.uvi = static_cast<float>(value);
@@ -319,7 +309,7 @@ ProviderResult OpenMeteoForecastProvider::fetch(forecast_t &forecast) {
       "visibility,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day&" +
       "hourly=temperature_2m,cloud_cover,wind_speed_10m,wind_gusts_10m,precipitation_probability,rain,snowfall,weather_"
       "code,is_day&" +
-      "daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,rain_sum,snowfall_sum,"
+      "daily=weather_code,temperature_2m_max,temperature_2m_min,uv_index_max,rain_sum,snowfall_sum,"
       "precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max&" +
       "wind_speed_unit=ms&timezone=auto&timeformat=unixtime&forecast_days=5&forecast_hours=" + HOURLY_GRAPH_MAX;
 

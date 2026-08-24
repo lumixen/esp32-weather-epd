@@ -24,8 +24,6 @@ namespace open_meteo_weather_tests {
 
 // Frozen epochs of the Lima fixture (2026-08-18, America/Lima = UTC-5).
 static const int64_t kCurrentTime = 1787068800LL;  // 2026-08-18T12:00:00+00:00
-static const int64_t kSunrise = 1787051986LL;      // daily[0]
-static const int64_t kSunset = 1787094257LL;       // daily[0]
 
 void setUp(void) {}
 void tearDown(void) {}
@@ -115,8 +113,6 @@ static void test_lima_current(void) {
   TEST_ASSERT_TRUE(err.isOk());
 
   TEST_ASSERT_EQUAL_INT64(kCurrentTime, forecast.current.dt);
-  TEST_ASSERT_EQUAL_INT64(kSunrise, forecast.current.sunrise);
-  TEST_ASSERT_EQUAL_INT64(kSunset, forecast.current.sunset);
   TEST_ASSERT_EQUAL_FLOAT(21.5f, forecast.current.temp);
   TEST_ASSERT_EQUAL_FLOAT(20.6f, forecast.current.feels_like);
   TEST_ASSERT_EQUAL_INT(1001, forecast.current.pressure);  // 1001.7 hPa

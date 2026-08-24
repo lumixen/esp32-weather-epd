@@ -115,8 +115,6 @@ static void test_zaragoza_forecast_fixture(void) {
   TEST_ASSERT_EQUAL_INT(7200, forecast.timezone_offset);
 
   TEST_ASSERT_EQUAL_INT64(1787482013LL, forecast.current.dt);
-  TEST_ASSERT_EQUAL_INT64(1787462415LL, forecast.current.sunrise);
-  TEST_ASSERT_EQUAL_INT64(1787511159LL, forecast.current.sunset);
   TEST_ASSERT_EQUAL_FLOAT(28.74f, forecast.current.temp);
   TEST_ASSERT_EQUAL_FLOAT(29.11f, forecast.current.feels_like);
   TEST_ASSERT_EQUAL_INT(1016, forecast.current.pressure);
