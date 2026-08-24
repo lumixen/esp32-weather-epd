@@ -104,8 +104,8 @@ typedef struct current {
   float
       dew_point;  // Atmospheric temperature (varying according to pressure and humidity) below which water droplets
                   // begin to condense and dew can form. Units – default: kelvin, metric: Celsius, imperial: Fahrenheit.
-  int clouds;     // Cloudiness, %
-  float uvi;      // Current UV index
+  int clouds;        // Cloudiness, %
+  float uvi;         // Current UV index
   int visibility;    // Average visibility, metres. The maximum value of the visibility is 10km
   float wind_speed;  // Wind speed. Wind speed. Units – default: metre/sec, metric: metre/sec, imperial: miles/hour.
   float wind_gust;  // (where available) Wind gust. Units – default: metre/sec, metric: metre/sec, imperial: miles/hour.
@@ -130,8 +130,8 @@ typedef struct hourly {
   float
       dew_point;  // Atmospheric temperature (varying according to pressure and humidity) below which water droplets
                   // begin to condense and dew can form. Units – default: kelvin, metric: Celsius, imperial: Fahrenheit.
-  int clouds;     // Cloudiness, %
-  float uvi;      // Current UV index
+  int clouds;        // Cloudiness, %
+  float uvi;         // Current UV index
   int visibility;    // Average visibility, metres. The maximum value of the visibility is 10km
   float wind_speed;  // Wind speed. Wind speed. Units – default: metre/sec, metric: metre/sec, imperial: miles/hour.
   float wind_gust;  // (where available) Wind gust. Units – default: metre/sec, metric: metre/sec, imperial: miles/hour.
@@ -156,8 +156,8 @@ typedef struct daily {
   float
       dew_point;  // Atmospheric temperature (varying according to pressure and humidity) below which water droplets
                   // begin to condense and dew can form. Units – default: kelvin, metric: Celsius, imperial: Fahrenheit.
-  int clouds;     // Cloudiness, %
-  float uvi;      // Current UV index
+  int clouds;        // Cloudiness, %
+  float uvi;         // Current UV index
   int visibility;    // Average visibility, metres. The maximum value of the visibility is 10km
   float wind_speed;  // Wind speed. Wind speed. Units – default: metre/sec, metric: metre/sec, imperial: miles/hour.
   float wind_gust;  // (where available) Wind gust. Units – default: metre/sec, metric: metre/sec, imperial: miles/hour.
