@@ -37,8 +37,7 @@ SUMMARY_GRACE_S = 0
 # Unity on the device prints "<file>:<line>:<name>:PASS" (and :FAIL/:IGNORED);
 # PlatformIO adds [PASSED]/[FAILED]/[IGNORED] markers on top.
 RESULT_RE = re.compile(r"(\[PASSED\]|\[FAILED\]|\[IGNORED\]|:PASS\b|:FAIL\b|:IGNORED\b)")
-# Unity's summary line contains all three words, e.g. "12 Tests 0 Failures 0 Ignored".
-SUMMARY_WORDS = (b"Tests", b"Failures", b"Ignored")
+# Unity's summary line has this form, e.g. "12 Tests 0 Failures 0 Ignored".
 SUMMARY_RE = re.compile(rb"\d+ Tests \d+ Failures \d+ Ignored")
 
 
@@ -166,12 +165,13 @@ def main():
         sys.stdout.buffer.write(chunk)
         sys.stdout.buffer.flush()
         tail = (tail + chunk)[-256:]
+        summary_in_tail = SUMMARY_RE.search(tail) is not None
 
         if RESULT_RE.search(text):
             if not seen_result:
                 seen_result = True
             quiet_since = time.time()
-        if (summary_in_chunk or all(word in tail for word in SUMMARY_WORDS)) and summary_at is None:
+        if summary_in_tail and summary_at is None:
             summary_at = time.time()
         if summary_in_chunk:
             break
