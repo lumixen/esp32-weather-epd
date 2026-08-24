@@ -35,7 +35,8 @@ time_t localNoon(time_t now) {
   date.tm_min = 0;
   date.tm_sec = 0;
   date.tm_isdst = -1;
-  return mktime(&date);
+  const time_t result = mktime(&date);
+  return result == static_cast<time_t>(-1) ? 0 : result;
 }
 
 }  // namespace

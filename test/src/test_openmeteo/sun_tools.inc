@@ -21,7 +21,10 @@
 namespace sun_tools_tests {
 
 void setUp(void) {}
-void tearDown(void) {}
+void tearDown(void) {
+  unsetenv("TZ");
+  tzset();
+}
 
 static constexpr float kLondonLatitude = 51.5072f;
 static constexpr float kLondonLongitude = -0.1276f;

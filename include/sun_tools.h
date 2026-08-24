@@ -19,11 +19,10 @@
 
 #include <time.h>
 
-struct sun_state {
+typedef struct sun_state {
   time_t sunrise;
   time_t sunset;
-};
-using sun_state_t = sun_state;
+} sun_state_t;
 
 sun_state_t getSunState(float latitude, float longitude);
 sun_state_t getSunState(float latitude, float longitude, time_t now);
