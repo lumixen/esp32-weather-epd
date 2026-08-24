@@ -46,3 +46,14 @@ jobs:
         # Keep raw QEMU/firmware diagnostics visible when the native
         # PlatformIO test reader encounters a crash before Unity's summary.
         run: bash test/run_tests_docker.sh -v
+
+      - name: Upload QEMU diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qemu-diagnostics
+          if-no-files-found: warn
+          path: |
+            .pio/build/lolin_d32_qemu/qemu_output*.log
+            .pio/build/lolin_d32_qemu/firmware_openmeteo.elf
+            .pio/build/lolin_d32_qemu/firmware_owm.elf
