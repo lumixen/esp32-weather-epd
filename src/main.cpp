@@ -38,6 +38,7 @@
 #include "fetch_executor.h"
 #include "renderer.h"
 #include "moon_tools.h"
+#include "sun_tools.h"
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
 #include "home_assistant_mqtt_client.h"
 #endif
@@ -350,6 +351,7 @@ void setup() {
   long networkDuration = millis() - networkStartTime;
   LOG_INFO("Network operations took %ss", String(networkDuration / 1000.0, 3).c_str());
 
+  environment_data.sun = getSunState(LAT.toDouble(), LON.toDouble());
   environment_data.moon = getMoonState(LAT.toDouble(), LON.toDouble());
 
   String refreshTimeStr;

@@ -124,7 +124,8 @@ static void test_execute_parallel_propagates_results(void) {
 }
 
 static void test_create_fetch_operations_from_unified_providers(void) {
-  weather_report_t report;
+  static weather_report_t report{};
+  report = {};
   auto fetchBundle = createFetchBundle(report);
   TEST_ASSERT_EQUAL(2, fetchBundle.ops.size());
   TEST_ASSERT_TRUE(fetchBundle.ops[0]->shouldAbortOnFailure());

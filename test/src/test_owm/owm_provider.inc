@@ -27,7 +27,8 @@ void tearDown(void) {}
 static ProviderResult parseOneCall(const String &json, forecast_t &forecast,
                                    std::vector<weather_alert_t> *alerts = nullptr) {
   StringStream ss(json);
-  weather_report_t report;
+  static weather_report_t report{};
+  report = {};
   ProviderResult result = OWMProvider::deserializeOneCall(ss, report);
   forecast = report.forecast;
   if (alerts != nullptr) {
@@ -41,7 +42,8 @@ static ProviderResult parseOneCall(const String &json, forecast_t &forecast,
 
 static ProviderResult parseAlerts(const String &json, std::vector<weather_alert_t> &alerts) {
   StringStream ss(json);
-  weather_report_t report;
+  static weather_report_t report{};
+  report = {};
   ProviderResult result = OWMProvider::deserializeOneCall(ss, report);
   alerts.clear();
   if (report.alerts) {
@@ -115,8 +117,6 @@ static void test_zaragoza_forecast_fixture(void) {
   TEST_ASSERT_EQUAL_INT(7200, forecast.timezone_offset);
 
   TEST_ASSERT_EQUAL_INT64(1787482013LL, forecast.current.dt);
-  TEST_ASSERT_EQUAL_INT64(1787462415LL, forecast.current.sunrise);
-  TEST_ASSERT_EQUAL_INT64(1787511159LL, forecast.current.sunset);
   TEST_ASSERT_EQUAL_FLOAT(28.74f, forecast.current.temp);
   TEST_ASSERT_EQUAL_FLOAT(29.11f, forecast.current.feels_like);
   TEST_ASSERT_EQUAL_INT(1016, forecast.current.pressure);
@@ -166,7 +166,8 @@ static void test_zaragoza_forecast_fixture(void) {
 
 static void test_report_parser_engages_embedded_alerts(void) {
   StringStream ss(kOwmZaragozaReal);
-  weather_report_t report;
+  static weather_report_t report{};
+  report = {};
   ProviderResult result = OWMProvider::deserializeOneCall(ss, report);
   TEST_ASSERT_TRUE(result.isOk());
   TEST_ASSERT_TRUE(report.forecast.current.dt != 0);
@@ -255,7 +256,9 @@ static void test_empty_alerts_are_successful(void) {
   TEST_ASSERT_TRUE(alerts.empty());
 
   StringStream missing_alerts_stream(no_alerts_json);
-  weather_report_t missing_alerts_report;
+  // Keep the large report out of the test task's stack.
+  static weather_report_t missing_alerts_report{};
+  missing_alerts_report = {};
   result = OWMProvider::deserializeOneCall(missing_alerts_stream, missing_alerts_report);
   TEST_ASSERT_TRUE(result.isOk());
   TEST_ASSERT_TRUE(missing_alerts_report.alerts.has_value());

@@ -250,7 +250,7 @@ void powerOffDisplay() {
 
 // drawCurrentSunrise
 #ifdef POS_SUNRISE
-void drawCurrentSunrise(const current_t &current) {
+void drawCurrentSunrise(const sun_state_t &sun) {
   String dataStr, unitStr;
   int PosX = POS_SUNRISE % 2;
   int PosY = static_cast<int>(POS_SUNRISE / 2);
@@ -264,10 +264,14 @@ void drawCurrentSunrise(const current_t &current) {
   // sunrise
   display.setFont(&FONT_12pt8b);
   char timeBuffer[12] = {};  // big enough to accommodate "hh:mm:ss am"
-  time_t ts = current.sunrise;
-  tm *timeInfo = localtime(&ts);
-  _strftime(timeBuffer, sizeof(timeBuffer), TIME_FORMAT, timeInfo);
-  drawString(48 + (162 * PosX), 204 + 17 / 2 + (48 + 8) * PosY + 48 / 2, timeBuffer, LEFT);
+  time_t ts = sun.sunrise;
+  if (ts == 0) {
+    drawString(48 + (162 * PosX), 204 + 17 / 2 + (48 + 8) * PosY + 48 / 2, "--", LEFT);
+  } else {
+    tm *timeInfo = localtime(&ts);
+    _strftime(timeBuffer, sizeof(timeBuffer), TIME_FORMAT, timeInfo);
+    drawString(48 + (162 * PosX), 204 + 17 / 2 + (48 + 8) * PosY + 48 / 2, timeBuffer, LEFT);
+  }
 
   return;
 }
@@ -445,7 +449,7 @@ void drawCurrentAirQuality(const air_quality_t &air_quality) {
 
 // drawCurrentSunset
 #ifdef POS_SUNSET
-void drawCurrentSunset(const current_t &current) {
+void drawCurrentSunset(const sun_state_t &sun) {
   String dataStr, unitStr;
   int PosX = (POS_SUNSET % 2);
   int PosY = static_cast<int>(POS_SUNSET / 2);
@@ -459,10 +463,14 @@ void drawCurrentSunset(const current_t &current) {
   // sunset
   display.setFont(&FONT_12pt8b);
   char timeBuffer[12] = {};  // big enough to accommodate "hh:mm:ss am"
-  time_t ts = current.sunset;
-  tm *timeInfo = localtime(&ts);
-  _strftime(timeBuffer, sizeof(timeBuffer), TIME_FORMAT, timeInfo);
-  drawString(48 + (162 * PosX), 204 + 17 / 2 + (48 + 8) * PosY + 48 / 2, timeBuffer, LEFT);
+  time_t ts = sun.sunset;
+  if (ts == 0) {
+    drawString(48 + (162 * PosX), 204 + 17 / 2 + (48 + 8) * PosY + 48 / 2, "--", LEFT);
+  } else {
+    tm *timeInfo = localtime(&ts);
+    _strftime(timeBuffer, sizeof(timeBuffer), TIME_FORMAT, timeInfo);
+    drawString(48 + (162 * PosX), 204 + 17 / 2 + (48 + 8) * PosY + 48 / 2, timeBuffer, LEFT);
+  }
 
   return;
 }
@@ -843,11 +851,11 @@ void drawCurrentVisibility(const current_t &current) {
     // draw current data of the left panel
 
 #ifdef POS_SUNRISE
-    drawCurrentSunrise(current);
+    drawCurrentSunrise(report.sun);
 #endif
 
 #ifdef POS_SUNSET
-    drawCurrentSunset(current);
+    drawCurrentSunset(report.sun);
 #endif
 
 #ifdef POS_WIND

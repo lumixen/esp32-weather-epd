@@ -12,6 +12,7 @@
 #include <vector>
 #include "data_models.h"
 #include "moon_tools.h"
+#include "sun_tools.h"
 
 /* All data consumed by the weather renderer. Forecast data is mandatory;
  * optional groups are engaged only when a provider successfully supplies the
@@ -21,6 +22,7 @@ struct weather_report_t {
   std::optional<air_quality_t> air_quality;
   std::optional<std::vector<weather_alert_t>> alerts;
   sensor_readings sensor;
+  sun_state_t sun{};
   moon_state_t moon{};
 
   void resetForecast() { forecast.reset(); }

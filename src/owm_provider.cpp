@@ -205,8 +205,6 @@ ProviderResult OpenWeatherMapOneCallV3Provider::deserializeOneCall(Stream &json,
 
   JsonObject current = doc["current"];
   report.forecast.current.dt = current["dt"].as<int64_t>();
-  report.forecast.current.sunrise = current["sunrise"].as<int64_t>();
-  report.forecast.current.sunset = current["sunset"].as<int64_t>();
   report.forecast.current.temp = current["temp"].as<float>();
   report.forecast.current.feels_like = current["feels_like"].as<float>();
   report.forecast.current.pressure = current["pressure"].as<int>();
@@ -252,8 +250,6 @@ ProviderResult OpenWeatherMapOneCallV3Provider::deserializeOneCall(Stream &json,
   i = 0;
   for (JsonObject daily : doc["daily"].as<JsonArray>()) {
     report.forecast.daily[i].dt = daily["dt"].as<int64_t>();
-    report.forecast.daily[i].sunrise = daily["sunrise"].as<int64_t>();
-    report.forecast.daily[i].sunset = daily["sunset"].as<int64_t>();
     JsonObject daily_temp = daily["temp"];
     report.forecast.daily[i].temp.morn = daily_temp["morn"].as<float>();
     report.forecast.daily[i].temp.day = daily_temp["day"].as<float>();

@@ -95,8 +95,6 @@ typedef struct temperature {
  */
 typedef struct current {
   int64_t dt;        // Current time, Unix, UTC
-  int64_t sunrise;   // Sunrise time, Unix, UTC
-  int64_t sunset;    // Sunset time, Unix, UTC
   float temp;        // Temperature. Units - default: kelvin, metric: Celsius, imperial: Fahrenheit.
   float feels_like;  // Temperature. This temperature parameter accounts for the human perception of weather. Units –
                      // default: kelvin, metric: Celsius, imperial: Fahrenheit.
@@ -148,9 +146,7 @@ typedef struct hourly {
  * Daily forecast weather data
  */
 typedef struct daily {
-  int64_t dt;       // Time of the forecasted data, unix, UTC
-  int64_t sunrise;  // Sunrise time, Unix, UTC
-  int64_t sunset;   // Sunset time, Unix, UTC
+  int64_t dt;  // Time of the forecasted data, unix, UTC
   temperature_t temp;
   int pressure;  // Atmospheric pressure on the sea level, hPa
   int humidity;  // Humidity, %

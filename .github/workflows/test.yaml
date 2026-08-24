@@ -43,4 +43,6 @@ jobs:
       - name: Run unit tests (QEMU)
         env:
           PIO_HOST_DIR: ${{ github.workspace }}/.ci/pio
-        run: bash test/run_tests_docker.sh
+        # Keep raw QEMU/firmware diagnostics visible when the native
+        # PlatformIO test reader encounters a crash before Unity's summary.
+        run: bash test/run_tests_docker.sh -v
