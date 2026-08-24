@@ -28,7 +28,8 @@ static ProviderResult parseOneCall(const String &json, forecast_t &forecast,
                                    std::vector<weather_alert_t> *alerts = nullptr) {
   StringStream ss(json);
   static weather_report_t report{};
-  report = {};
+  report.resetForecast();
+  report.resetAlerts();
   ProviderResult result = OWMProvider::deserializeOneCall(ss, report);
   forecast = report.forecast;
   if (alerts != nullptr) {
@@ -43,7 +44,8 @@ static ProviderResult parseOneCall(const String &json, forecast_t &forecast,
 static ProviderResult parseAlerts(const String &json, std::vector<weather_alert_t> &alerts) {
   StringStream ss(json);
   static weather_report_t report{};
-  report = {};
+  report.resetForecast();
+  report.resetAlerts();
   ProviderResult result = OWMProvider::deserializeOneCall(ss, report);
   alerts.clear();
   if (report.alerts) {
@@ -167,7 +169,8 @@ static void test_zaragoza_forecast_fixture(void) {
 static void test_report_parser_engages_embedded_alerts(void) {
   StringStream ss(kOwmZaragozaReal);
   static weather_report_t report{};
-  report = {};
+  report.resetForecast();
+  report.resetAlerts();
   ProviderResult result = OWMProvider::deserializeOneCall(ss, report);
   TEST_ASSERT_TRUE(result.isOk());
   TEST_ASSERT_TRUE(report.forecast.current.dt != 0);
@@ -258,7 +261,8 @@ static void test_empty_alerts_are_successful(void) {
   StringStream missing_alerts_stream(no_alerts_json);
   // Keep the large report out of the test task's stack.
   static weather_report_t missing_alerts_report{};
-  missing_alerts_report = {};
+  missing_alerts_report.resetForecast();
+  missing_alerts_report.resetAlerts();
   result = OWMProvider::deserializeOneCall(missing_alerts_stream, missing_alerts_report);
   TEST_ASSERT_TRUE(result.isOk());
   TEST_ASSERT_TRUE(missing_alerts_report.alerts.has_value());

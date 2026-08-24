@@ -215,6 +215,18 @@ typedef struct forecast {
   daily_t daily[NUM_DAILY];
 
   /* Zero every field. Providers parse into long-lived instances, so a
-   * response that omits fields must never leave previous values behind. */
-  void reset() { *this = forecast{}; }
+   * response that omits fields must never leave previous values behind.
+   * Clear the aggregate members separately instead of assigning forecast{},
+   * which would create a large temporary on the caller's stack. */
+  void reset() {
+    lat = 0.0f;
+    lon = 0.0f;
+    timezone = String();
+    timezone_offset = 0;
+    current = {};
+    for (hourly_t &entry : hourly)
+      entry = {};
+    for (daily_t &entry : daily)
+      entry = {};
+  }
 } forecast_t;
