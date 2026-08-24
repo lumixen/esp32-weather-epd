@@ -26,18 +26,16 @@
 
 #include "_locale.h"
 #include "time_utils.h"
-#include "air_quality_provider.h"
-#include "alert_provider.h"
 #include "client_utils.h"
 #include "config.h"
 #include "data_models.h"
+#include "weather_report.h"
 #include "display_utils.h"
 #include "icons/icons_196x196.h"
 #include "logger.h"
 #include "provider_factory.h"
 #include "provider_result.h"
 #include "fetch_executor.h"
-#include "provider_fetch_operations.h"
 #include "renderer.h"
 #include "moon_tools.h"
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
@@ -51,9 +49,7 @@
 #endif
 
 // too large to allocate locally on stack
-static forecast_t environment_data;
-static air_quality_t air_pollution;
-static std::vector<weather_alert_t> alerts;
+static weather_report_t environment_data;
 
 Preferences prefs;
 
@@ -329,8 +325,8 @@ void setup() {
   }
 
   unsigned long apiRequestsStartTime = millis();
-  // MAKE API REQUESTS — parallel with bounded pool (max 2 concurrent), alerts first
-  auto fetchBundle = createFetchBundle(environment_data, air_pollution, alerts);
+  // MAKE API REQUESTS — parallel with bounded pool (max 2 concurrent)
+  auto fetchBundle = createFetchBundle(environment_data);
   auto results = executeParallel(fetchBundle.ops);
   for (size_t i = 0; i < fetchBundle.ops.size(); ++i) {
     if (!results[i].isOk() && fetchBundle.ops[i]->shouldAbortOnFailure()) {
@@ -339,7 +335,11 @@ void setup() {
       handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
                          wifiRSSI);
     }
-    // non-critical failures (alerts) already logged and cleared in provider
+    // Optional failures are logged and their provider operation has already
+    // disengaged its report group; rendering continues.
+    if (!results[i].isOk() && !fetchBundle.ops[i]->shouldAbortOnFailure()) {
+      LOG_WARNING("Optional provider operation %s failed: %s", fetchBundle.ops[i]->name(), results[i].detail().c_str());
+    }
   }
 // SEND MQTT STATUS (success case)
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
@@ -350,27 +350,27 @@ void setup() {
   long networkDuration = millis() - networkStartTime;
   LOG_INFO("Network operations took %ss", String(networkDuration / 1000.0, 3).c_str());
 
-  moon_state_t moon = getMoonState(LAT.toDouble(), LON.toDouble());
+  environment_data.moon = getMoonState(LAT.toDouble(), LON.toDouble());
 
   String refreshTimeStr;
   getRefreshTimeStr(refreshTimeStr, timeConfigured, &timeInfo);
   String dateStr;
   getDateStr(dateStr, &timeInfo);
 
-  sensor_readings sensorReadings = getSensorReadings();
+  environment_data.sensor = getSensorReadings();
 
   // RENDER FULL REFRESH
   initDisplay();
   do {
-    drawCurrentConditions(environment_data.current, air_pollution, sensorReadings.pressure, moon);
+    drawCurrentConditions(environment_data);
     LOG_INFO("Drawing current conditions");
-    drawOutlookGraph(environment_data.hourly, environment_data.daily, timeInfo, moon);
+    drawOutlookGraph(environment_data, timeInfo);
     LOG_INFO("Drawing outlook graph");
-    drawForecast(environment_data.daily, timeInfo);
+    drawForecast(environment_data, timeInfo);
     LOG_INFO("Drawing forecast");
     drawLocationDate(CITY_STRING, dateStr);
     LOG_INFO("Drawing location and date");
-    drawAlerts(alerts, CITY_STRING, dateStr);
+    drawAlerts(environment_data, CITY_STRING, dateStr);
     drawStatusBar(statusStr, refreshTimeStr, wifiRSSI, batteryVoltage);
   } while (display.nextPage());
   powerOffDisplay();

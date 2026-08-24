@@ -787,8 +787,10 @@ void drawCurrentVisibility(const current_t &current) {
   /* This function is responsible for drawing the current conditions and
    * associated icons.
    */
-  void drawCurrentConditions(const current_t &current, const air_quality_t &air_quality,
-                             std::optional<float> inPressure, const moon_state_t &moon) {
+  void drawCurrentConditions(const weather_report_t &report) {
+    const current_t &current = report.forecast.current;
+    const std::optional<float> &inPressure = report.sensor.pressure;
+    const moon_state_t &moon = report.moon;
     String dataStr, unitStr;
     // current weather icon
     display.drawInvertedBitmap(0, 0, getCurrentConditionsBitmap196(current, moon), 196, 196, GxEPD_BLACK);
@@ -869,7 +871,9 @@ void drawCurrentVisibility(const current_t &current) {
 #endif
 
 #ifdef POS_AIR_QUALITY
-    drawCurrentAirQuality(air_quality);
+    if (report.air_quality) {
+      drawCurrentAirQuality(*report.air_quality);
+    }
 #endif
 
 #ifdef POS_MOONRISE
@@ -896,7 +900,8 @@ void drawCurrentVisibility(const current_t &current) {
 
   /* This function is responsible for drawing the five day forecast.
    */
-  void drawForecast(const daily_t *daily, tm timeInfo) {
+  void drawForecast(const weather_report_t &report, tm timeInfo) {
+    const daily_t *daily = report.forecast.daily;
     // 5 day, forecast
     String hiStr, loStr;
     String dataStr, unitStr;
@@ -978,7 +983,12 @@ void drawCurrentVisibility(const current_t &current) {
   /* This function is responsible for drawing the current alerts if any.
    * Up to 2 alerts can be drawn.
    */
-  void drawAlerts(std::vector<weather_alert_t> & alerts, const String &city, const String &date) {
+  void drawAlerts(weather_report_t & report, const String &city, const String &date) {
+    if (!report.alerts) {
+      LOG_DEBUG("Alerts are unavailable");
+      return;
+    }
+    std::vector<weather_alert_t> &alerts = *report.alerts;
     LOG_DEBUG("Alerts size is %u", alerts.size());
     if (alerts.size() == 0) {  // no alerts to draw
       return;
@@ -1100,7 +1110,10 @@ void drawCurrentVisibility(const current_t &current) {
   /* This function is responsible for drawing the outlook graph for the specified
    * number of hours(up to 48).
    */
-  void drawOutlookGraph(const hourly_t *hourly, const daily_t *daily, tm timeInfo, const moon_state_t &moon) {
+  void drawOutlookGraph(const weather_report_t &report, tm timeInfo) {
+    const hourly_t *hourly = report.forecast.hourly;
+    const daily_t *daily = report.forecast.daily;
+    const moon_state_t &moon = report.moon;
     const int xPos0 = 350;
     int xPos1 = DISP_WIDTH;
     const int yPos0 = 216;

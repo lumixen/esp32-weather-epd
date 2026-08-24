@@ -54,6 +54,7 @@ if yaml is None:
 
 from pydantic import ValidationError
 from schema import ConfigSchema, Color
+from provider_capabilities import validate_capabilities
 from re import sub
 from datetime import datetime
 
@@ -151,8 +152,9 @@ TYPED_TYPES = {
     "WIFI_STATIC_IP_SUBNET": STRING,
     "WIFI_STATIC_IP_DNS1": STRING,
     "WIFI_STATIC_IP_DNS2": STRING,
-    # owm
-    "OWM_APIKEY": "String",
+    # provider-local credentials
+    "OPENWEATHERMAP_ONECALL_V3_API_KEY": "String",
+    "OPENWEATHERMAP_AIR_QUALITY_API_KEY": "String",
     # alerts
     "METEOALARM_COUNTRY": "String",
     # location
@@ -281,8 +283,13 @@ def generate(config_path, header_path, write_header=True):
         raise SystemExit(f"Invalid configuration in {config_path}: expected a YAML mapping, got {got}")
     try:
         config = ConfigSchema(**user_config)
-    except ValidationError as exc:
+        capability_owners = validate_capabilities(config)
+    except (ValidationError, ValueError) as exc:
         raise SystemExit(f"Invalid configuration in {config_path}:\n{exc}") from exc
+
+    print("Remote provider capabilities:")
+    for tag, owner in sorted(capability_owners.items()):
+        print(f"  {tag}: {owner}")
 
     # Generate header file
     header_lines = [
@@ -311,15 +318,29 @@ def generate(config_path, header_path, write_header=True):
     # LOCALE is a token-pasting target in locale.cpp (no quotes)
     emit_define(header_lines, "LOCALE", config.locale.value)
 
-    # weatherAPI configuration
-    header_lines.append("// weatherAPI configuration")
-    emit_define(header_lines, f"WEATHER_API_PROVIDER_{config.weatherAPI.provider.name}")
-    emit_define(header_lines, f"WEATHER_API_TRANSPORT_{config.weatherAPI.transport.name}")
-
-    # airQualityAPI configuration
-    header_lines.append("// airQualityAPI configuration")
-    emit_define(header_lines, f"AIR_QUALITY_API_PROVIDER_{config.airQualityAPI.provider.name}")
-    emit_define(header_lines, f"AIR_QUALITY_API_TRANSPORT_{config.airQualityAPI.transport.name}")
+    # remoteProviders configuration. These macros select the compiled
+    # provider implementations; ownership tags remain Python-only.
+    header_lines.append("// remote provider configuration")
+    for provider in config.remoteProviders:
+        provider_id = provider.provider
+        macro = "REMOTE_PROVIDER_" + upper_snake(provider_id)
+        emit_define(header_lines, macro)
+        if hasattr(provider, "transport"):
+            transport_prefix = {
+                "open_meteo_forecast": "OPEN_METEO_FORECAST",
+                "open_meteo_air_quality": "OPEN_METEO_AIR_QUALITY",
+                "openweathermap_onecall_v3": "OPENWEATHERMAP_ONECALL_V3",
+                "openweathermap_air_quality": "OPENWEATHERMAP_AIR_QUALITY",
+            }[provider_id]
+            emit_define(header_lines, transport_prefix + "_TRANSPORT_" + provider.transport.name)
+        if hasattr(provider, "apiKey"):
+            constant = {
+                "openweathermap_onecall_v3": "OPENWEATHERMAP_ONECALL_V3_API_KEY",
+                "openweathermap_air_quality": "OPENWEATHERMAP_AIR_QUALITY_API_KEY",
+            }[provider_id]
+            emit_typed(header_lines, constant, provider.apiKey)
+        if provider_id == "meteoalarm_alert":
+            emit_typed(header_lines, "METEOALARM_COUNTRY", provider.country.value)
 
     # ntp configuration
     header_lines.append("// ntp configuration")
@@ -356,19 +377,6 @@ def generate(config_path, header_path, write_header=True):
     emit_define(header_lines, f"DISPLAY_DAILY_PRECIP_{config.displayDailyPrecip.name}")
     emit_define(header_lines, "DISPLAY_HOURLY_ICONS", 1 if config.displayHourlyIcons else 0)
 
-    # alertsAPI configuration
-    header_lines.append("// alertsAPI configuration")
-    if config.alertsAPI.provider == "None":
-        emit_define(header_lines, "ALERTS_API_PROVIDER_NONE")
-    elif config.alertsAPI.provider == "OpenWeatherMap":
-        emit_define(header_lines, "ALERTS_API_PROVIDER_OPEN_WEATHER_MAP")
-        emit_define(header_lines, f"ALERTS_API_TRANSPORT_{config.alertsAPI.transport.name}")
-    else:  # MeteoAlarm
-        emit_define(header_lines, "ALERTS_API_PROVIDER_METEOALARM")
-        header_lines.append("#if defined(ALERTS_API_PROVIDER_METEOALARM)")
-        emit_typed(header_lines, "METEOALARM_COUNTRY", config.alertsAPI.country.value)
-        header_lines.append("#endif  // ALERTS_API_PROVIDER_METEOALARM")
-
     # status bar and debug configuration
     header_lines.append("// status bar configuration")
     emit_define(header_lines, "STATUS_BAR_EXTRAS_BAT_VOLTAGE", 1 if config.statusBarExtrasBatVoltage else 0)
@@ -404,10 +412,6 @@ def generate(config_path, header_path, write_header=True):
         emit_typed(header_lines, "WIFI_STATIC_IP_SUBNET", config.wifi.staticIp.subnet)
         emit_typed(header_lines, "WIFI_STATIC_IP_DNS1", config.wifi.staticIp.dns1)
         emit_typed(header_lines, "WIFI_STATIC_IP_DNS2", config.wifi.staticIp.dns2)
-
-    # OpenWeatherMap configuration
-    header_lines.append("// OpenWeatherMap configuration")
-    emit_typed(header_lines, "OWM_APIKEY", config.owmApikey)
 
     # location configuration
     header_lines.append("// location configuration")

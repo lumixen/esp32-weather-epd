@@ -20,7 +20,7 @@ class ProviderResult {
  public:
   // Default is a non-ok "no result yet" state, so a default-initialized
   // value (e.g. the retry-loop accumulator in httpGetWithRetry or the
-  // cached status of OWMWeatherProvider) is never mistaken for success.
+  // status cached by a provider) is never mistaken for success.
   ProviderResult() : ok_(false), detail_("") {}
   static ProviderResult ok() { return ProviderResult(true, ""); }
   static ProviderResult error(const String &detail = "") { return ProviderResult(false, detail); }

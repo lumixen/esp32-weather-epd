@@ -21,7 +21,7 @@
 #include <vector>
 #include <Arduino.h>
 #include <time.h>
-#include "data_models.h"
+#include "weather_report.h"
 #ifdef EPD_PANEL_DKE_3C_86BF
 #include <GxEPD2_750c_86BF.h>
 #endif
@@ -73,12 +73,11 @@ void drawMultiLnString(int16_t x, int16_t y, const String &text, alignment_t ali
 void beginLightSleep(const void *);
 void initDisplay();
 void powerOffDisplay();
-void drawCurrentConditions(const current_t &current, const air_quality_t &air_quality, std::optional<float> inPressure,
-                           const moon_state_t &moon);
-void drawForecast(const daily_t *daily, tm timeInfo);
-void drawAlerts(std::vector<weather_alert_t> &alerts, const String &city, const String &date);
+void drawCurrentConditions(const weather_report_t &report);
+void drawForecast(const weather_report_t &report, tm timeInfo);
+void drawAlerts(weather_report_t &report, const String &city, const String &date);
 void drawLocationDate(const String &city, const String &date);
-void drawOutlookGraph(const hourly_t *hourly, const daily_t *daily, tm timeInfo, const moon_state_t &moon);
+void drawOutlookGraph(const weather_report_t &report, tm timeInfo);
 void drawStatusBar(const String &statusStr, const String &refreshTimeStr, int rssi, uint32_t batVoltage);
 void drawError(const uint8_t *bitmap_196x196, const String &errMsgLn1, const String &errMsgLn2 = "");
 void drawCurrentAirQuality(const air_quality_t &air_quality);

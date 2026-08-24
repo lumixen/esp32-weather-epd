@@ -18,15 +18,15 @@
 #include "config.h"
 #include "logger.h"
 
-#if defined(AIR_QUALITY_API_PROVIDER_OPEN_WEATHER_MAP)
+#if defined(REMOTE_PROVIDER_OPENWEATHERMAP_AIR_QUALITY)
 
 #include <Arduino.h>
 #include <ArduinoStreamParser.h>
 #include <WiFiClient.h>
-#if !defined(AIR_QUALITY_API_TRANSPORT_HTTP)
+#if !defined(OPENWEATHERMAP_AIR_QUALITY_TRANSPORT_HTTP)
 #include <WiFiClientSecure.h>
 #endif
-#if defined(AIR_QUALITY_API_TRANSPORT_HTTPS_VERIFY)
+#if defined(OPENWEATHERMAP_AIR_QUALITY_TRANSPORT_HTTPS_VERIFY)
 #include "cert.h"
 #endif
 #include <cstdint>
@@ -35,19 +35,20 @@
 #include "_locale.h"
 #include "client_utils.h"
 #include "owm_air_quality_provider.h"
+#include "provider_fetch_operations.h"
 
 /* Perform an HTTP GET request to OpenWeatherMap's "Air Pollution" API and map
  * the response into the generic air quality model.
  */
-ProviderResult OWMAirQualityProvider::fetch(air_quality_t &airQuality) {
-#if defined(AIR_QUALITY_API_TRANSPORT_HTTP)
+ProviderResult OpenWeatherMapAirQualityProvider::fetch(air_quality_t &airQuality) {
+#if defined(OPENWEATHERMAP_AIR_QUALITY_TRANSPORT_HTTP)
   WiFiClient client;
   const uint16_t port = 80;
-#elif defined(AIR_QUALITY_API_TRANSPORT_HTTPS_NO_VERIFY)
+#elif defined(OPENWEATHERMAP_AIR_QUALITY_TRANSPORT_HTTPS_NO_VERIFY)
   WiFiClientSecure client;
   client.setInsecure();
   const uint16_t port = 443;
-#else  // AIR_QUALITY_API_TRANSPORT_HTTPS_VERIFY
+#else  // OPENWEATHERMAP_AIR_QUALITY_TRANSPORT_HTTPS_VERIFY
   WiFiClientSecure client;
   client.setCACert(cert_USERTrust_RSA_Certification_Authority);
   const uint16_t port = 443;
@@ -60,13 +61,28 @@ ProviderResult OWMAirQualityProvider::fetch(air_quality_t &airQuality) {
   sprintf(endStr, "%lld", end);
   sprintf(startStr, "%lld", start);
   String uri = "/data/2.5/air_pollution/history?lat=" + LAT + "&lon=" + LON + "&start=" + startStr + "&end=" + endStr +
-               "&appid=" + OWM_APIKEY;
+               "&appid=" + OPENWEATHERMAP_AIR_QUALITY_API_KEY;
   String sanitizedUri = OWM_ENDPOINT + "/data/2.5/air_pollution/history?lat=" + LAT + "&lon=" + LON +
                         "&start=" + startStr + "&end=" + endStr + "&appid={API key}";
 
   return httpGetWithRetry(client, OWM_ENDPOINT, port, uri, sanitizedUri, false, HTTP_CLIENT_TCP_TIMEOUT,
                           [&airQuality](Stream &json, size_t) { return deserializeAirQuality(json, airQuality); });
-}  // OWMAirQualityProvider::fetch
+}  // OpenWeatherMapAirQualityProvider::fetch
+
+std::vector<std::unique_ptr<FetchOperation>> OpenWeatherMapAirQualityProvider::createFetchOperations(
+    weather_report_t &out) {
+  std::vector<std::unique_ptr<FetchOperation>> operations;
+  operations.push_back(std::make_unique<CallbackFetchOperation>(getApiName(), false, [this, &out]() {
+    out.resetAirQuality();
+    air_quality_t &airQuality = out.engageAirQuality();
+    ProviderResult result = fetch(airQuality);
+    if (!result.isOk() || airQuality.dt[0] == 0) {
+      out.resetAirQuality();
+    }
+    return result;
+  }));
+  return operations;
+}
 
 /* SAX event handler: maps an OpenWeatherMap Air Pollution response directly
  * into the generic air quality model as the bytes stream in. The response has
@@ -203,7 +219,7 @@ class OWMAirQualityHandler : public JsonHandler {
   bool documentDone_ = false;
 };
 
-ProviderResult OWMAirQualityProvider::deserializeAirQuality(Stream &json, air_quality_t &airQuality) {
+ProviderResult OpenWeatherMapAirQualityProvider::deserializeAirQuality(Stream &json, air_quality_t &airQuality) {
   /* The destination is long-lived in the application. Clear it before every
    * parse so short or malformed responses cannot retain stale readings. */
   memset(&airQuality, 0, sizeof(air_quality_t));
@@ -242,6 +258,6 @@ ProviderResult OWMAirQualityProvider::deserializeAirQuality(Stream &json, air_qu
     return ProviderResult::error(TXT_DESERIALIZATION_ERROR_EMPTY_INPUT);
   }
   return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT);
-}  // OWMAirQualityProvider::deserializeAirQuality
+}  // OpenWeatherMapAirQualityProvider::deserializeAirQuality
 
-#endif  // AIR_QUALITY_API_PROVIDER_OPEN_WEATHER_MAP
+#endif  // REMOTE_PROVIDER_OPENWEATHERMAP_AIR_QUALITY

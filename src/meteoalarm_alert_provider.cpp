@@ -18,7 +18,7 @@
 #include "config.h"
 #include "logger.h"
 
-#if defined(ALERTS_API_PROVIDER_METEOALARM)
+#if defined(REMOTE_PROVIDER_METEOALARM_ALERT)
 
 #include <Arduino.h>
 #include <cmath>
@@ -28,6 +28,7 @@
 #include "_locale.h"
 #include "display_utils.h"
 #include "meteoalarm_alert_provider.h"
+#include "provider_fetch_operations.h"
 
 // The renderer displays at most 2 alerts: parsing stops once that many
 // matching warnings of distinct hazards were collected and the connection
@@ -404,6 +405,20 @@ ProviderResult MeteoAlarmAlertProvider::fetch(std::vector<weather_alert_t> &aler
   return result;
 }  // MeteoAlarmAlertProvider::fetch
 
+std::vector<std::unique_ptr<FetchOperation>> MeteoAlarmAlertProvider::createFetchOperations(weather_report_t &out) {
+  std::vector<std::unique_ptr<FetchOperation>> operations;
+  operations.push_back(std::make_unique<CallbackFetchOperation>(getApiName(), false, [this, &out]() {
+    out.resetAlerts();
+    std::vector<weather_alert_t> &alerts = out.engageAlerts();
+    ProviderResult result = fetch(alerts);
+    if (!result.isOk()) {
+      out.resetAlerts();
+    }
+    return result;
+  }));
+  return operations;
+}
+
 /* Add the current entry to the alerts if it has not expired yet and its
  * polygon, if any, contains the configured location (alerts without a
  * polygon are kept). Entries of the same hazard (e.g. separate time windows
@@ -648,4 +663,4 @@ ProviderResult MeteoAlarmAlertProvider::FeedParser::finish() {
   return ProviderResult::ok();
 }  // MeteoAlarmAlertProvider::FeedParser::finish
 
-#endif  // ALERTS_API_PROVIDER_METEOALARM
+#endif  // REMOTE_PROVIDER_METEOALARM_ALERT

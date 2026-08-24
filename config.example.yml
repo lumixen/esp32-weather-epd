@@ -4,27 +4,19 @@
 # The weather/air-quality providers (Open-Meteo) work without any API keys;
 # the MeteoAlarm alerts provider only needs the country slug below.
 #
-# NOTE: the unit test suite in test/src links
-# MeteoAlarmAlertProvider::parseFeed, so CI builds must keep alertsAPI
-# provider MeteoAlarm (or provide their own config.yml).
+# NOTE: the Open-Meteo unit suite links MeteoAlarmAlertProvider::FeedParser;
+# the pinned test configuration includes the MeteoAlarm provider.
 epdPanel: GENERIC_BW_V2
 epdDriver: Good Display DESPI-C02
 locale: en_GB
 
-weatherAPI:
-  provider: Open-Meteo
-  transport: HTTPS_VERIFY
-
-airQualityAPI:
-  provider: Open-Meteo
-  transport: HTTPS_VERIFY
-
-alertsAPI:
-  provider: MeteoAlarm
-  # MeteoAlarm Atom feed country slug, e.g. netherlands, ukraine or
-  # united-kingdom. Must be one of the feeds listed at
-  # https://feeds.meteoalarm.org/ (validated at build time).
-  country: netherlands
+remoteProviders:
+  - provider: open_meteo_forecast
+    transport: HTTPS_VERIFY
+  - provider: open_meteo_air_quality
+    transport: HTTPS_VERIFY
+  - provider: meteoalarm_alert
+    country: netherlands
 
 ntp:
   server_1: pool.ntp.org

@@ -17,15 +17,21 @@
 
 #pragma once
 
-#include "air_quality_provider.h"
+#include <memory>
+#include <vector>
 #include "provider_result.h"
+#include "remote_data_provider.h"
 
 /* OpenWeatherMap "Air Pollution" API air quality provider. */
-class OWMAirQualityProvider : public AirQualityProvider {
+class OpenWeatherMapAirQualityProvider : public RemoteDataProvider {
  public:
-  ProviderResult fetch(air_quality_t &airQuality) override;
+  const char *getApiName() const override { return "Air Pollution API"; }
+  std::vector<std::unique_ptr<FetchOperation>> createFetchOperations(weather_report_t &out) override;
+  ProviderResult fetch(air_quality_t &airQuality);
 
   /* Map an OWM Air Pollution response into the generic air-quality model.
    * Public for offline fixture-based unit testing. */
   static ProviderResult deserializeAirQuality(Stream &json, air_quality_t &airQuality);
 };
+
+using OWMAirQualityProvider = OpenWeatherMapAirQualityProvider;

@@ -5,27 +5,20 @@
 # This is a fixed copy of the canonical Open-Meteo setup and is committed on
 # purpose: test builds must never depend on the untracked local config.yml
 # (CI and developers' machines would otherwise build against different
-# configurations). Keep it in sync with config.example.yml, and remember that
-# test/src links MeteoAlarmAlertProvider::parseFeed, so alertsAPI provider
-# must stay MeteoAlarm. Credentials are placeholders; tests never go online.
+# configurations). Keep it in sync with config.example.yml. The pinned
+# configuration includes MeteoAlarm so its parser fixtures are compiled.
+# Credentials are placeholders; tests never go online.
 epdPanel: GENERIC_BW_V2
 epdDriver: Good Display DESPI-C02
 locale: en_GB
 
-weatherAPI:
-  provider: Open-Meteo
-  transport: HTTPS_VERIFY
-
-airQualityAPI:
-  provider: Open-Meteo
-  transport: HTTPS_VERIFY
-
-alertsAPI:
-  provider: MeteoAlarm
-  # MeteoAlarm Atom feed country slug, e.g. netherlands, ukraine or
-  # united-kingdom. Must be one of the feeds listed at
-  # https://feeds.meteoalarm.org/ (validated at build time).
-  country: netherlands
+remoteProviders:
+  - provider: open_meteo_forecast
+    transport: HTTPS_VERIFY
+  - provider: open_meteo_air_quality
+    transport: HTTPS_VERIFY
+  - provider: meteoalarm_alert
+    country: netherlands
 
 ntp:
   server_1: pool.ntp.org

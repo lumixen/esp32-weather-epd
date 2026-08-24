@@ -30,13 +30,16 @@ RESULT_TIMEOUT_S = 60
 # can pause for several seconds between tests (String-heavy tests on the slow
 # emulated CPU), so this must be generous.
 DONE_SILENCE_S = 30
-# Grace after Unity's end-of-run summary ("N Tests M Failures K Ignored").
-SUMMARY_GRACE_S = 2
+# Unity's summary is emitted only after every test result has been flushed.
+# Terminate immediately when it is observed; waiting here lets the ESP32 test
+# image enter its post-Unity idle/reboot path and duplicate result lines.
+SUMMARY_GRACE_S = 0
 # Unity on the device prints "<file>:<line>:<name>:PASS" (and :FAIL/:IGNORED);
 # PlatformIO adds [PASSED]/[FAILED]/[IGNORED] markers on top.
 RESULT_RE = re.compile(r"(\[PASSED\]|\[FAILED\]|\[IGNORED\]|:PASS\b|:FAIL\b|:IGNORED\b)")
 # Unity's summary line contains all three words, e.g. "12 Tests 0 Failures 0 Ignored".
-SUMMARY_WORDS = ("Tests", "Failures", "Ignored")
+SUMMARY_WORDS = (b"Tests", b"Failures", b"Ignored")
+SUMMARY_RE = re.compile(rb"\d+ Tests \d+ Failures \d+ Ignored")
 
 
 def build_flash_image(args):
@@ -117,7 +120,7 @@ def main():
     seen_result = False
     quiet_since = start
     summary_at = None
-    tail = ""
+    tail = b""
     exit_code = 0
 
     while True:
@@ -136,7 +139,7 @@ def main():
             break
         if seen_result and time.time() - quiet_since > DONE_SILENCE_S:
             break
-        if summary_at is not None and time.time() - summary_at > SUMMARY_GRACE_S:
+        if summary_at is not None and time.time() - summary_at >= SUMMARY_GRACE_S:
             break
 
         ready, _, _ = select.select([proc.stdout], [], [], 0.5)
@@ -146,18 +149,32 @@ def main():
         chunk = os.read(proc.stdout.fileno(), 4096)
         if not chunk:
             break  # the emulator exited on its own
+        # Do not forward bytes emitted after Unity's final summary. In
+        # particular, the test image may print a post-summary allocator
+        # diagnostic and reboot before the next broker iteration can kill it.
+        # Find and truncate on raw bytes: decoding with errors="replace" can
+        # change the length when malformed UTF-8 is present.
+        summary_match = SUMMARY_RE.search(chunk)
+        summary_in_chunk = summary_match is not None
+        if summary_in_chunk:
+            line_end = chunk.find(b"\n", summary_match.end())
+            if line_end < 0:
+                line_end = len(chunk)
+            chunk = chunk[: line_end + 1]
+        text = chunk.decode("utf-8", errors="replace")
         any_output = True
         sys.stdout.buffer.write(chunk)
         sys.stdout.buffer.flush()
-        text = chunk.decode("utf-8", errors="replace")
-        tail = (tail + text)[-256:]
+        tail = (tail + chunk)[-256:]
 
         if RESULT_RE.search(text):
             if not seen_result:
                 seen_result = True
             quiet_since = time.time()
-        if all(word in tail for word in SUMMARY_WORDS) and summary_at is None:
+        if (summary_in_chunk or all(word in tail for word in SUMMARY_WORDS)) and summary_at is None:
             summary_at = time.time()
+        if summary_in_chunk:
+            break
 
     proc.kill()
     proc.wait()

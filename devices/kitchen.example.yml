@@ -19,22 +19,19 @@ epdDriver: Waveshare
 locale: en_US
 
 # Weather data providers and transports.
-weatherAPI:
-  provider: Open-Meteo
-  transport: HTTP
-airQualityAPI:
-  provider: Open-Meteo
-  transport: HTTP
+remoteProviders:
+  - provider: open_meteo_forecast
+    transport: HTTP
+  - provider: open_meteo_air_quality
+    transport: HTTP
+  - provider: meteoalarm_alert
+    country: ukraine
 
-# Severe weather alerts: None, OpenWeatherMap or MeteoAlarm.
-alertsAPI:
-  provider: MeteoAlarm
-  # MeteoAlarm Atom feed country slug, e.g. ukraine or united-kingdom.
-  # Must be one of the feeds listed at https://feeds.meteoalarm.org/
-  # (validated at build time).
-  country: ukraine
+# For OpenWeatherMap, put apiKey inside each OWM remoteProviders entry:
+#   - provider: openweathermap_onecall_v3
+#     transport: HTTPS_VERIFY
+#     apiKey: your-owm-api-key
 
-# NTP time servers (server_1 must be an IP for the old protocol fallback).
 ntp:
   server_1: 192.168.41.1
   server_2: pool.ntp.org
@@ -87,9 +84,6 @@ wifi:
   #   subnet: 255.255.255.0
   #   dns1: 8.8.8.8
   #   dns2: 8.8.4.4
-
-# OpenWeatherMap API key (only used with the OWM provider).
-# owmApikey: your-owm-api-key
 
 # Location (per device).
 latitude: '50.498878'

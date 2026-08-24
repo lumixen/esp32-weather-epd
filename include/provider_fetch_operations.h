@@ -1,4 +1,4 @@
-/* Provider fetch adapters — wrap concrete providers into generic FetchOperation.
+/* Generic provider-owned fetch operations.
  * Copyright (C) 2026  Max Bodaniuk
  *
  * This program is free software: you can redistribute it and/or modify
@@ -6,58 +6,26 @@
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  */
-
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <vector>
-#include "air_quality_provider.h"
-#include "alert_provider.h"
-#include "data_models.h"
 #include "fetch_operation.h"
-#include "weather_provider.h"
 
-class WeatherFetchOperation : public FetchOperation {
+/* Small adapter used by providers to describe arbitrary operations without
+ * adding runtime data-tag metadata or a dependency graph to the executor. */
+class CallbackFetchOperation : public FetchOperation {
  public:
-  WeatherFetchOperation(WeatherProvider *provider, forecast_t &out) : provider_(provider), out_(out) {}
-  ProviderResult execute() override { return provider_->fetch(out_); }
-  const char *name() const override { return provider_->getApiName(); }
-  bool shouldAbortOnFailure() const override { return true; }
+  CallbackFetchOperation(const char *name, bool abortOnFailure, std::function<ProviderResult()> callback)
+      : name_(name), abortOnFailure_(abortOnFailure), callback_(std::move(callback)) {}
+
+  ProviderResult execute() override { return callback_(); }
+  const char *name() const override { return name_; }
+  bool shouldAbortOnFailure() const override { return abortOnFailure_; }
 
  private:
-  WeatherProvider *provider_;
-  forecast_t &out_;
+  const char *name_;
+  bool abortOnFailure_;
+  std::function<ProviderResult()> callback_;
 };
-
-class AirQualityFetchOperation : public FetchOperation {
- public:
-  AirQualityFetchOperation(AirQualityProvider *provider, air_quality_t &out) : provider_(provider), out_(out) {}
-  ProviderResult execute() override { return provider_->fetch(out_); }
-  const char *name() const override { return "Air Pollution API"; }
-  bool shouldAbortOnFailure() const override { return true; }
-
- private:
-  AirQualityProvider *provider_;
-  air_quality_t &out_;
-};
-
-class AlertFetchOperation : public FetchOperation {
- public:
-  AlertFetchOperation(AlertProvider *provider, std::vector<weather_alert_t> &out) : provider_(provider), out_(out) {}
-  ProviderResult execute() override { return provider_->fetch(out_); }
-  const char *name() const override { return "Alerts API"; }
-  bool shouldAbortOnFailure() const override { return false; }
-
- private:
-  AlertProvider *provider_;
-  std::vector<weather_alert_t> &out_;
-};
-
-/* Build fetch operations in alerts-first order so alerts goes first into the
- * bounded pool (max 2 concurrent). Caller owns providers; operations borrow them.
- */
-std::vector<std::unique_ptr<FetchOperation>> createFetchOperations(WeatherProvider *weatherProvider,
-                                                                   AirQualityProvider *airQualityProvider,
-                                                                   AlertProvider *alertProvider, forecast_t &forecast,
-                                                                   air_quality_t &airQuality,
-                                                                   std::vector<weather_alert_t> &alerts);

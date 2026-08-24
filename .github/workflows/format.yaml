@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   clang-format:
-    # Keep the Ubuntu package source and clang-format-18 availability stable.
+    # Formatting runs through the repository's pinned Alpine/clang-format image.
     runs-on: ubuntu-24.04
 
     steps:
@@ -20,12 +20,6 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-
-      - name: Install clang-format
-        run: |
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends -y clang-format-18
-          clang-format-18 --version
 
       - name: Check formatting of changed C++ files
         shell: bash
@@ -73,16 +67,5 @@ jobs:
             exit 0
           fi
 
-          failed=0
-          while IFS= read -r -d '' file; do
-            echo "::group::Checking $file"
-            if ! clang-format-18 --style=file --dry-run --Werror "$file"; then
-              failed=1
-            fi
-            echo "::endgroup::"
-          done < "$eligible_file"
-
-          if (( failed != 0 )); then
-            echo "clang-format found formatting differences in one or more changed files."
-            exit "$failed"
-          fi
+          mapfile -d '' -t eligible_files < "$eligible_file"
+          scripts/format.sh --check "${eligible_files[@]}"

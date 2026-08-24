@@ -17,9 +17,10 @@
 
 #pragma once
 
+#include <memory>
 #include <vector>
-#include "alert_provider.h"
 #include "provider_result.h"
+#include "remote_data_provider.h"
 
 /* MeteoAlarm (EUMETNET) national weather alert provider.
  *
@@ -31,9 +32,11 @@
  * METEOALARM_NUM_ALERTS distinct hazards are collected the connection is
  * closed without reading the remainder.
  */
-class MeteoAlarmAlertProvider : public AlertProvider {
+class MeteoAlarmAlertProvider : public RemoteDataProvider {
  public:
-  ProviderResult fetch(std::vector<weather_alert_t> &alerts) override;
+  const char *getApiName() const override { return "MeteoAlarm API"; }
+  std::vector<std::unique_ptr<FetchOperation>> createFetchOperations(weather_report_t &out) override;
+  ProviderResult fetch(std::vector<weather_alert_t> &alerts);
 
   /* Incremental parser for the MeteoAlarm Atom feed. Bytes are fed in as
    * they arrive (e.g. from esp_http_client_read chunks) via feed(); collects

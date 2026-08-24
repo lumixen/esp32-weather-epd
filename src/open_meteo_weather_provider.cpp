@@ -18,14 +18,14 @@
 #include "config.h"
 #include "logger.h"
 
-#if defined(WEATHER_API_PROVIDER_OPEN_METEO)
+#if defined(REMOTE_PROVIDER_OPEN_METEO_FORECAST)
 
 #include <Arduino.h>
 #include <WiFiClient.h>
-#if !defined(WEATHER_API_TRANSPORT_HTTP)
+#if !defined(OPEN_METEO_FORECAST_TRANSPORT_HTTP)
 #include <WiFiClientSecure.h>
 #endif
-#if defined(WEATHER_API_TRANSPORT_HTTPS_VERIFY)
+#if defined(OPEN_METEO_FORECAST_TRANSPORT_HTTPS_VERIFY)
 #include "cert.h"
 #endif
 #include <cstdint>
@@ -34,6 +34,7 @@
 #include "_locale.h"
 #include "client_utils.h"
 #include "open_meteo_weather_provider.h"
+#include "provider_fetch_operations.h"
 
 /* SAX event handler: maps the Open-Meteo forecast response directly into
  * the provider-agnostic forecast model as the bytes stream in. Only the
@@ -122,7 +123,7 @@ class WeatherHandler : public JsonHandler {
     } else if (keyIs(field, "dew_point_2m")) {
       forecast_.current.dew_point = static_cast<float>(value);
     } else if (keyIs(field, "weather_code")) {
-      forecast_.current.weather.condition = OpenMeteoWeatherProvider::mapWeatherCode(static_cast<int>(value));
+      forecast_.current.weather.condition = OpenMeteoForecastProvider::mapWeatherCode(static_cast<int>(value));
     } else if (keyIs(field, "cloud_cover")) {
       forecast_.current.clouds = static_cast<int>(value);
     } else if (keyIs(field, "visibility")) {
@@ -164,7 +165,7 @@ class WeatherHandler : public JsonHandler {
     } else if (keyIs(field, "snowfall")) {
       forecast_.hourly[idx].snow_1h = static_cast<float>(value);
     } else if (keyIs(field, "weather_code")) {
-      forecast_.hourly[idx].weather.condition = OpenMeteoWeatherProvider::mapWeatherCode(static_cast<int>(value));
+      forecast_.hourly[idx].weather.condition = OpenMeteoForecastProvider::mapWeatherCode(static_cast<int>(value));
     } else if (keyIs(field, "is_day")) {
       forecast_.hourly[idx].is_day = value != 0.0;
     } else if (keyIs(field, "soil_temperature_18cm")) {
@@ -213,7 +214,7 @@ class WeatherHandler : public JsonHandler {
     } else if (keyIs(field, "wind_gusts_10m_max")) {
       forecast_.daily[idx].wind_gust = static_cast<float>(value);
     } else if (keyIs(field, "weather_code")) {
-      forecast_.daily[idx].weather.condition = OpenMeteoWeatherProvider::mapWeatherCode(static_cast<int>(value));
+      forecast_.daily[idx].weather.condition = OpenMeteoForecastProvider::mapWeatherCode(static_cast<int>(value));
     } else if (keyIs(field, "shortwave_radiation_sum")) {
       forecast_.daily[idx].shortwave_radiation_sum = static_cast<float>(value);
     }
@@ -227,9 +228,18 @@ class WeatherHandler : public JsonHandler {
   bool sawDailyTime_ = false;
 };
 
-const char *OpenMeteoWeatherProvider::getApiName() const {
+const char *OpenMeteoForecastProvider::getApiName() const {
   return "Open Meteo API";
-}  // OpenMeteoWeatherProvider::getApiName
+}  // OpenMeteoForecastProvider::getApiName
+
+std::vector<std::unique_ptr<FetchOperation>> OpenMeteoForecastProvider::createFetchOperations(weather_report_t &out) {
+  std::vector<std::unique_ptr<FetchOperation>> operations;
+  operations.push_back(std::make_unique<CallbackFetchOperation>(getApiName(), true, [this, &out]() {
+    out.resetForecast();
+    return fetch(out.forecast);
+  }));
+  return operations;
+}
 
 /* Map a WMO weather interpretation code (WW) onto the unified weather
  * condition enum.
@@ -237,7 +247,7 @@ const char *OpenMeteoWeatherProvider::getApiName() const {
  * References:
  *   https://www.nodc.noaa.gov/archive/arc0021/0002199/1.1/data/0-data/HTML/WMO-CODE/WMO4677.HTM
  */
-weather_condition OpenMeteoWeatherProvider::mapWeatherCode(int id) {
+weather_condition OpenMeteoForecastProvider::mapWeatherCode(int id) {
   switch (id) {
     case 0:  // Clear sky
       return weather_condition::CLEAR;
@@ -285,20 +295,20 @@ weather_condition OpenMeteoWeatherProvider::mapWeatherCode(int id) {
     default:
       return weather_condition::UNKNOWN;
   }
-}  // OpenMeteoWeatherProvider::mapWeatherCode
+}  // OpenMeteoForecastProvider::mapWeatherCode
 
 /* Perform an HTTP GET request to Open-Meteo's forecast API and map the
  * response into the generic forecast model.
  */
-ProviderResult OpenMeteoWeatherProvider::fetch(forecast_t &forecast) {
-#if defined(WEATHER_API_TRANSPORT_HTTP)
+ProviderResult OpenMeteoForecastProvider::fetch(forecast_t &forecast) {
+#if defined(OPEN_METEO_FORECAST_TRANSPORT_HTTP)
   WiFiClient client;
   const uint16_t port = 80;
-#elif defined(WEATHER_API_TRANSPORT_HTTPS_NO_VERIFY)
+#elif defined(OPEN_METEO_FORECAST_TRANSPORT_HTTPS_NO_VERIFY)
   WiFiClientSecure client;
   client.setInsecure();
   const uint16_t port = 443;
-#else  // WEATHER_API_TRANSPORT_HTTPS_VERIFY
+#else  // OPEN_METEO_FORECAST_TRANSPORT_HTTPS_VERIFY
   WiFiClientSecure client;
   client.setCACert(cert_ISRG_Root_X1);
   const uint16_t port = 443;
@@ -318,11 +328,11 @@ ProviderResult OpenMeteoWeatherProvider::fetch(forecast_t &forecast) {
 
   return httpGetWithRetry(client, OM_ENDPOINT, port, uri, sanitizedUri, true, HTTP_CLIENT_TCP_TIMEOUT,
                           [&forecast](Stream &json, size_t) { return deserializeCall(json, forecast); });
-}  // OpenMeteoWeatherProvider::fetch
+}  // OpenMeteoForecastProvider::fetch
 
 /* Map a streamed response of the Open-Meteo forecast API into the generic
  * forecast model directly as the bytes stream in. */
-ProviderResult OpenMeteoWeatherProvider::deserializeCall(Stream &json, forecast_t &forecast) {
+ProviderResult OpenMeteoForecastProvider::deserializeCall(Stream &json, forecast_t &forecast) {
   // The model is long-lived in the caller and shared with the previous fetch:
   // clear it first, so values a response does not carry can never survive.
   // Rejections reset it again, leaving the model clean after any non-Ok.
@@ -368,6 +378,6 @@ ProviderResult OpenMeteoWeatherProvider::deserializeCall(Stream &json, forecast_
     return ProviderResult::error(TXT_DESERIALIZATION_ERROR_EMPTY_INPUT);
   }
   return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT);
-}  // OpenMeteoWeatherProvider::deserializeCall
+}  // OpenMeteoForecastProvider::deserializeCall
 
-#endif  // WEATHER_API_PROVIDER_OPEN_METEO
+#endif  // REMOTE_PROVIDER_OPEN_METEO_FORECAST

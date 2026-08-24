@@ -1,4 +1,4 @@
-/* Unified OWM One Call provider — single class for weather+alerts.
+/* OpenWeatherMap One Call v3 provider.
  * Copyright (C) 2026  Max Bodaniuk
  *
  * This program is free software: you can redistribute it and/or modify
@@ -6,51 +6,26 @@
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  */
-
 #pragma once
 
+#include <memory>
 #include <vector>
-#include "alert_provider.h"
 #include "provider_result.h"
-#include "weather_provider.h"
+#include "remote_data_provider.h"
 
-#include <freertos/FreeRTOS.h>
-#include <freertos/semphr.h>
-
-/* OpenWeatherMap "One Call" API provider — single class for both weather
- * and alerts. Handles piggyback (WEATHER=OWM && ALERTS=OWM) via internal
- * mutex so either fetch() can be called first and the other returns cache
- * without a second HTTP. Standalone alerts (WEATHER!=OWM) does
- * alerts-only request (exclude=current,minutely,hourly,daily).
- */
-class OWMProvider : public WeatherProvider, public AlertProvider {
+/* One One Call v3 request supplies the mandatory forecast and, when present,
+ * the optional alerts group. There is deliberately no cache or fetch-order
+ * dependent piggyback behavior: the provider owns one combined operation. */
+class OpenWeatherMapOneCallV3Provider : public RemoteDataProvider {
  public:
-  OWMProvider();
-  ~OWMProvider() override;
   const char *getApiName() const override;
-  ProviderResult fetch(forecast_t &forecast) override;
-  ProviderResult fetch(std::vector<weather_alert_t> &alerts) override;
+  std::vector<std::unique_ptr<FetchOperation>> createFetchOperations(weather_report_t &out) override;
+  ProviderResult fetch(weather_report_t &report);
 
   static weather_condition mapWeatherCode(int id);
-
-  /* Map an OWM One Call response into the generic forecast model. Public for
-   * offline fixture-based unit testing. */
-  static ProviderResult deserializeOneCall(Stream &json, forecast_t &forecast, std::vector<weather_alert_t> *alerts);
-
-  /* Map the alerts portion of an OWM One Call response into the generic
-   * alert model. Public for offline fixture-based unit testing. */
-  static ProviderResult deserializeAlerts(Stream &json, std::vector<weather_alert_t> &alerts);
-
- private:
-  ProviderResult fetchInternal(forecast_t *forecast, std::vector<weather_alert_t> *alertsOut);
-
-  std::vector<weather_alert_t> alerts_;
-  bool haveAlerts_ = false;
-  ProviderResult fetchStatus_;
-  forecast_t cachedForecast_;
-  bool fetched_ = false;
-  SemaphoreHandle_t fetchMutex_ = nullptr;
+  static ProviderResult deserializeOneCall(Stream &json, weather_report_t &report);
 };
 
-using OWMWeatherProvider = OWMProvider;
-using OWMAlertProvider = OWMProvider;
+using OWMProvider = OpenWeatherMapOneCallV3Provider;
+using OWMWeatherProvider = OpenWeatherMapOneCallV3Provider;
+using OWMAlertProvider = OpenWeatherMapOneCallV3Provider;
