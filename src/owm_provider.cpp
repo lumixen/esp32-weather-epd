@@ -280,8 +280,8 @@ ProviderResult OpenWeatherMapOneCallV3Provider::deserializeOneCall(Stream &json,
     ++i;
   }
 
+  std::vector<weather_alert_t> &alerts = report.engageAlerts();
   if (doc["alerts"].is<JsonArray>()) {
-    report.alerts.emplace();
     i = 0;
     for (JsonObject alert : doc["alerts"].as<JsonArray>()) {
       weather_alert_t new_alert = {};
@@ -289,7 +289,7 @@ ProviderResult OpenWeatherMapOneCallV3Provider::deserializeOneCall(Stream &json,
       new_alert.start = alert["start"].as<int64_t>();
       new_alert.end = alert["end"].as<int64_t>();
       new_alert.tags = alert["tags"][0].as<const char *>();
-      report.alerts->push_back(new_alert);
+      alerts.push_back(new_alert);
       if (i == OWM_NUM_ALERTS - 1)
         break;
       ++i;

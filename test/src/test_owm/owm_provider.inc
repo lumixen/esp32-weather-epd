@@ -253,6 +253,13 @@ static void test_empty_alerts_are_successful(void) {
   TEST_ASSERT_TRUE(result.isOk());
   TEST_ASSERT_TRUE(alerts.empty());
 
+  StringStream missing_alerts_stream("{}");
+  weather_report_t missing_alerts_report;
+  result = OWMProvider::deserializeOneCall(missing_alerts_stream, missing_alerts_report);
+  TEST_ASSERT_TRUE(result.isOk());
+  TEST_ASSERT_TRUE(missing_alerts_report.alerts.has_value());
+  TEST_ASSERT_TRUE(missing_alerts_report.alerts->empty());
+
   result = parseAlerts("{\"alerts\":[]}", alerts);
   TEST_ASSERT_TRUE(result.isOk());
   TEST_ASSERT_TRUE(alerts.empty());
