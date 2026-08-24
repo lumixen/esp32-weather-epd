@@ -53,7 +53,12 @@ CRASH_MARKERS = (
     b"abort() was called",
     b"assert failed",
     b"Stack smashing protect failure",
+    b"CORRUPT HEAP",
     b"Assertion `",
+    b"assertion failed",
+    b"Core  0 register dump:",
+    b"Core 0 register dump:",
+    b"Backtrace:",
     b"Program received signal",
     b"failed to calculate modulo inverse",
 )
@@ -121,14 +126,23 @@ def main():
         "--log-file",
         help="file receiving the complete merged QEMU output (or QEMU_LOG_FILE)",
     )
+    parser.add_argument(
+        "--debug-file",
+        help="QEMU guest-error diagnostics file (or QEMU_DEBUG_FILE)",
+    )
     args = parser.parse_args()
 
     flash = build_flash_image(args)
     log_file = args.log_file or os.environ.get("QEMU_LOG_FILE")
     if not log_file:
         log_file = os.path.join(args.build_dir, "qemu_output.log")
+    debug_file = args.debug_file or os.environ.get("QEMU_DEBUG_FILE")
+    if not debug_file:
+        debug_file = os.path.join(args.build_dir, "qemu_debug.log")
     log_dir = os.path.dirname(os.path.abspath(log_file))
+    debug_dir = os.path.dirname(os.path.abspath(debug_file))
     os.makedirs(log_dir, exist_ok=True)
+    os.makedirs(debug_dir, exist_ok=True)
 
     cmd = [
         args.qemu,
@@ -139,12 +153,17 @@ def main():
         "file=%s,if=mtd,format=raw" % flash,
         "-global",
         "driver=timer.esp32.timg,property=wdt_disable,value=true",
+        "-d",
+        "guest_errors",
+        "-D",
+        debug_file,
     ]
     # Merge stderr into the serial stream. Keeping it in a separate pipe meant
     # that normal QEMU diagnostics were silently discarded, and the broker
     # could kill QEMU while unread stderr still contained the backtrace.
     output_log = open(log_file, "wb")
     print("QEMU output log: %s" % log_file, flush=True)
+    print("QEMU debug log: %s" % debug_file, flush=True)
 
     # Use a process group so a stuck QEMU (or a child it created) cannot keep
     # the PlatformIO test command alive after a crash/timeout. Open the log
@@ -226,6 +245,8 @@ def main():
                 print("Last serial output before timeout:", flush=True)
                 print(tail.decode("utf-8", errors="replace"), end="" if tail.endswith(b"\n") else "\n", flush=True)
             print("Complete emulator output saved to %s" % log_file, flush=True)
+            print("QEMU debug output saved to %s" % debug_file, flush=True)
+            print("QEMU process status: %s" % (proc.poll() if proc.poll() is not None else "still running"), flush=True)
             exit_code = 1
             break
         elif seen_result and now - quiet_since > DONE_SILENCE_S:
@@ -234,6 +255,8 @@ def main():
                 print("Last serial output:", flush=True)
                 print(tail.decode("utf-8", errors="replace"), end="" if tail.endswith(b"\n") else "\n", flush=True)
             print("Complete emulator output saved to %s" % log_file, flush=True)
+            print("QEMU debug output saved to %s" % debug_file, flush=True)
+            print("QEMU process status: %s" % (proc.poll() if proc.poll() is not None else "still running"), flush=True)
             exit_code = 1
             break
         elif summary_at is not None and now - summary_at >= SUMMARY_GRACE_S:
@@ -257,6 +280,7 @@ def main():
             if crash_detected_at is None and summary_at is None:
                 print("ERROR: emulator exited before Unity summary (status %s)" % return_code, flush=True)
                 print("Complete emulator output saved to %s" % log_file, flush=True)
+                print("QEMU debug output saved to %s" % debug_file, flush=True)
                 exit_code = 1
             break
 
@@ -305,6 +329,7 @@ def main():
 
     if crash_detected_at is not None:
         print("ERROR: emulator reported firmware crash; complete output saved to %s" % log_file, flush=True)
+        print("QEMU debug output saved to %s" % debug_file, flush=True)
 
     if not cleanup_process():
         exit_code = 1

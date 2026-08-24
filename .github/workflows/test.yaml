@@ -55,5 +55,6 @@ jobs:
           if-no-files-found: warn
           path: |
             .pio/build/lolin_d32_qemu/qemu_output*.log
+            .pio/build/lolin_d32_qemu/qemu_debug*.log
             .pio/build/lolin_d32_qemu/firmware_openmeteo.elf
             .pio/build/lolin_d32_qemu/firmware_owm.elf

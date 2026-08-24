@@ -33,6 +33,7 @@ cd "$ROOT"
 QEMU_BUILD_DIR=".pio/build/lolin_d32_qemu"
 FIRMWARE_ELF="$QEMU_BUILD_DIR/firmware.elf"
 rm -f "$QEMU_BUILD_DIR"/qemu_output*.log \
+    "$QEMU_BUILD_DIR"/qemu_debug*.log \
     "$QEMU_BUILD_DIR"/firmware_openmeteo.elf \
     "$QEMU_BUILD_DIR"/firmware_owm.elf
 
@@ -45,6 +46,7 @@ status=0
 # being mistaken for the firmware produced for the current configuration.
 rm -f "$FIRMWARE_ELF"
 QEMU_LOG_FILE="$QEMU_BUILD_DIR/qemu_output_openmeteo.log" \
+QEMU_DEBUG_FILE="$QEMU_BUILD_DIR/qemu_debug_openmeteo.log" \
     "$PIO" test -e lolin_d32_qemu --without-uploading \
     -f test_openmeteo \
     "${EXTRA_ARGS[@]}" || status=1
@@ -60,6 +62,7 @@ echo "=================================================="
 rm -f "$FIRMWARE_ELF"
 ESP32_EPD_CONFIG=test/configs/owm.yml \
 QEMU_LOG_FILE="$QEMU_BUILD_DIR/qemu_output_owm.log" \
+QEMU_DEBUG_FILE="$QEMU_BUILD_DIR/qemu_debug_owm.log" \
     "$PIO" test -e lolin_d32_qemu --without-uploading \
     -f test_owm \
     "${EXTRA_ARGS[@]}" || status=1
