@@ -9,6 +9,7 @@
 #include <freertos/task.h>
 #include <atomic>
 
+#include "config.h"
 #include "data_models.h"
 #include "fetch_executor.h"
 #include "fetch_operation.h"
@@ -144,11 +145,10 @@ static void test_create_fetch_operations_alerts_first(void) {
     TEST_ASSERT_TRUE(foundAir);
 #if defined(WEATHER_API_PROVIDER_OPEN_WEATHER_MAP) && defined(ALERTS_API_PROVIDER_OPEN_WEATHER_MAP)
     // OWM weather and alerts must be two interface views of one provider.
-    auto *weatherOwm = dynamic_cast<OWMProvider *>(providers.weather.get());
-    auto *alertsOwm = dynamic_cast<OWMProvider *>(providers.alert.get());
-    TEST_ASSERT_NOT_NULL(weatherOwm);
-    TEST_ASSERT_NOT_NULL(alertsOwm);
-    TEST_ASSERT_EQUAL_PTR(weatherOwm, alertsOwm);
+    // Compare shared ownership instead of downcasting: the project disables
+    // RTTI, so dynamic_cast is unavailable in production and test builds.
+    TEST_ASSERT_FALSE(providers.weather.owner_before(providers.alert));
+    TEST_ASSERT_FALSE(providers.alert.owner_before(providers.weather));
 #endif
   } else {
     TEST_PASS_MESSAGE("Skipped — not all providers configured for this test config");

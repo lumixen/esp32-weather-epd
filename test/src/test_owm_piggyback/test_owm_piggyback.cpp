@@ -8,6 +8,7 @@
 #include <unity.h>
 
 #include "fetch_executor.inc"
+#include "../test_owm/owm_provider.inc"
 #include "../test_harness.h"
 
 void setUp(void) { test_harness::dispatchSetUp(); }
@@ -17,6 +18,7 @@ void tearDown(void) { test_harness::dispatchTearDown(); }
 void setup() {
   delay(200);  // let the emulated UART settle
   UNITY_BEGIN();
+  owm_provider_tests::registerTests();
   fetch_executor_tests::registerTests();
   UNITY_END();
 }
