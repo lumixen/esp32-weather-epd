@@ -152,28 +152,32 @@ def main():
         # particular, the test image may print a post-summary allocator
         # diagnostic and reboot before the next broker iteration can kill it.
         # Find and truncate on raw bytes: decoding with errors="replace" can
-        # change the length when malformed UTF-8 is present.
-        summary_match = SUMMARY_RE.search(chunk)
-        summary_in_chunk = summary_match is not None
-        if summary_in_chunk:
-            line_end = chunk.find(b"\n", summary_match.end())
-            if line_end < 0:
-                line_end = len(chunk)
-            chunk = chunk[: line_end + 1]
+        # change the length when malformed UTF-8 is present. Include the
+        # rolling tail so a summary split across reads is handled as one line.
+        combined = tail + chunk
+        summary_match = SUMMARY_RE.search(combined)
+        summary_complete = False
+        if summary_match is not None:
+            line_end = combined.find(b"\n", summary_match.end())
+            if line_end >= 0:
+                summary_complete = True
+                # Only emit the new portion of the combined buffer. The tail
+                # was already forwarded during the previous iteration.
+                chunk_end = line_end + 1
+                chunk = combined[len(tail) : chunk_end] if chunk_end > len(tail) else b""
         text = chunk.decode("utf-8", errors="replace")
         any_output = True
         sys.stdout.buffer.write(chunk)
         sys.stdout.buffer.flush()
         tail = (tail + chunk)[-256:]
-        summary_in_tail = SUMMARY_RE.search(tail) is not None
 
         if RESULT_RE.search(text):
             if not seen_result:
                 seen_result = True
             quiet_since = time.time()
-        if summary_in_tail and summary_at is None:
+        if summary_complete and summary_at is None:
             summary_at = time.time()
-        if summary_in_chunk:
+        if summary_complete:
             break
 
     proc.kill()
