@@ -23,8 +23,11 @@ if [[ "${1:-}" == "--" ]]; then
 fi
 
 if [[ "$#" -eq 0 ]]; then
-  mapfile -t files < <(
-    git -C "$ROOT" ls-files -- 'src/*' 'include/*' 'test/src/*' \
+  files=()
+  while IFS= read -r file; do
+    files+=("$file")
+  done < <(
+    git -C "$ROOT" ls-files -- 'src/**' 'include/**' 'test/src/**' \
       | grep -E '\.(c|cc|cpp|cxx|h|hh|hpp|hxx|inc)$' \
       | grep -Ev '(^include/cert\.h$|test/src/.*feed.*\.inc$|test/src/.*real\.inc$)' || true
   )
