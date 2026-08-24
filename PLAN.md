@@ -24,6 +24,84 @@ member of that type.
 
 ## Design
 
+### Configuration and capability ownership
+
+Put local and remote report producers in one configuration list named
+`providers`. The list is a declarative inventory of available data sources;
+its order must not determine execution order because local sensor work starts
+before WiFi while remote operations require WiFi.
+
+Example:
+
+```yaml
+providers:
+  - provider: open_meteo_forecast
+    transport: HTTPS_VERIFY
+  - provider: open_meteo_air_quality
+    transport: HTTPS_VERIFY
+  - provider: meteoalarm_alert
+    country: netherlands
+  - provider: bme280
+    pinPwr: 27
+    pinSDA: 21
+    pinSCL: 22
+    address: 0x76
+```
+
+Omitting `bme280` disables the local sensor. The existing top-level `bme:`
+block should be removed rather than maintaining two sources of truth. The
+BME-specific fields become fields on the `bme280` provider entry, allowing
+future local sensor implementations to have their own configuration without
+adding more top-level device sections.
+
+Extend the capability ownership model with scalar indoor-sensor tags:
+
+```python
+"bme280": {"in_temperature", "in_humidity", "in_pressure"}
+```
+
+Use the canonical tags `in_temperature`, `in_humidity`, and `in_pressure`
+throughout validation and provider metadata. These tags describe ownership of
+`weather_report_t::sensor` fields; they are separate from display layout keys
+and MQTT topic names.
+
+The validator should:
+
+- inspect every entry in `providers`, not only remote entries;
+- reject duplicate ownership of any capability tag;
+- continue requiring `current_forecast`, `hourly_forecast`, and
+  `daily_forecast` from remote providers;
+- continue requiring `air_quality` when the layout requests it;
+- treat indoor sensor tags as optional capabilities;
+- report `Provider capabilities` rather than `Remote provider capabilities`.
+
+The generated header should preserve the existing BME compile-time interface
+for now (`BME_TYPE_BME280`, `BME_PIN_*`, and `BME_ADDRESS`), but generate those
+values from the `bme280` provider entry. It should also emit a provider
+selection macro such as `LOCAL_PROVIDER_BME280`. With no local sensor entry,
+generate the equivalent of `BME_TYPE_NONE`.
+
+The schema migration should rename `remoteProviders` to `providers`, replace
+`RemoteProviderConfig` with a discriminated union containing both remote and
+local provider configurations, and update `config.example.yml`, device
+examples, and committed test configurations. The capability validator and
+header generator must use the new field consistently.
+
+The unified configuration list does not need to map one-to-one onto a
+runtime `FetchBundle`. Keep `FetchBundle` for the existing remote provider
+batch, and construct the single local sensor operation separately:
+
+```cpp
+std::unique_ptr<FetchOperation> createEnvironmentSensorOperation(
+    weather_report_t &report);
+FetchBundle createFetchBundle(weather_report_t &report);  // remote providers
+```
+
+The local operation is started asynchronously before WiFi. The remote bundle
+is constructed and executed after WiFi and time synchronization. This keeps
+the configuration unified without introducing execution-phase enums or
+forcing a one-operation sensor batch to look like a remote provider bundle.
+
 ### 1. Add an asynchronous executor handle
 
 Introduce a move-only `FetchExecution` handle in `fetch_executor.h/.cpp` with
@@ -41,7 +119,8 @@ class FetchExecution {
   const std::vector<ProviderResult> &results() const;
 };
 
-FetchExecution executeParallelAsync(FetchBundle bundle);
+FetchExecution executeParallelAsync(
+    std::vector<std::unique_ptr<FetchOperation>> operations);
 ```
 
 The asynchronous call must return without waiting. `wait()` is the explicit
@@ -52,42 +131,35 @@ access destroyed state.
 The execution state must be heap-owned and retain:
 
 - the operation list;
-- the provider objects needed by callbacks;
 - the results;
 - the worker bookkeeping and completion semaphore.
 
-Pass a complete `FetchBundle` into the async API by move, so the execution
-handle owns all provider and operation lifetimes. If necessary, move
-`FetchBundle` and `ProviderBundle` declarations into a small shared header to
-avoid an include cycle between `provider_factory.h` and `fetch_executor.h`.
+The async API takes ownership of the operation vector. The first intended
+caller is the self-contained environment-sensor operation, so no provider
+keep-alive bundle is needed. If remote operations are made asynchronous in a
+future change, their provider lifetime must be added explicitly rather than
+relying on a dangling callback capture.
 
 The async executor should always launch a worker for a single operation. The
-current single-operation synchronous fast path would otherwise make a sensor
-job block its caller.
+current single-operation synchronous fast path would otherwise make the
+sensor job block its caller.
 
 ### 2. Preserve the blocking API
 
-Keep `executeParallel()` as a compatibility/convenience API. Implement it in
-terms of the asynchronous primitive where practical:
-
-```cpp
-auto execution = executeParallelAsync(std::move(bundle));
-execution.wait();
-return execution.results();
-```
-
-Retain the existing operation-vector overload during the migration so the
-current provider code and tests do not all need to change at once. Preserve
-its existing behavior and resource-failure fallback semantics.
+Keep the existing blocking `executeParallel()` API unchanged for remote
+providers. The asynchronous operation-vector API is an additional primitive,
+not a forced migration of the current remote bundle path. Preserve the
+blocking executor's existing behavior and resource-failure fallback
+semantics.
 
 Do not add cancellation in this change. HTTP and sensor operations are not
 currently cancellation-aware; waiting for completion is the safe shutdown
 contract.
 
-### 3. Add a local environment sensor provider
+### 3. Add a local environment sensor operation
 
-Add an `EnvironmentSensorProvider` that creates one optional
-`FetchOperation`. The operation should:
+Add an `EnvironmentSensorFetchOperation` (or equivalent factory function)
+that creates one optional `FetchOperation`. The operation should:
 
 1. construct the configured `EnvSensor` implementation;
 2. initialize it;
@@ -100,24 +172,12 @@ collected, so another task cannot observe a partially populated sensor value.
 A failed or unavailable sensor must leave the optional fields disengaged and
 must not abort weather fetching or rendering.
 
-Because the existing provider base is named `RemoteDataProvider`, either:
-
-- generalize it to `DataProvider` and use it for both local and remote report
-  producers; or
-- introduce a parallel local-provider interface and keep the remote API
-  unchanged.
-
-Prefer the generic `DataProvider` direction because the provider operation
-and report-writing model is already shared. Keep the factory output separated
-into local and remote bundles so remote operations are never started before
-WiFi:
-
-```cpp
-FetchBundle createSensorFetchBundle(weather_report_t &report);
-FetchBundle createFetchBundle(weather_report_t &report);  // remote providers
-```
-
-The sensor provider should be conditionally compiled out for `BME_TYPE_NONE`.
+Do not generalize `RemoteDataProvider` in this change. It accurately
+describes the existing HTTP providers, while the local sensor is a single
+self-contained operation rather than a remote provider collection. Keep the
+operation class available to tests regardless of `BME_TYPE_NONE`; the
+production factory should only construct the hardware-backed operation when a
+local sensor provider is configured.
 
 ### 4. Start the sensor job early in `main.cpp`
 
@@ -125,12 +185,14 @@ After the report and basic startup state are initialized, but before WiFi
 starts, launch the local job:
 
 ```cpp
-auto sensorExecution = executeParallelAsync(
-    createSensorFetchBundle(environment_data));
+std::vector<std::unique_ptr<FetchOperation>> sensorOperations;
+sensorOperations.push_back(createEnvironmentSensorOperation(environment_data));
+auto sensorExecution = executeParallelAsync(std::move(sensorOperations));
 ```
 
 Then continue with battery handling, WiFi, time synchronization, and the
-existing blocking remote provider execution.
+existing blocking remote-provider execution from
+`createFetchBundle(environment_data)`.
 
 The handle must remain alive through all success and error paths until the
 sensor data has been consumed. Any function that can publish MQTT before the
@@ -186,25 +248,74 @@ Extend `test/src/test_owm/fetch_executor.inc` with tests that verify:
 - a single operation is also started asynchronously;
 - empty jobs are already complete;
 - repeated `wait()` calls are safe;
-- operation/provider lifetime remains valid until completion.
+- operation lifetime remains valid until completion.
 
 Keep the existing blocking API tests, including the single-operation behavior,
 unless the compatibility wrapper intentionally changes their implementation.
 
-### Sensor provider tests
+### Sensor operation tests
 
-Make the sensor provider testable without physical I2C hardware, preferably
-through an injectable sensor factory or an equivalent test seam. Cover:
+Add `test/src/test_openmeteo/environment_sensor.inc` to the Open-Meteo Unity
+root and register it from `test/src/test_openmeteo/test_openmeteo.cpp`. Keep
+this suite in the existing Open-Meteo configuration: its pinned configuration
+uses `BME_TYPE_NONE`, but the operation logic can still be tested with an
+injected fake sensor. The production factory should return no operation when
+BME is disabled, while the operation class remains constructible with a fake
+for unit testing.
 
-- successful readings;
-- individually unavailable readings;
-- initialization failure;
-- non-aborting failure behavior;
-- assignment to `weather_report_t::sensor` only after the read completes.
+Use a fake `EnvSensor` rather than exercising physical I2C. The simplest seam
+is for `EnvironmentSensorFetchOperation` to own an injected
+`std::unique_ptr<EnvSensor>`; production construction passes a
+`BME280EnvSensor`, while tests pass a fake implementation. This also makes the
+sensor lifetime explicit for asynchronous execution without adding a global
+mock or test-only preprocessor branch.
 
-The QEMU configuration already includes both `BME_TYPE_NONE` and BME-enabled
-build paths, but QEMU does not provide a real BME device, so provider tests
-must not depend on live hardware.
+Cover the operation synchronously first:
+
+- **Successful readings:** `begin()` succeeds, all three values are present,
+  the report receives the expected `sensor_readings`, and all sensor methods
+  are called in the expected order.
+- **Partially unavailable readings:** one or more getter methods return an
+  empty optional. The operation remains non-aborting, returns success if the
+  sensor initialized, and stores the available values while leaving missing
+  fields disengaged.
+- **Initialization failure:** `begin()` returns false, no getter is called,
+  the operation returns an error, and `shouldAbortOnFailure()` is false.
+- **Stale-data clearing:** initialize `report.sensor` with sentinel values,
+  then verify a failed operation does not leave those values visible. A failed
+  read should leave the report sensor fields disengaged.
+- **Atomic publication:** use a fake that records the sequence and verify the
+  report is assigned only after all three reads have completed. This prevents
+  a partially populated aggregate from becoming visible to another task.
+- **Lifetime and cleanup:** verify the owned sensor is destroyed after the
+  operation finishes, including the initialization-failure path.
+
+Add asynchronous integration coverage for the executor/operation boundary:
+
+- Use a fake getter that blocks on a FreeRTOS test semaphore.
+- Start it with `executeParallelAsync()` and verify the call returns before
+  the getter is released.
+- Verify the report remains unchanged while the fake is blocked.
+- Release the fake, call `wait()`, and verify the final report and
+  `ProviderResult`.
+- Verify repeated `wait()` calls and destruction of a completed execution are
+  safe.
+
+Keep configuration/build coverage separate from sensor behavior tests:
+
+- A configuration containing `bme280` generates the BME macros and the
+  `in_temperature`, `in_humidity`, and `in_pressure` capability ownership.
+- A configuration without `bme280` generates the equivalent of
+  `BME_TYPE_NONE` and creates no sensor operation.
+- Unknown provider fields and invalid BME fields are rejected by the schema.
+- The BME-enabled and BME-disabled pinned configurations both compile.
+
+The QEMU configuration includes both `BME_TYPE_NONE` and BME-enabled build
+paths, but QEMU does not provide a real BME device. The Open-Meteo suite
+should test the hardware-independent operation with the fake implementation
+and verify the disabled factory path; the BME-enabled build verifies that the
+production construction path compiles. No sensor-operation test may depend on
+physical hardware.
 
 ## Validation
 
