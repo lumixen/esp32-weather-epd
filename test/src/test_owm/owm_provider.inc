@@ -254,7 +254,8 @@ static void test_empty_alerts_are_successful(void) {
 
   StringStream missing_alerts_stream(no_alerts_json);
   // Keep the large report out of the test task's stack.
-  static weather_report_t missing_alerts_report;
+  static weather_report_t missing_alerts_report{};
+  missing_alerts_report = {};
   result = OWMProvider::deserializeOneCall(missing_alerts_stream, missing_alerts_report);
   TEST_ASSERT_TRUE(result.isOk());
   TEST_ASSERT_TRUE(missing_alerts_report.alerts.has_value());
