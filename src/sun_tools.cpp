@@ -58,5 +58,8 @@ sun_state_t getSunState(float latitude, float longitude, time_t now) {
 
   SunRise calculator;
   calculator.calculate(latitude, longitude, query);
-  return sun_state_t{calculator.hasRise ? calculator.riseTime : 0, calculator.hasSet ? calculator.setTime : 0};
+  const time_t sunrise = calculator.hasRise ? calculator.riseTime : 0;
+  const time_t sunset = calculator.hasSet ? calculator.setTime : 0;
+  LOG_DEBUG("Sunrise: %ld Sunset: %ld", static_cast<long>(sunrise), static_cast<long>(sunset));
+  return sun_state_t{sunrise, sunset};
 }
