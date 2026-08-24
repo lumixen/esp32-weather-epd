@@ -18,23 +18,31 @@
 #include "client_utils.h"
 #include "logger.h"
 
-namespace {
+struct FetchExecution::State {
+  explicit State(std::vector<std::unique_ptr<FetchOperation>> &&operations)
+      : ops(std::move(operations)), results(ops.size()) {}
 
-struct WorkerContext {
-  std::vector<std::unique_ptr<FetchOperation>> *ops;
-  std::vector<ProviderResult> *results;
-  size_t operationCount;
+  std::vector<std::unique_ptr<FetchOperation>> ops;
+  std::vector<ProviderResult> results;
   std::atomic<size_t> nextIndex{0};
-  SemaphoreHandle_t doneSem;
+  std::atomic<size_t> finishedWorkers{0};
+  SemaphoreHandle_t doneSem = nullptr;
+  size_t operationCount = 0;
+  size_t workerCount = 0;
+  size_t consumedWorkers = 0;
+  std::atomic<bool> runUnclaimedSequentially{false};
+  std::atomic<bool> complete{false};
 };
 
-bool claimNext(WorkerContext &context, size_t &index) {
-  size_t candidate = context.nextIndex.load(std::memory_order_relaxed);
-  while (candidate < context.operationCount &&
-         !context.nextIndex.compare_exchange_weak(candidate, candidate + 1, std::memory_order_relaxed,
-                                                  std::memory_order_relaxed)) {
+namespace {
+
+bool claimNext(FetchExecution::State &state, size_t &index) {
+  size_t candidate = state.nextIndex.load(std::memory_order_relaxed);
+  while (candidate < state.operationCount &&
+         !state.nextIndex.compare_exchange_weak(candidate, candidate + 1, std::memory_order_relaxed,
+                                                std::memory_order_relaxed)) {
   }
-  if (candidate >= context.operationCount) {
+  if (candidate >= state.operationCount) {
     return false;
   }
   index = candidate;
@@ -42,20 +50,147 @@ bool claimNext(WorkerContext &context, size_t &index) {
 }
 
 void fetchWorker(void *pvParameters) {
-  WorkerContext *context = static_cast<WorkerContext *>(pvParameters);
+  auto *state = static_cast<FetchExecution::State *>(pvParameters);
   size_t index = 0;
-  while (claimNext(*context, index)) {
-    FetchOperation *op = (*context->ops)[index].get();
+  while (claimNext(*state, index)) {
+    FetchOperation *op = state->ops[index].get();
     uint32_t t0 = millis();
-    (*context->results)[index] = op->execute();
+    state->results[index] = op->execute();
     LOG_DEBUG("FetchWorker %s: done in %ums ok=%d", op->name(), static_cast<unsigned>(millis() - t0),
-              (*context->results)[index].isOk());
+              state->results[index].isOk());
   }
-  xSemaphoreGive(context->doneSem);
+  // Give the completion token before the task's final scheduler call. The
+  // handle consumes one token per worker, so its destructor cannot release
+  // the state while this task still accesses the semaphore.
+  xSemaphoreGive(state->doneSem);
+  if (!state->runUnclaimedSequentially &&
+      state->finishedWorkers.fetch_add(1, std::memory_order_acq_rel) + 1 == state->workerCount) {
+    state->complete.store(true, std::memory_order_release);
+  }
   vTaskDelete(nullptr);
 }
 
+bool waitForWorkers(FetchExecution::State &state, TickType_t timeout) {
+  if (state.complete.load(std::memory_order_acquire)) {
+    return true;
+  }
+
+  const TickType_t start = xTaskGetTickCount();
+  while (state.consumedWorkers < state.workerCount) {
+    TickType_t remaining = timeout;
+    if (timeout != portMAX_DELAY) {
+      const TickType_t elapsed = xTaskGetTickCount() - start;
+      if (elapsed >= timeout) {
+        return false;
+      }
+      remaining = timeout - elapsed;
+    }
+    if (xSemaphoreTake(state.doneSem, remaining) != pdTRUE) {
+      return false;
+    }
+    ++state.consumedWorkers;
+  }
+
+  // A task-creation failure can leave an unclaimed suffix. It is important to
+  // run that suffix only after all workers have stopped touching the state.
+  if (state.runUnclaimedSequentially) {
+    const size_t firstUnclaimed = state.nextIndex.load(std::memory_order_acquire);
+    for (size_t index = firstUnclaimed; index < state.operationCount; ++index) {
+      state.results[index] = state.ops[index]->execute();
+    }
+    state.runUnclaimedSequentially = false;
+  }
+  state.complete.store(true, std::memory_order_release);
+  return true;
+}
+
 }  // namespace
+
+FetchExecution::FetchExecution(std::unique_ptr<State> state) : state_(std::move(state)) {}
+
+FetchExecution::FetchExecution(FetchExecution &&other) noexcept : state_(std::move(other.state_)) {}
+
+FetchExecution &FetchExecution::operator=(FetchExecution &&other) noexcept {
+  if (this != &other) {
+    if (state_) {
+      wait(portMAX_DELAY);
+    }
+    state_ = std::move(other.state_);
+  }
+  return *this;
+}
+
+FetchExecution::~FetchExecution() {
+  if (state_) {
+    wait(portMAX_DELAY);
+    if (state_->doneSem != nullptr) {
+      vSemaphoreDelete(state_->doneSem);
+      state_->doneSem = nullptr;
+    }
+  }
+}
+
+bool FetchExecution::wait(TickType_t timeout) {
+  if (!state_) {
+    return true;
+  }
+  return waitForWorkers(*state_, timeout);
+}
+
+bool FetchExecution::isComplete() const { return !state_ || state_->complete.load(std::memory_order_acquire); }
+
+const std::vector<ProviderResult> &FetchExecution::results() const {
+  static const std::vector<ProviderResult> emptyResults;
+  return state_ ? state_->results : emptyResults;
+}
+
+FetchExecution executeParallelAsync(std::vector<std::unique_ptr<FetchOperation>> operations) {
+  auto state = std::make_unique<FetchExecution::State>(std::move(operations));
+  state->operationCount = state->ops.size();
+  LOG_DEBUG("FetchExecutor: async n=%u pool=%u", static_cast<unsigned>(state->operationCount),
+            static_cast<unsigned>(FETCH_MAX_CONCURRENCY));
+
+  if (state->operationCount == 0) {
+    state->complete.store(true, std::memory_order_release);
+    return FetchExecution(std::move(state));
+  }
+
+  state->workerCount = state->operationCount < FETCH_MAX_CONCURRENCY ? state->operationCount : FETCH_MAX_CONCURRENCY;
+  state->doneSem = xSemaphoreCreateCounting(state->workerCount, 0);
+  if (state->doneSem == nullptr) {
+    LOG_WARNING("FetchExecutor: async semaphore create failed, running sequentially");
+    for (size_t i = 0; i < state->operationCount; ++i) {
+      state->results[i] = state->ops[i]->execute();
+    }
+    state->complete.store(true, std::memory_order_release);
+    state->workerCount = 0;
+    return FetchExecution(std::move(state));
+  }
+
+  size_t created = 0;
+  for (size_t i = 0; i < state->workerCount; ++i) {
+    char taskName[16];
+    snprintf(taskName, sizeof(taskName), "FA%u", static_cast<unsigned>(i));
+    BaseType_t ok = xTaskCreate(fetchWorker, taskName, FETCH_STACK_BYTES, state.get(), FETCH_TASK_PRIORITY, nullptr);
+    if (ok != pdPASS) {
+      LOG_WARNING("FetchExecutor: async worker task creation failed, running remainder on wait");
+      state->workerCount = created;
+      state->runUnclaimedSequentially = true;
+      if (created == 0) {
+        // There is no worker whose lifetime needs to be kept asynchronous.
+        for (size_t index = 0; index < state->operationCount; ++index) {
+          state->results[index] = state->ops[index]->execute();
+        }
+        state->runUnclaimedSequentially = false;
+        state->complete.store(true, std::memory_order_release);
+      }
+      return FetchExecution(std::move(state));
+    }
+    ++created;
+  }
+
+  return FetchExecution(std::move(state));
+}
 
 std::vector<ProviderResult> executeParallel(std::vector<std::unique_ptr<FetchOperation>> &ops) {
   const size_t n = ops.size();
@@ -81,20 +216,49 @@ std::vector<ProviderResult> executeParallel(std::vector<std::unique_ptr<FetchOpe
   }
 
   // Keep the number of task stacks bounded: workers claim operations until none remain.
+  struct WorkerContext {
+    std::vector<std::unique_ptr<FetchOperation>> *ops;
+    std::vector<ProviderResult> *results;
+    size_t operationCount;
+    std::atomic<size_t> nextIndex{0};
+    SemaphoreHandle_t doneSem;
+  };
+
+  auto blockingWorker = [](void *pvParameters) {
+    auto *context = static_cast<WorkerContext *>(pvParameters);
+    size_t index = 0;
+    while (true) {
+      size_t candidate = context->nextIndex.load(std::memory_order_relaxed);
+      while (candidate < context->operationCount &&
+             !context->nextIndex.compare_exchange_weak(candidate, candidate + 1, std::memory_order_relaxed,
+                                                       std::memory_order_relaxed)) {
+      }
+      if (candidate >= context->operationCount) {
+        break;
+      }
+      index = candidate;
+      FetchOperation *op = (*context->ops)[index].get();
+      uint32_t t0 = millis();
+      (*context->results)[index] = op->execute();
+      LOG_DEBUG("FetchWorker %s: done in %ums ok=%d", op->name(), static_cast<unsigned>(millis() - t0),
+                (*context->results)[index].isOk());
+    }
+    xSemaphoreGive(context->doneSem);
+    vTaskDelete(nullptr);
+  };
+
   WorkerContext context{&ops, &results, n, 0, doneSem};
   size_t created = 0;
   for (size_t i = 0; i < workerCount; ++i) {
     char taskName[16];
     snprintf(taskName, sizeof(taskName), "FetchWorker%u", static_cast<unsigned>(i));
-    BaseType_t ok = xTaskCreate(fetchWorker, taskName, FETCH_STACK_BYTES, &context, FETCH_TASK_PRIORITY, nullptr);
+    BaseType_t ok = xTaskCreate(blockingWorker, taskName, FETCH_STACK_BYTES, &context, FETCH_TASK_PRIORITY, nullptr);
     if (ok != pdPASS) {
       LOG_WARNING("FetchExecutor: worker task creation failed, running remainder sequentially");
       // Wait for existing workers before accessing results or destroying doneSem.
       for (size_t j = 0; j < created; ++j) {
         xSemaphoreTake(doneSem, portMAX_DELAY);
       }
-      // Workers claim indices monotonically; after they finish, all claimed operations
-      // are complete and the unclaimed suffix can run sequentially.
       const size_t firstUnclaimed = context.nextIndex.load(std::memory_order_acquire);
       for (size_t k = firstUnclaimed; k < n; ++k) {
         results[k] = ops[k]->execute();

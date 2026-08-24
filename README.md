@@ -79,8 +79,9 @@ locale: en_US
 # (transport: HTTP, HTTPS_NO_VERIFY or HTTPS_VERIFY)
 # The current/hourly/daily forecast owner is required. Air quality is required
 # when AIR_QUALITY is in leftPanelLayout; alerts are optional. A tag may have
-# only one owner; duplicate provider entries are rejected.
-remoteProviders:
+# only one owner; duplicate provider entries are rejected. Local providers use
+# the same list and own the in_temperature/in_humidity/in_pressure tags.
+providers:
   - provider: open_meteo_forecast
     transport: HTTP
   - provider: open_meteo_air_quality
@@ -104,13 +105,13 @@ pin:
   epdMOSI: 23
   epdPwr: 2
 useImperialUnitsAsDefault: false
-bme:
-  # Set type NONE if no BME is installed
-  type: BME280
-  pinPwr: 27
-  pinSDA: 21
-  pinSCL: 22
-  address: 0x76
+# Add this entry to providers to enable the local sensor. Omit it to disable
+# local sensor reporting:
+#   - provider: bme280
+#     pinPwr: 27
+#     pinSDA: 21
+#     pinSCL: 22
+#     address: 0x76
 ntp:
   server_1: pool.ntp.org
   server_2: time.nist.gov
@@ -145,7 +146,7 @@ wifi:
   #   gateway: XXX.XXX.XXX.XXX
   #   subnet: XXX.XXX.XXX.XXX
   #   dns1: XXX.XXX.XXX.XXX
-# apiKey belongs on each OpenWeatherMap remoteProviders entry.
+# apiKey belongs on each OpenWeatherMap providers entry.
 latitude: "64"
 longitude: "-22"
 city: ESPLand

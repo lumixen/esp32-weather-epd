@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "config.h"
 
 class EnvSensor {

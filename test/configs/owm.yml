@@ -8,13 +8,18 @@
 epdPanel: DKE_3C_86BF
 epdDriver: Waveshare
 locale: en_US
-remoteProviders:
+providers:
   - provider: openweathermap_onecall_v3
     transport: HTTP
     apiKey: test
   - provider: openweathermap_air_quality
     transport: HTTP
     apiKey: test
+  - provider: bme280
+    pinPwr: 27
+    pinSDA: 21
+    pinSCL: 22
+    address: 0x76
 
 ntp:
   server_1: 192.168.41.1
@@ -59,8 +64,6 @@ bedTime: 0
 wakeTime: 0
 hourlyGraphMax: 24
 moonPhaseStyle: alternative
-bme:
-  type: BME280
 leftPanelLayout:
   SUNRISE: 0
   SUNSET: 1

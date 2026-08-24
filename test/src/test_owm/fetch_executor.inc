@@ -111,6 +111,67 @@ static void test_execute_parallel_empty(void) {
   TEST_ASSERT_EQUAL(0, results.size());
 }
 
+static void test_async_execution_returns_before_delayed_operation_finishes(void) {
+  resetCounters();
+  std::vector<std::unique_ptr<FetchOperation>> ops;
+  ops.push_back(std::make_unique<MockFetchOperation>("Async", true, 150, ProviderResult::ok()));
+  auto execution = executeParallelAsync(std::move(ops));
+  TEST_ASSERT_FALSE(execution.isComplete());
+  TEST_ASSERT_TRUE(execution.wait(pdMS_TO_TICKS(1000)));
+  TEST_ASSERT_TRUE(execution.isComplete());
+  TEST_ASSERT_EQUAL(1, g_executed.load());
+  TEST_ASSERT_EQUAL(1, execution.results().size());
+  TEST_ASSERT_TRUE(execution.results()[0].isOk());
+  TEST_ASSERT_TRUE(execution.wait(pdMS_TO_TICKS(1)));
+}
+
+static void test_async_single_operation_is_not_run_inline(void) {
+  resetCounters();
+  std::vector<std::unique_ptr<FetchOperation>> ops;
+  ops.push_back(std::make_unique<MockFetchOperation>("AsyncSolo", true, 100, ProviderResult::ok()));
+  auto execution = executeParallelAsync(std::move(ops));
+  TEST_ASSERT_FALSE(execution.isComplete());
+  TEST_ASSERT_TRUE(execution.wait(pdMS_TO_TICKS(1000)));
+  TEST_ASSERT_EQUAL(1, g_executed.load());
+}
+
+static void test_async_empty_execution_is_complete_and_wait_is_repeatable(void) {
+  std::vector<std::unique_ptr<FetchOperation>> ops;
+  auto execution = executeParallelAsync(std::move(ops));
+  TEST_ASSERT_TRUE(execution.isComplete());
+  TEST_ASSERT_TRUE(execution.wait(pdMS_TO_TICKS(1)));
+  TEST_ASSERT_TRUE(execution.wait(pdMS_TO_TICKS(1)));
+  TEST_ASSERT_EQUAL(0, execution.results().size());
+}
+
+class LifetimeFetchOperation final : public FetchOperation {
+ public:
+  explicit LifetimeFetchOperation(bool &destroyed) : destroyed_(destroyed) {}
+  ~LifetimeFetchOperation() override { destroyed_ = true; }
+  ProviderResult execute() override {
+    vTaskDelay(pdMS_TO_TICKS(50));
+    return ProviderResult::ok();
+  }
+  const char *name() const override { return "Lifetime"; }
+  bool shouldAbortOnFailure() const override { return false; }
+
+ private:
+  bool &destroyed_;
+};
+
+static void test_async_handle_owns_operation_until_completion(void) {
+  bool destroyed = false;
+  {
+    std::vector<std::unique_ptr<FetchOperation>> ops;
+    ops.push_back(std::make_unique<LifetimeFetchOperation>(destroyed));
+    auto execution = executeParallelAsync(std::move(ops));
+    TEST_ASSERT_FALSE(destroyed);
+    TEST_ASSERT_TRUE(execution.wait(pdMS_TO_TICKS(1000)));
+    TEST_ASSERT_FALSE(destroyed);
+  }
+  TEST_ASSERT_TRUE(destroyed);
+}
+
 static void test_execute_parallel_propagates_results(void) {
   resetCounters();
   std::vector<std::unique_ptr<FetchOperation>> ops;
@@ -157,6 +218,10 @@ void registerTests() {
   RUN_TEST(fetch_executor_tests::test_execute_parallel_single_op_no_task);
   RUN_TEST(fetch_executor_tests::test_execute_parallel_empty);
   RUN_TEST(fetch_executor_tests::test_execute_parallel_propagates_results);
+  RUN_TEST(fetch_executor_tests::test_async_execution_returns_before_delayed_operation_finishes);
+  RUN_TEST(fetch_executor_tests::test_async_single_operation_is_not_run_inline);
+  RUN_TEST(fetch_executor_tests::test_async_empty_execution_is_complete_and_wait_is_repeatable);
+  RUN_TEST(fetch_executor_tests::test_async_handle_owns_operation_until_completion);
   RUN_TEST(fetch_executor_tests::test_create_fetch_operations_from_unified_providers);
   RUN_TEST(fetch_executor_tests::test_should_abort_flags);
   RUN_TEST(fetch_executor_tests::test_owm_provider_combines_forecast_and_alerts);

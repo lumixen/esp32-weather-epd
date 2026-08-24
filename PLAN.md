@@ -10,6 +10,42 @@ WiFi and remote requests. Sensor values should be written directly to
 The relevant type is `sensor_readings`; `weather_report_t` contains a `sensor`
 member of that type.
 
+## Implementation checklist
+
+Completed:
+
+- [x] Added the move-only heap-owned `FetchExecution` asynchronous executor
+      handle, including explicit/repeatable waits, completion reporting,
+      operation ownership, and safe destructor cleanup.
+- [x] Preserved the blocking `executeParallel()` API and its single-operation
+      fast path and resource-failure fallback behavior.
+- [x] Added `EnvironmentSensorFetchOperation` with dependency injection for
+      `EnvSensor`, atomic report publication, optional readings, failure
+      clearing, and non-aborting results.
+- [x] Added the production local-sensor factory and disabled-factory path for
+      `BME_TYPE_NONE`.
+- [x] Started the local sensor execution before WiFi and synchronized it before
+      MQTT publication and rendering, including the time/network error path.
+- [x] Removed the old main-file sensor globals, task, semaphore, getter, and
+      final sensor copy.
+- [x] Unified configuration under `providers`, including the discriminated
+      BME280 provider entry and canonical indoor-sensor capability tags.
+- [x] Updated capability validation, generated BME compatibility macros, local
+      provider selection, examples, device examples, and pinned test configs.
+- [x] Added asynchronous executor tests and hardware-independent environment
+      sensor operation tests using fake sensors.
+- [x] `./scripts/format.sh --check` passes.
+- [x] The normal `lolin_d32` build passes, including the BME-enabled path.
+- [x] The Open-Meteo QEMU suite passes (70 test cases).
+
+Pending investigation:
+
+- [ ] Complete the OWM QEMU suite. The Docker run reaches 20 successful test
+      cases and then exits with `SIGHUP`; the direct host invocation was not a
+      valid comparison because it omitted `ESP32_EPD_CONFIG=test/configs/owm.yml`
+      and selected the Open-Meteo configuration instead.
+- [ ] Re-run the full validation commands after resolving the OWM test issue.
+
 ## Current constraints
 
 - `executeParallel()` is currently blocking.

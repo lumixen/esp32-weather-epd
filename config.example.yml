@@ -10,7 +10,7 @@ epdPanel: GENERIC_BW_V2
 epdDriver: Good Display DESPI-C02
 locale: en_GB
 
-remoteProviders:
+providers:
   - provider: open_meteo_forecast
     transport: HTTPS_VERIFY
   - provider: open_meteo_air_quality
@@ -72,8 +72,12 @@ wakeTime: 6
 hourlyGraphMax: 24
 moonPhaseStyle: primary
 
-bme:
-  type: NONE
+# Add this entry to enable a local BME280 sensor. Omitting it disables the sensor.
+# - provider: bme280
+#   pinPwr: 27
+#   pinSDA: 21
+#   pinSCL: 22
+#   address: 0x76
 
 leftPanelLayout:
   SUNRISE: 0

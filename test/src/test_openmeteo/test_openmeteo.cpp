@@ -13,6 +13,7 @@
 #include "../test_harness.h"
 
 #include "display_utils.inc"
+#include "environment_sensor.inc"
 #include "moon_tools.inc"
 #include "sun_tools.inc"
 #include "meteoalarm.inc"
@@ -29,6 +30,7 @@ void setup() {
   UNITY_BEGIN();
 
   display_utils_tests::registerTests();
+  environment_sensor_tests::registerTests();
   rtc_drift_correction_tests::registerTests();
   moon_tools_tests::registerTests();
   sun_tools_tests::registerTests();

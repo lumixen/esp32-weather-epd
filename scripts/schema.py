@@ -278,13 +278,23 @@ class MeteoAlarmAlertConfig(BaseModel):
     country: MeteoAlarmCountry
 
 
-RemoteProviderConfig = Annotated[
+class BME280ProviderConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    provider: Literal["bme280"] = "bme280"
+    pinPwr: int = 27
+    pinSDA: int = 21
+    pinSCL: int = 22
+    address: int = 0x76
+
+
+ProviderConfig = Annotated[
     Union[
         OpenMeteoForecastConfig,
         OpenMeteoAirQualityConfig,
         OpenWeatherMapOneCallV3Config,
         OpenWeatherMapAirQualityConfig,
         MeteoAlarmAlertConfig,
+        BME280ProviderConfig,
     ],
     Field(discriminator="provider"),
 ]
@@ -455,40 +465,17 @@ class Colors(BaseModel):
     forecastPrecipitation: Color = Color.BLACK
 
 
-class BMEBase(BaseModel):
-    type: str
-
-    def type_to_config_value(self):
-        return f"#define BME_TYPE_{self.type.upper()}"
-
-
-class BMENone(BMEBase):
-    type: Literal["NONE"] = "NONE"
-
-
-class BME280(BMEBase):
-    type: Literal["BME280"] = "BME280"
-    pinPwr: int = 27
-    pinSDA: int = 21
-    pinSCL: int = 22
-    address: int = 0x76
-
-
-BMEType = Union[BMENone, BME280]
-
-
 class ConfigSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     epdPanel: Annotated[EpdPanel, enum_schema(EpdPanel)] = EpdPanel.GENERIC_BW_V2
     epdDriver: EpdDriver = EpdDriver.DESPI_C02
     locale: Locale
-    remoteProviders: list[RemoteProviderConfig]
+    providers: list[ProviderConfig]
     ntp: NTPConfig = Field(default_factory=NTPConfig)
 
     # ntpSyncIntervalHours: int = 6
     useImperialUnitsAsDefault: bool = False
-    bme: BMEType = Field(default_factory=BMENone)
     unitsTemp: UnitsTemp = Field(
         default_factory=lambda data: (
             UnitsTemp.FAHRENHEIT
