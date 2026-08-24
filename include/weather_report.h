@@ -17,7 +17,7 @@
  * optional groups are engaged only when a provider successfully supplies the
  * corresponding data. */
 struct weather_report_t {
-  forecast_t forecast;
+  forecast_t forecast{};
   std::optional<air_quality_t> air_quality;
   std::optional<std::vector<weather_alert_t>> alerts;
   sensor_readings sensor;
