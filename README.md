@@ -75,25 +75,24 @@ To configure the build, create a `config.yml` file in the project root with the 
 epdPanel: DKE_3C_86BF
 epdDriver: Waveshare
 locale: en_US
-# Each API is configured independently with its provider and transport
+# Remote data providers are a list. Each entry owns one or more data groups.
 # (transport: HTTP, HTTPS_NO_VERIFY or HTTPS_VERIFY)
-weatherAPI:
-  provider: Open-Meteo
-  transport: HTTP
-airQualityAPI:
-  provider: Open-Meteo
-  transport: HTTP
-# provider: None disables alerts (or omit the alertsAPI block entirely).
-# Each provider accepts its own keys; a provider value selects the provider:
-#   - MeteoAlarm national weather warnings (https://www.meteoalarm.org/).
-#     country: Atom feed slug validated against the feeds listed at
-#       https://feeds.meteoalarm.org/ (e.g. netherlands, united-kingdom,
-#       austria).
-#   - OpenWeatherMap alerts
-# Warnings are filtered by the configured location (lat/lon): only warnings
-# whose geographic polygon contains it are shown.
-alertsAPI:
-  provider: None
+# The current/hourly/daily forecast owner is required. Air quality is required
+# when AIR_QUALITY is in leftPanelLayout; alerts are optional. A tag may have
+# only one owner; duplicate provider entries are rejected.
+remoteProviders:
+  - provider: open_meteo_forecast
+    transport: HTTP
+  - provider: open_meteo_air_quality
+    transport: HTTP
+  # MeteoAlarm warnings are filtered by the configured location (lat/lon).
+  - provider: meteoalarm_alert
+    country: netherlands
+# Other provider IDs are openweathermap_onecall_v3 and
+# openweathermap_air_quality. OWM entries carry their own apiKey, for example:
+#   - provider: openweathermap_onecall_v3
+#     transport: HTTPS_VERIFY
+#     apiKey: your-owm-api-key
 pin:
   batAdc: 35
   epdBusy: 4
@@ -146,7 +145,7 @@ wifi:
   #   gateway: XXX.XXX.XXX.XXX
   #   subnet: XXX.XXX.XXX.XXX
   #   dns1: XXX.XXX.XXX.XXX
-owmApikey:
+# apiKey belongs on each OpenWeatherMap remoteProviders entry.
 latitude: "64"
 longitude: "-22"
 city: ESPLand

@@ -18,6 +18,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <optional>
 #include <vector>
 
 #define NUM_HOURLY 24  // 48

@@ -17,14 +17,17 @@
 
 #pragma once
 
+#include <memory>
+#include <vector>
 #include "provider_result.h"
-#include "weather_provider.h"
+#include "remote_data_provider.h"
 
 /* Open-Meteo forecast API weather provider. */
-class OpenMeteoWeatherProvider : public WeatherProvider {
+class OpenMeteoForecastProvider : public RemoteDataProvider {
  public:
   const char *getApiName() const override;
-  ProviderResult fetch(forecast_t &forecast) override;
+  std::vector<std::unique_ptr<FetchOperation>> createFetchOperations(weather_report_t &out) override;
+  ProviderResult fetch(forecast_t &forecast);
 
   /* Map a WMO weather interpretation code onto the unified weather_condition
    * enum. Public for unit testing. */
@@ -34,3 +37,7 @@ class OpenMeteoWeatherProvider : public WeatherProvider {
    * generic forecast model. Public for unit testing. */
   static ProviderResult deserializeCall(Stream &json, forecast_t &forecast);
 };
+
+/* Source compatibility for fixture code while the public provider name is
+ * the capability-oriented OpenMeteoForecastProvider. */
+using OpenMeteoWeatherProvider = OpenMeteoForecastProvider;

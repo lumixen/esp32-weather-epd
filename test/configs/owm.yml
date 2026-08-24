@@ -1,23 +1,21 @@
 # Pinned configuration for the QEMU unit test run with the OpenWeatherMap
 # weather provider (test/run_tests.sh sets ESP32_EPD_CONFIG to this file).
 #
-# Mirrors test/configs/openmeteo.yml except that the weather provider is
-# OpenWeatherMap, so the OWMWeatherProvider sources are compiled and the OWM
-# test suite can run. Committed on purpose: test builds must never depend on
+# Uses the combined OpenWeatherMap One Call v3 provider for forecast and
+# alerts, plus the standalone OpenWeatherMap air-quality provider. Committed on purpose: test builds must never depend on
 # the untracked local config.yml. Credentials are placeholders; the tests
 # never go on the network.
 epdPanel: DKE_3C_86BF
 epdDriver: Waveshare
 locale: en_US
-weatherAPI:
-  provider: OpenWeatherMap
-  transport: HTTP
-airQualityAPI:
-  provider: OpenWeatherMap
-  transport: HTTP
-alertsAPI:
-  provider: MeteoAlarm
-  country: ukraine
+remoteProviders:
+  - provider: openweathermap_onecall_v3
+    transport: HTTP
+    apiKey: test
+  - provider: openweathermap_air_quality
+    transport: HTTP
+    apiKey: test
+
 ntp:
   server_1: 192.168.41.1
   server_2: pool.ntp.org
@@ -48,7 +46,6 @@ logLevel: debug
 wifi:
   ssid: your-ssid
   password: your-password
-owmApikey: test
 latitude: '50.498878'
 longitude: '30.497396'
 city: Kyiv

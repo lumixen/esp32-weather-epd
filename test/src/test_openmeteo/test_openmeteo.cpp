@@ -35,6 +35,12 @@ void setup() {
   meteoalarm_tests::registerTests();
 
   UNITY_END();
+  // Keep the test task parked after Unity emits its summary. Returning to a
+  // tight empty loop makes QEMU repeatedly reset the task watchdog and can
+  // corrupt the serial result stream after the tests have completed.
+  for (;;) {
+    delay(1000);
+  }
 }
 
 void loop() {}

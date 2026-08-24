@@ -9,7 +9,6 @@
 #   1. openmeteo       - test/configs/openmeteo.yml (the env default, wired in
 #      by scripts/select_test_env_config.py when ESP32_EPD_CONFIG is unset).
 #   2. owm             - test/configs/owm.yml via ESP32_EPD_CONFIG.
-#   3. owm_piggyback   - test/configs/owm_piggyback.yml via ESP32_EPD_CONFIG.
 #
 # The root suite selected for each run contains only test modules compatible
 # with that configuration. All runs always execute (a failing run does not
@@ -43,14 +42,6 @@ echo "=================================================="
 ESP32_EPD_CONFIG=test/configs/owm.yml \
     "$PIO" test -e lolin_d32_qemu --without-uploading \
     -f test_owm \
-    "${EXTRA_ARGS[@]}" || status=1
-
-echo "=================================================="
-echo "  test run: config owm_piggyback (test/configs/owm_piggyback.yml)"
-echo "=================================================="
-ESP32_EPD_CONFIG=test/configs/owm_piggyback.yml \
-    "$PIO" test -e lolin_d32_qemu --without-uploading \
-    -f test_owm_piggyback \
     "${EXTRA_ARGS[@]}" || status=1
 
 exit "$status"

@@ -27,12 +27,27 @@ void tearDown(void) {}
 static ProviderResult parseOneCall(const String &json, forecast_t &forecast,
                                    std::vector<weather_alert_t> *alerts = nullptr) {
   StringStream ss(json);
-  return OWMProvider::deserializeOneCall(ss, forecast, alerts);
+  weather_report_t report;
+  ProviderResult result = OWMProvider::deserializeOneCall(ss, report);
+  forecast = report.forecast;
+  if (alerts != nullptr) {
+    alerts->clear();
+    if (report.alerts) {
+      *alerts = *report.alerts;
+    }
+  }
+  return result;
 }
 
 static ProviderResult parseAlerts(const String &json, std::vector<weather_alert_t> &alerts) {
   StringStream ss(json);
-  return OWMProvider::deserializeAlerts(ss, alerts);
+  weather_report_t report;
+  ProviderResult result = OWMProvider::deserializeOneCall(ss, report);
+  alerts.clear();
+  if (report.alerts) {
+    alerts = *report.alerts;
+  }
+  return result;
 }
 
 static String makeOneCallJson(size_t hours, size_t days) {
@@ -149,6 +164,16 @@ static void test_zaragoza_forecast_fixture(void) {
   TEST_ASSERT_EQUAL(weather_condition::OVERCAST, forecast.daily[4].weather.condition);
 }
 
+static void test_report_parser_engages_embedded_alerts(void) {
+  StringStream ss(kOwmZaragozaReal);
+  weather_report_t report;
+  ProviderResult result = OWMProvider::deserializeOneCall(ss, report);
+  TEST_ASSERT_TRUE(result.isOk());
+  TEST_ASSERT_TRUE(report.forecast.current.dt != 0);
+  TEST_ASSERT_TRUE(report.alerts.has_value());
+  TEST_ASSERT_EQUAL(3, report.alerts->size());
+}
+
 static void test_zaragoza_alert_fixture(void) {
   std::vector<weather_alert_t> alerts;
   ProviderResult result = parseAlerts(kOwmZaragozaReal, alerts);
@@ -171,7 +196,6 @@ static void test_zaragoza_alert_fixture(void) {
   TEST_ASSERT_EQUAL_STRING("Rain", alerts[2].tags.c_str());
 }
 
-#if defined(ALERTS_API_PROVIDER_OPEN_WEATHER_MAP)
 static void test_zaragoza_embedded_alerts(void) {
   static forecast_t forecast;
   std::vector<weather_alert_t> alerts;
@@ -183,7 +207,6 @@ static void test_zaragoza_embedded_alerts(void) {
   TEST_ASSERT_EQUAL_STRING("Moderate rain warning", alerts[2].event.c_str());
   TEST_ASSERT_EQUAL_STRING("Rain", alerts[2].tags.c_str());
 }
-#endif
 
 static void test_forecast_arrays_are_capped(void) {
   static forecast_t forecast;
@@ -226,11 +249,22 @@ static void test_alerts_are_capped_at_provider_limit(void) {
 
 static void test_empty_alerts_are_successful(void) {
   std::vector<weather_alert_t> alerts;
-  ProviderResult result = parseAlerts("{}", alerts);
+  String no_alerts_json = makeOneCallJson(1, 1);
+  ProviderResult result = parseAlerts(no_alerts_json, alerts);
   TEST_ASSERT_TRUE(result.isOk());
   TEST_ASSERT_TRUE(alerts.empty());
 
-  result = parseAlerts("{\"alerts\":[]}", alerts);
+  StringStream missing_alerts_stream(no_alerts_json);
+  weather_report_t missing_alerts_report;
+  result = OWMProvider::deserializeOneCall(missing_alerts_stream, missing_alerts_report);
+  TEST_ASSERT_TRUE(result.isOk());
+  TEST_ASSERT_TRUE(missing_alerts_report.alerts.has_value());
+  TEST_ASSERT_TRUE(missing_alerts_report.alerts->empty());
+
+  String empty_alerts_json = makeOneCallJson(1, 1);
+  empty_alerts_json.remove(empty_alerts_json.length() - 1);
+  empty_alerts_json += ",\"alerts\":[]}";
+  result = parseAlerts(empty_alerts_json, alerts);
   TEST_ASSERT_TRUE(result.isOk());
   TEST_ASSERT_TRUE(alerts.empty());
 }
@@ -283,10 +317,9 @@ void registerTests() {
   test_harness::selectCallbacks(setUp, tearDown);
   RUN_TEST(owm_provider_tests::test_get_api_name);
   RUN_TEST(owm_provider_tests::test_zaragoza_forecast_fixture);
+  RUN_TEST(owm_provider_tests::test_report_parser_engages_embedded_alerts);
   RUN_TEST(owm_provider_tests::test_zaragoza_alert_fixture);
-#if defined(ALERTS_API_PROVIDER_OPEN_WEATHER_MAP)
   RUN_TEST(owm_provider_tests::test_zaragoza_embedded_alerts);
-#endif
   RUN_TEST(owm_provider_tests::test_forecast_arrays_are_capped);
   RUN_TEST(owm_provider_tests::test_missing_optional_forecast_fields_default_safely);
   RUN_TEST(owm_provider_tests::test_alerts_are_capped_at_provider_limit);

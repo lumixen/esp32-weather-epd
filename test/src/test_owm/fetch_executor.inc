@@ -123,37 +123,14 @@ static void test_execute_parallel_propagates_results(void) {
   TEST_ASSERT_EQUAL_STRING("fail detail", results[1].detail().c_str());
 }
 
-static void test_create_fetch_operations_alerts_first(void) {
-  forecast_t fc;
-  air_quality_t aq;
-  std::vector<weather_alert_t> alerts;
-  auto fetchBundle = createFetchBundle(fc, aq, alerts);
-  auto &ops = fetchBundle.ops;
-  auto &providers = fetchBundle.providers;
-  if (providers.weather && providers.airQuality && providers.alert) {
-    TEST_ASSERT_GREATER_OR_EQUAL(1, ops.size());
-    TEST_ASSERT_EQUAL_STRING("Alerts API", ops[0]->name());
-    TEST_ASSERT_FALSE(ops[0]->shouldAbortOnFailure());
-    bool foundWeather = false, foundAir = false;
-    for (size_t i = 1; i < ops.size(); ++i) {
-      if (String(ops[i]->name()) == String(providers.weather->getApiName()))
-        foundWeather = true;
-      if (String(ops[i]->name()) == "Air Pollution API")
-        foundAir = true;
-    }
-    TEST_ASSERT_TRUE(foundWeather);
-    TEST_ASSERT_TRUE(foundAir);
-#if defined(WEATHER_API_PROVIDER_OPEN_WEATHER_MAP) && defined(ALERTS_API_PROVIDER_OPEN_WEATHER_MAP)
-    // OWM weather and alerts must be two interface views of one provider.
-    // Compare shared ownership instead of downcasting: the project disables
-    // RTTI, so dynamic_cast is unavailable in production and test builds.
-    TEST_ASSERT_FALSE(providers.weather.owner_before(providers.alert));
-    TEST_ASSERT_FALSE(providers.alert.owner_before(providers.weather));
-#endif
-  } else {
-    TEST_PASS_MESSAGE("Skipped — not all providers configured for this test config");
-  }
-  // providers owned by shared_ptr, no manual delete
+static void test_create_fetch_operations_from_unified_providers(void) {
+  weather_report_t report;
+  auto fetchBundle = createFetchBundle(report);
+  TEST_ASSERT_EQUAL(2, fetchBundle.ops.size());
+  TEST_ASSERT_TRUE(fetchBundle.ops[0]->shouldAbortOnFailure());
+  TEST_ASSERT_FALSE(fetchBundle.ops[1]->shouldAbortOnFailure());
+  TEST_ASSERT_EQUAL_STRING("One Call API", fetchBundle.ops[0]->name());
+  TEST_ASSERT_EQUAL_STRING("Air Pollution API", fetchBundle.ops[1]->name());
 }
 
 static void test_should_abort_flags(void) {
@@ -165,11 +142,9 @@ static void test_should_abort_flags(void) {
   TEST_ASSERT_FALSE(alop.shouldAbortOnFailure());
 }
 
-static void test_owm_provider_always_defined(void) {
-  // OWMProvider should be always defined now, even when config is openmeteo
+static void test_owm_provider_combines_forecast_and_alerts(void) {
   OWMProvider p;
   TEST_ASSERT_EQUAL_STRING("One Call API", p.getApiName());
-  // mapWeatherCode should work
   TEST_ASSERT_EQUAL(weather_condition::CLEAR, OWMProvider::mapWeatherCode(800));
 }
 
@@ -180,9 +155,9 @@ void registerTests() {
   RUN_TEST(fetch_executor_tests::test_execute_parallel_single_op_no_task);
   RUN_TEST(fetch_executor_tests::test_execute_parallel_empty);
   RUN_TEST(fetch_executor_tests::test_execute_parallel_propagates_results);
-  RUN_TEST(fetch_executor_tests::test_create_fetch_operations_alerts_first);
+  RUN_TEST(fetch_executor_tests::test_create_fetch_operations_from_unified_providers);
   RUN_TEST(fetch_executor_tests::test_should_abort_flags);
-  RUN_TEST(fetch_executor_tests::test_owm_provider_always_defined);
+  RUN_TEST(fetch_executor_tests::test_owm_provider_combines_forecast_and_alerts);
 }
 
 }  // namespace fetch_executor_tests

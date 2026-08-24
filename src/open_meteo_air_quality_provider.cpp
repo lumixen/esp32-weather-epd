@@ -18,14 +18,14 @@
 #include "config.h"
 #include "logger.h"
 
-#if defined(AIR_QUALITY_API_PROVIDER_OPEN_METEO)
+#if defined(REMOTE_PROVIDER_OPEN_METEO_AIR_QUALITY)
 
 #include <Arduino.h>
 #include <WiFiClient.h>
-#if !defined(AIR_QUALITY_API_TRANSPORT_HTTP)
+#if !defined(OPEN_METEO_AIR_QUALITY_TRANSPORT_HTTP)
 #include <WiFiClientSecure.h>
 #endif
-#if defined(AIR_QUALITY_API_TRANSPORT_HTTPS_VERIFY)
+#if defined(OPEN_METEO_AIR_QUALITY_TRANSPORT_HTTPS_VERIFY)
 #include "cert.h"
 #endif
 #include <ArduinoStreamParser.h>
@@ -35,19 +35,20 @@
 #include "_locale.h"
 #include "client_utils.h"
 #include "open_meteo_air_quality_provider.h"
+#include "provider_fetch_operations.h"
 
 /* Perform an HTTP GET request to Open-Meteo's air quality API and map the
  * response into the generic air quality model.
  */
 ProviderResult OpenMeteoAirQualityProvider::fetch(air_quality_t &airQuality) {
-#if defined(AIR_QUALITY_API_TRANSPORT_HTTP)
+#if defined(OPEN_METEO_AIR_QUALITY_TRANSPORT_HTTP)
   WiFiClient client;
   const uint16_t port = 80;
-#elif defined(AIR_QUALITY_API_TRANSPORT_HTTPS_NO_VERIFY)
+#elif defined(OPEN_METEO_AIR_QUALITY_TRANSPORT_HTTPS_NO_VERIFY)
   WiFiClientSecure client;
   client.setInsecure();
   const uint16_t port = 443;
-#else  // AIR_QUALITY_API_TRANSPORT_HTTPS_VERIFY
+#else  // OPEN_METEO_AIR_QUALITY_TRANSPORT_HTTPS_VERIFY
   WiFiClientSecure client;
   client.setCACert(cert_ISRG_Root_X1);
   const uint16_t port = 443;
@@ -60,6 +61,22 @@ ProviderResult OpenMeteoAirQualityProvider::fetch(air_quality_t &airQuality) {
   return httpGetWithRetry(client, OM_AIR_QUALITY_ENDPOINT, port, uri, sanitizedUri, true, HTTP_CLIENT_TCP_TIMEOUT,
                           [&airQuality](Stream &json, size_t) { return deserializeAirQuality(json, airQuality); });
 }  // OpenMeteoAirQualityProvider::fetch
+
+std::vector<std::unique_ptr<FetchOperation>> OpenMeteoAirQualityProvider::createFetchOperations(weather_report_t &out) {
+  std::vector<std::unique_ptr<FetchOperation>> operations;
+  operations.push_back(std::make_unique<CallbackFetchOperation>(getApiName(), false, [this, &out]() {
+    out.resetAirQuality();
+    air_quality_t &airQuality = out.engageAirQuality();
+    ProviderResult result = fetch(airQuality);
+    // A valid response with no timestamp at or before now contains no
+    // usable readings and must not render as zero-filled data.
+    if (!result.isOk() || airQuality.dt[0] == 0) {
+      out.resetAirQuality();
+    }
+    return result;
+  }));
+  return operations;
+}
 
 /* SAX event handler: maps the Open-Meteo air quality response directly into
  * the generic air quality model as the bytes stream in. Only arrays below the
@@ -234,4 +251,4 @@ ProviderResult OpenMeteoAirQualityProvider::deserializeAirQuality(Stream &json, 
   return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT);
 }  // OpenMeteoAirQualityProvider::deserializeAirQuality
 
-#endif  // AIR_QUALITY_API_PROVIDER_OPEN_METEO
+#endif  // REMOTE_PROVIDER_OPEN_METEO_AIR_QUALITY

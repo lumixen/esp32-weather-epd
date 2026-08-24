@@ -176,22 +176,6 @@ class Locale(str, Enum):
     PT_BR = "pt_BR"
 
 
-class WeatherAPI(str, Enum):
-    OPEN_WEATHER_MAP = "OpenWeatherMap"
-    OPEN_METEO = "Open-Meteo"
-
-
-class AirQualityAPI(str, Enum):
-    OPEN_WEATHER_MAP = "OpenWeatherMap"
-    OPEN_METEO = "Open-Meteo"
-
-
-class AlertsAPI(str, Enum):
-    NONE = "None"
-    OPEN_WEATHER_MAP = "OpenWeatherMap"
-    METEOALARM = "MeteoAlarm"
-
-
 class Font(str, Enum):
     FREEMONO = "FreeMono"
     FREESANS = "FreeSans"
@@ -262,68 +246,53 @@ class MeteoAlarmCountry(DocEnum):
 # END ENUMS
 
 
-class WeatherAPIConfig(BaseModel):
-    provider: WeatherAPI
-    transport: Transport = Transport.HTTPS_VERIFY
-
-
-class AirQualityAPIConfig(BaseModel):
-    provider: AirQualityAPI
-    transport: Transport = Transport.HTTPS_VERIFY
-
-
-class NoAlertsConfig(BaseModel):
-    """Alerts API disabled"""
-
+class OpenMeteoForecastConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
-
-    provider: Literal["None"] = "None"
-
-    def provider_to_config_value(self):
-        return "#define ALERTS_API_PROVIDER_NONE"
-
-
-class OpenWeatherMapAlertConfig(BaseModel):
-    """OpenWeatherMap alerts (One Call API)"""
-
-    model_config = ConfigDict(extra="forbid")
-
-    provider: Literal["OpenWeatherMap"] = "OpenWeatherMap"
+    provider: Literal["open_meteo_forecast"] = "open_meteo_forecast"
     transport: Transport = Transport.HTTPS_VERIFY
 
-    def provider_to_config_value(self):
-        return "#define ALERTS_API_PROVIDER_OPEN_WEATHER_MAP"
+
+class OpenMeteoAirQualityConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    provider: Literal["open_meteo_air_quality"] = "open_meteo_air_quality"
+    transport: Transport = Transport.HTTPS_VERIFY
+
+
+class OpenWeatherMapOneCallV3Config(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    provider: Literal["openweathermap_onecall_v3"] = "openweathermap_onecall_v3"
+    transport: Transport = Transport.HTTPS_VERIFY
+    apiKey: str
+
+
+class OpenWeatherMapAirQualityConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    provider: Literal["openweathermap_air_quality"] = "openweathermap_air_quality"
+    transport: Transport = Transport.HTTPS_VERIFY
+    apiKey: str
 
 
 class MeteoAlarmAlertConfig(BaseModel):
-    """MeteoAlarm (EUMETNET) alerts.
-
-    The feed is always fetched over HTTPS with certificate verification;
-    the feed server rejects plain HTTP with a 302 redirect to HTTPS.
-    """
-
     model_config = ConfigDict(extra="forbid")
-
-    provider: Literal["MeteoAlarm"] = "MeteoAlarm"
-    # Country slug used in the Atom feed URL, e.g. "netherlands",
-    # "united-kingdom", "austria". The value is validated against the feeds
-    # listed at https://feeds.meteoalarm.org/.
+    provider: Literal["meteoalarm_alert"] = "meteoalarm_alert"
     country: MeteoAlarmCountry
 
-    def provider_to_config_value(self):
-        return "#define ALERTS_API_PROVIDER_METEOALARM"
 
-
-AlertsAPIConfig = Annotated[
-    Union[NoAlertsConfig, OpenWeatherMapAlertConfig, MeteoAlarmAlertConfig],
+RemoteProviderConfig = Annotated[
+    Union[
+        OpenMeteoForecastConfig,
+        OpenMeteoAirQualityConfig,
+        OpenWeatherMapOneCallV3Config,
+        OpenWeatherMapAirQualityConfig,
+        MeteoAlarmAlertConfig,
+    ],
     Field(discriminator="provider"),
 ]
+
 
 defined_enums: list[Enum] = [
     EpdPanel,
     EpdDriver,
-    WeatherAPI,
-    AirQualityAPI,
     UnitsTemp,
     UnitsSpeed,
     UnitsPres,
@@ -333,6 +302,7 @@ defined_enums: list[Enum] = [
     WindArrowPrecision,
     DisplayDailyPrecip,
 ]
+
 
 
 def enum_schema(enum: Enum):
@@ -508,11 +478,12 @@ BMEType = Union[BMENone, BME280]
 
 
 class ConfigSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     epdPanel: Annotated[EpdPanel, enum_schema(EpdPanel)] = EpdPanel.GENERIC_BW_V2
     epdDriver: EpdDriver = EpdDriver.DESPI_C02
     locale: Locale
-    weatherAPI: WeatherAPIConfig = Field(default_factory=WeatherAPIConfig)
-    airQualityAPI: AirQualityAPIConfig = Field(default_factory=AirQualityAPIConfig)
+    remoteProviders: list[RemoteProviderConfig]
     ntp: NTPConfig = Field(default_factory=NTPConfig)
 
     # ntpSyncIntervalHours: int = 6
@@ -559,14 +530,12 @@ class ConfigSchema(BaseModel):
     font: Font = Font.FREESANS
     displayDailyPrecip: DisplayDailyPrecip = DisplayDailyPrecip.SMART
     displayHourlyIcons: bool = True
-    alertsAPI: AlertsAPIConfig = Field(default_factory=NoAlertsConfig)
     statusBarExtrasBatVoltage: bool = False
     statusBarExtrasWifiRSSI: bool = False
     batteryMonitoring: bool = True
     logLevel: LogLevel = LogLevel.INFO
     pin: PinsConfig = Field(default_factory=PinsConfig)
     wifi: Wifi = Field(default_factory=Wifi)
-    owmApikey: str | None = None
     latitude: str
     longitude: str
     city: str
@@ -596,16 +565,6 @@ class ConfigSchema(BaseModel):
     )
     moonPhaseStyle: MoonPhaseStyle = MoonPhaseStyle.PRIMARY
     colors: Colors = Field(default_factory=Colors)
-
-    @model_validator(mode="after")
-    def validate_apikey(self):
-        if (
-            self.weatherAPI.provider == WeatherAPI.OPEN_WEATHER_MAP
-            or self.airQualityAPI.provider == AirQualityAPI.OPEN_WEATHER_MAP
-            or self.alertsAPI.provider == AlertsAPI.OPEN_WEATHER_MAP
-        ) and not self.owmApikey:
-            raise ValueError("The API key is required on OpenWeatherMap")
-        return self
 
     @model_validator(mode="after")
     def validate_left_panel_layout(self):
