@@ -27,7 +27,8 @@ void tearDown(void) {}
 static ProviderResult parseOneCall(const String &json, forecast_t &forecast,
                                    std::vector<weather_alert_t> *alerts = nullptr) {
   StringStream ss(json);
-  weather_report_t report;
+  static weather_report_t report{};
+  report = {};
   ProviderResult result = OWMProvider::deserializeOneCall(ss, report);
   forecast = report.forecast;
   if (alerts != nullptr) {
@@ -41,7 +42,8 @@ static ProviderResult parseOneCall(const String &json, forecast_t &forecast,
 
 static ProviderResult parseAlerts(const String &json, std::vector<weather_alert_t> &alerts) {
   StringStream ss(json);
-  weather_report_t report;
+  static weather_report_t report{};
+  report = {};
   ProviderResult result = OWMProvider::deserializeOneCall(ss, report);
   alerts.clear();
   if (report.alerts) {
@@ -164,7 +166,8 @@ static void test_zaragoza_forecast_fixture(void) {
 
 static void test_report_parser_engages_embedded_alerts(void) {
   StringStream ss(kOwmZaragozaReal);
-  weather_report_t report;
+  static weather_report_t report{};
+  report = {};
   ProviderResult result = OWMProvider::deserializeOneCall(ss, report);
   TEST_ASSERT_TRUE(result.isOk());
   TEST_ASSERT_TRUE(report.forecast.current.dt != 0);
