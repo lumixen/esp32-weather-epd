@@ -62,6 +62,10 @@ class DependencyScheduler {
     }
 
     workerCount_ = operationCount_ < FETCH_MAX_CONCURRENCY ? operationCount_ : FETCH_MAX_CONCURRENCY;
+    // Every operation can become ready at most once. Reserve the complete
+    // queue before workers start so readiness propagation never allocates
+    // while holding the scheduler mutex.
+    ready_.reserve(operationCount_);
     for (size_t index = 0; index < operationCount_; ++index) {
       if (remainingDependencies_[index] == 0) {
         ready_.push_back(index);
