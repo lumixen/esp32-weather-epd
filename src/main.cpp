@@ -233,11 +233,7 @@ void setup() {
   // Start local data collection independently of the network phase. The
   // execution handle owns the operation and sensor until the explicit wait
   // before MQTT/rendering.
-  std::vector<std::unique_ptr<FetchOperation>> sensorOperations;
-  if (auto sensorOperation = createEnvironmentSensorOperation(environment_data); sensorOperation != nullptr) {
-    sensorOperations.push_back(std::move(sensorOperation));
-  }
-  auto sensorExecution = executeParallelAsync(std::move(sensorOperations));
+  auto sensorExecution = executeParallelAsync(createEnvironmentSensorOperations(environment_data));
 
   // START TIMING FOR WIFI + TIME SYNC + API
   unsigned long networkStartTime = millis();

@@ -62,3 +62,11 @@ std::unique_ptr<FetchOperation> createEnvironmentSensorOperation(weather_report_
   return nullptr;
 #endif
 }
+
+std::vector<std::unique_ptr<FetchOperation>> createEnvironmentSensorOperations(weather_report_t &report) {
+  std::vector<std::unique_ptr<FetchOperation>> operations;
+  if (auto operation = createEnvironmentSensorOperation(report); operation != nullptr) {
+    operations.push_back(std::move(operation));
+  }
+  return operations;
+}

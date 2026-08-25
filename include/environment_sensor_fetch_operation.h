@@ -9,6 +9,7 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 
 #include "env_sensor.h"
 #include "fetch_operation.h"
@@ -35,3 +36,4 @@ class EnvironmentSensorFetchOperation final : public FetchOperation {
  * configured. The operation class itself is available for tests even in a
  * BME_TYPE_NONE build. */
 std::unique_ptr<FetchOperation> createEnvironmentSensorOperation(weather_report_t &report);
+std::vector<std::unique_ptr<FetchOperation>> createEnvironmentSensorOperations(weather_report_t &report);

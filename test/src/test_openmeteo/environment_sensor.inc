@@ -118,10 +118,14 @@ static void test_initialization_failure_clears_stale_data_and_does_not_abort(voi
   TEST_ASSERT_TRUE(destroyed);
 }
 
-static void test_factory_is_disabled_without_local_provider(void) {
-#if defined(BME_TYPE_NONE)
+static void test_factory_matches_local_provider_configuration(void) {
   weather_report_t report{};
+  auto operations = createEnvironmentSensorOperations(report);
+#if defined(BME_TYPE_NONE)
   TEST_ASSERT_NULL(createEnvironmentSensorOperation(report).get());
+  TEST_ASSERT_TRUE(operations.empty());
+#else
+  TEST_ASSERT_EQUAL(1, operations.size());
 #endif
 }
 
@@ -171,7 +175,7 @@ void registerTests() {
   RUN_TEST(environment_sensor_tests::test_successful_readings_are_published_atomically);
   RUN_TEST(environment_sensor_tests::test_unavailable_values_are_optional);
   RUN_TEST(environment_sensor_tests::test_initialization_failure_clears_stale_data_and_does_not_abort);
-  RUN_TEST(environment_sensor_tests::test_factory_is_disabled_without_local_provider);
+  RUN_TEST(environment_sensor_tests::test_factory_matches_local_provider_configuration);
   RUN_TEST(environment_sensor_tests::test_async_sensor_operation_keeps_report_unpublished_until_complete);
 }
 
