@@ -26,10 +26,16 @@ struct FetchExecution::State {
   std::vector<ProviderResult> results;
   std::atomic<size_t> nextIndex{0};
   std::atomic<size_t> finishedWorkers{0};
+  std::atomic<size_t> createdWorkers{0};
   SemaphoreHandle_t doneSem = nullptr;
   size_t operationCount = 0;
+  // Immutable after task creation begins. Workers use this value to detect
+  // normal completion; failed creation is tracked separately in
+  // createdWorkers so it never races with a worker.
   size_t workerCount = 0;
   size_t consumedWorkers = 0;
+  size_t fallbackIndex = 0;
+  bool fallbackIndexInitialized = false;
   std::atomic<bool> runUnclaimedSequentially{false};
   std::atomic<bool> complete{false};
 
@@ -83,12 +89,13 @@ bool waitForWorkers(FetchExecution::State &state, TickType_t timeout) {
   // A worker sets complete immediately before giving its token. Do not take
   // this fast path until every completion token has also been accounted for;
   // otherwise the handle could destroy State while the worker is signaling.
-  if (state.complete.load(std::memory_order_acquire) && state.consumedWorkers == state.workerCount) {
+  const size_t createdWorkers = state.createdWorkers.load(std::memory_order_acquire);
+  if (state.complete.load(std::memory_order_acquire) && state.consumedWorkers == createdWorkers) {
     return true;
   }
 
   const TickType_t start = xTaskGetTickCount();
-  while (state.consumedWorkers < state.workerCount) {
+  while (state.consumedWorkers < createdWorkers) {
     TickType_t remaining = timeout;
     if (timeout != portMAX_DELAY) {
       const TickType_t elapsed = xTaskGetTickCount() - start;
@@ -103,17 +110,36 @@ bool waitForWorkers(FetchExecution::State &state, TickType_t timeout) {
     ++state.consumedWorkers;
   }
 
+  bool withinDeadline = true;
+  if (timeout != portMAX_DELAY && xTaskGetTickCount() - start >= timeout) {
+    withinDeadline = false;
+  }
+
   // A task-creation failure can leave an unclaimed suffix. It is important to
   // run that suffix only after all workers have stopped touching the state.
   if (state.runUnclaimedSequentially) {
-    const size_t firstUnclaimed = state.nextIndex.load(std::memory_order_acquire);
-    for (size_t index = firstUnclaimed; index < state.operationCount; ++index) {
-      state.results[index] = state.ops[index]->execute();
+    if (!state.fallbackIndexInitialized) {
+      state.fallbackIndex = state.nextIndex.load(std::memory_order_acquire);
+      state.fallbackIndexInitialized = true;
+    }
+
+    while (state.fallbackIndex < state.operationCount) {
+      if (timeout != portMAX_DELAY) {
+        const TickType_t elapsed = xTaskGetTickCount() - start;
+        if (elapsed >= timeout) {
+          return false;
+        }
+      }
+      state.results[state.fallbackIndex] = state.ops[state.fallbackIndex]->execute();
+      ++state.fallbackIndex;
+      if (timeout != portMAX_DELAY && xTaskGetTickCount() - start >= timeout) {
+        withinDeadline = false;
+      }
     }
     state.runUnclaimedSequentially = false;
   }
   state.complete.store(true, std::memory_order_release);
-  return true;
+  return withinDeadline;
 }
 
 }  // namespace
@@ -185,7 +211,6 @@ FetchExecution executeParallelAsync(std::vector<std::unique_ptr<FetchOperation>>
     BaseType_t ok = xTaskCreate(fetchWorker, taskName, FETCH_STACK_BYTES, state.get(), FETCH_TASK_PRIORITY, nullptr);
     if (ok != pdPASS) {
       LOG_WARNING("FetchExecutor: async worker task creation failed, running remainder on wait");
-      state->workerCount = created;
       state->runUnclaimedSequentially = true;
       if (created == 0) {
         // Do not run operations inline: the async API must return promptly
@@ -199,6 +224,7 @@ FetchExecution executeParallelAsync(std::vector<std::unique_ptr<FetchOperation>>
       return FetchExecution(std::move(state));
     }
     ++created;
+    state->createdWorkers.store(created, std::memory_order_release);
   }
 
   return FetchExecution(std::move(state));
