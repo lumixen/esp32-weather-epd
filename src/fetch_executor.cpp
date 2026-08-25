@@ -178,11 +178,6 @@ class DependencyScheduler {
           return false;
         }
 
-        for (size_t existing : dependencyIndexes_[index]) {
-          if (existing == dependencyIndex) {
-            return false;
-          }
-        }
         dependencyIndexes_[index].push_back(dependencyIndex);
         dependents_[dependencyIndex].push_back(index);
         ++remainingDependencies_[index];
@@ -214,10 +209,19 @@ class DependencyScheduler {
   }
 
   void completeOperation(size_t index, const ProviderResult &result) {
+    struct SkippedOperation {
+      size_t operationIndex;
+      size_t failedDependencyIndex;
+    };
+
     size_t readySignals = 0;
     bool wakeWorkers = false;
     std::vector<size_t> completedWithoutExecution;
     completedWithoutExecution.reserve(dependents_[index].size());
+    std::vector<SkippedOperation> skippedOperations;
+    // Reserve before taking the scheduler mutex so a long dependency chain
+    // cannot trigger vector allocation while workers are updating state.
+    skippedOperations.reserve(operationCount_);
 
     lock();
     results_[index] = result;
@@ -240,19 +244,20 @@ class DependencyScheduler {
         }
 
         if (dependencyFailed_[dependent]) {
-          String detail = "Required fetch dependency failed";
+          size_t failedDependencyIndex = operationCount_;
           for (size_t dependency : dependencyIndexes_[dependent]) {
             if (!results_[dependency].isOk()) {
-              detail += ": ";
-              detail += ops_[dependency]->name();
+              failedDependencyIndex = dependency;
               break;
             }
           }
-          results_[dependent] = ProviderResult::error(detail);
+          // Set the terminal failure state while holding the lock. The more
+          // detailed message and warning are produced after it is released.
+          results_[dependent] = ProviderResult::error("Required fetch dependency failed");
           completed_[dependent] = true;
           ++finishedCount_;
           completedWithoutExecution.push_back(dependent);
-          LOG_WARNING("FetchWorker %s skipped: %s", ops_[dependent]->name(), detail.c_str());
+          skippedOperations.push_back({dependent, failedDependencyIndex});
         } else {
           ready_.push_back(dependent);
           ++readySignals;
@@ -265,6 +270,16 @@ class DependencyScheduler {
       wakeWorkers = true;
     }
     unlock();
+
+    for (const SkippedOperation &skipped : skippedOperations) {
+      String detail = "Required fetch dependency failed";
+      if (skipped.failedDependencyIndex < operationCount_) {
+        detail += ": ";
+        detail += ops_[skipped.failedDependencyIndex]->name();
+      }
+      results_[skipped.operationIndex] = ProviderResult::error(detail);
+      LOG_WARNING("FetchWorker %s skipped: %s", ops_[skipped.operationIndex]->name(), detail.c_str());
+    }
 
     if (readySem_ != nullptr) {
       for (size_t i = 0; i < readySignals; ++i) {

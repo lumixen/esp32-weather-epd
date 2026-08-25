@@ -205,6 +205,8 @@ static void test_dependency_waits_for_successful_prerequisite(void) {
     return ProviderResult::ok();
   });
   dependent->dependsOn(*prerequisite);
+  dependent->dependsOn(*prerequisite);
+  TEST_ASSERT_EQUAL(1, dependent->dependencies().size());
   ops.push_back(std::move(prerequisite));
   ops.push_back(std::move(dependent));
 

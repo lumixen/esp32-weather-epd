@@ -21,8 +21,16 @@ class FetchOperation {
 
   // Dependencies are non-owning references to operations submitted in the
   // same execution. They must be declared before the operation is submitted
-  // to the executor.
-  void dependsOn(const FetchOperation &operation) { dependencies_.push_back(&operation); }
+  // to the executor. Repeating a dependency declaration is harmless.
+  void dependsOn(const FetchOperation &operation) {
+    const FetchOperation *dependency = &operation;
+    for (const FetchOperation *existing : dependencies_) {
+      if (existing == dependency) {
+        return;
+      }
+    }
+    dependencies_.push_back(dependency);
+  }
   const std::vector<const FetchOperation *> &dependencies() const { return dependencies_; }
 
  private:
