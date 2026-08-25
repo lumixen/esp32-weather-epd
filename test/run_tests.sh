@@ -28,20 +28,48 @@ EXTRA_ARGS=("$@")
 
 cd "$ROOT"
 
+# Avoid uploading diagnostics left by a previous cached build if a test build
+# fails before the broker gets a chance to truncate its log.
+QEMU_BUILD_DIR=".pio/build/lolin_d32_qemu"
+FIRMWARE_ELF="$QEMU_BUILD_DIR/firmware.elf"
+rm -f "$QEMU_BUILD_DIR"/qemu_output*.log \
+    "$QEMU_BUILD_DIR"/qemu_debug*.log \
+    "$QEMU_BUILD_DIR"/firmware_openmeteo.elf \
+    "$QEMU_BUILD_DIR"/firmware_owm.elf
+
 echo "=================================================="
 echo "  test run: config openmeteo (test/configs/openmeteo.yml)"
 echo "=================================================="
 status=0
-"$PIO" test -e lolin_d32_qemu --without-uploading \
+
+# Remove the shared ELF before each build. This prevents a failed build from
+# being mistaken for the firmware produced for the current configuration.
+rm -f "$FIRMWARE_ELF"
+QEMU_LOG_FILE="$QEMU_BUILD_DIR/qemu_output_openmeteo.log" \
+QEMU_DEBUG_FILE="$QEMU_BUILD_DIR/qemu_debug_openmeteo.log" \
+    "$PIO" test -e lolin_d32_qemu --without-uploading \
     -f test_openmeteo \
     "${EXTRA_ARGS[@]}" || status=1
+if [[ -f "$FIRMWARE_ELF" ]]; then
+    cp "$FIRMWARE_ELF" "$QEMU_BUILD_DIR/firmware_openmeteo.elf"
+else
+    echo "WARNING: no Open-Meteo firmware ELF was produced" >&2
+fi
 
 echo "=================================================="
 echo "  test run: config owm (test/configs/owm.yml)"
 echo "=================================================="
+rm -f "$FIRMWARE_ELF"
 ESP32_EPD_CONFIG=test/configs/owm.yml \
+QEMU_LOG_FILE="$QEMU_BUILD_DIR/qemu_output_owm.log" \
+QEMU_DEBUG_FILE="$QEMU_BUILD_DIR/qemu_debug_owm.log" \
     "$PIO" test -e lolin_d32_qemu --without-uploading \
     -f test_owm \
     "${EXTRA_ARGS[@]}" || status=1
+if [[ -f "$FIRMWARE_ELF" ]]; then
+    cp "$FIRMWARE_ELF" "$QEMU_BUILD_DIR/firmware_owm.elf"
+else
+    echo "WARNING: no OWM firmware ELF was produced" >&2
+fi
 
 exit "$status"

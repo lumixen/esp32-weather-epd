@@ -10,6 +10,7 @@ exits), so the broker terminates it once the test output has settled.
 """
 
 import argparse
+import atexit
 import os
 import re
 import select
@@ -31,6 +32,12 @@ RESULT_TIMEOUT_S = 60
 # can pause for several seconds between tests (String-heavy tests on the slow
 # emulated CPU), so this must be generous.
 DONE_SILENCE_S = 30
+# Once a panic marker is seen, keep reading the merged QEMU stream. The panic
+# handler emits the register dump and backtrace after the marker, and killing
+# QEMU immediately loses that output. The quiet limit handles a rebooting
+# firmware, while the hard limit prevents a broken emulator from hanging CI.
+CRASH_QUIET_S = 15
+CRASH_CAPTURE_TIMEOUT_S = 30
 # Unity's summary is emitted only after every test result has been flushed.
 # Terminate immediately when it is observed; waiting here lets the ESP32 test
 # image enter its post-Unity idle/reboot path and duplicate result lines.
@@ -46,7 +53,12 @@ CRASH_MARKERS = (
     b"abort() was called",
     b"assert failed",
     b"Stack smashing protect failure",
+    b"CORRUPT HEAP",
     b"Assertion `",
+    b"assertion failed",
+    b"Core  0 register dump:",
+    b"Core 0 register dump:",
+    b"Backtrace:",
     b"Program received signal",
     b"failed to calculate modulo inverse",
 )
@@ -110,9 +122,27 @@ def main():
         default=os.path.join(os.path.expanduser("~"), ".platformio", "packages"),
         help="PlatformIO packages directory (default: ~/.platformio/packages)",
     )
+    parser.add_argument(
+        "--log-file",
+        help="file receiving the complete merged QEMU output (or QEMU_LOG_FILE)",
+    )
+    parser.add_argument(
+        "--debug-file",
+        help="QEMU guest-error diagnostics file (or QEMU_DEBUG_FILE)",
+    )
     args = parser.parse_args()
 
     flash = build_flash_image(args)
+    log_file = args.log_file or os.environ.get("QEMU_LOG_FILE")
+    if not log_file:
+        log_file = os.path.join(args.build_dir, "qemu_output.log")
+    debug_file = args.debug_file or os.environ.get("QEMU_DEBUG_FILE")
+    if not debug_file:
+        debug_file = os.path.join(args.build_dir, "qemu_debug.log")
+    log_dir = os.path.dirname(os.path.abspath(log_file))
+    debug_dir = os.path.dirname(os.path.abspath(debug_file))
+    os.makedirs(log_dir, exist_ok=True)
+    os.makedirs(debug_dir, exist_ok=True)
 
     cmd = [
         args.qemu,
@@ -123,10 +153,64 @@ def main():
         "file=%s,if=mtd,format=raw" % flash,
         "-global",
         "driver=timer.esp32.timg,property=wdt_disable,value=true",
+        "-d",
+        "guest_errors",
+        "-D",
+        debug_file,
     ]
-    # Use a process group so a stuck QEMU (or a child it created) cannot
-    # keep the PlatformIO test command alive after a crash/timeout.
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
+    # Merge stderr into the serial stream. Keeping it in a separate pipe meant
+    # that normal QEMU diagnostics were silently discarded, and the broker
+    # could kill QEMU while unread stderr still contained the backtrace.
+    output_log = open(log_file, "wb")
+    print("QEMU output log: %s" % log_file, flush=True)
+    print("QEMU debug log: %s" % debug_file, flush=True)
+
+    # Use a process group so a stuck QEMU (or a child it created) cannot keep
+    # the PlatformIO test command alive after a crash/timeout. Open the log
+    # before spawning QEMU so a log-file setup failure cannot orphan it.
+    process_holder = [None]
+
+    def cleanup_process():
+        terminated = True
+        try:
+            proc = process_holder[0]
+            if proc is not None and proc.poll() is None:
+                # Ask QEMU to exit cleanly after the stream has been drained.
+                # Fall back to SIGKILL if it does not exit promptly.
+                try:
+                    os.killpg(proc.pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+                try:
+                    proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    try:
+                        os.killpg(proc.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                    try:
+                        proc.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        print("ERROR: failed to terminate emulator after test failure", flush=True)
+                        terminated = False
+        finally:
+            # Keep this in finally: preserving the diagnostic log is more
+            # important when the final termination attempt itself times out.
+            output_log.close()
+        return terminated
+
+    # Protect against exceptions while reading/writing the diagnostic stream
+    # (for example, a full disk). The broker must not leave QEMU orphaned.
+    atexit.register(cleanup_process)
+    try:
+        process_holder[0] = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True
+        )
+    except BaseException:
+        cleanup_process()
+        atexit.unregister(cleanup_process)
+        raise
+    proc = process_holder[0]
 
     start = time.time()
     any_output = False
@@ -135,92 +219,81 @@ def main():
     quiet_since = start
     summary_at = None
     tail = b""
-    stderr_tail = b""
-    crash_detected = False
-    streams = [proc.stdout, proc.stderr]
+    crash_detected_at = None
+    last_output_at = start
     exit_code = 0
 
     while True:
-        elapsed = time.time() - start
-        if elapsed > RUN_TIMEOUT_S:
+        now = time.time()
+        elapsed = now - start
+        if crash_detected_at is not None:
+            # A panic is printed asynchronously. Drain the stream until it is
+            # quiet, but never wait indefinitely for a rebooting emulator.
+            if now - last_output_at >= CRASH_QUIET_S or now - crash_detected_at >= CRASH_CAPTURE_TIMEOUT_S:
+                break
+        elif elapsed > RUN_TIMEOUT_S:
             print("ERROR: emulator run timed out after %ds" % RUN_TIMEOUT_S, flush=True)
             exit_code = 1
             break
-        if not any_output and elapsed > BOOT_TIMEOUT_S:
+        elif not any_output and elapsed > BOOT_TIMEOUT_S:
             print("ERROR: no serial output within %ds" % BOOT_TIMEOUT_S, flush=True)
             exit_code = 1
             break
-        if any_output and not seen_result and time.time() - result_since > RESULT_TIMEOUT_S:
+        elif any_output and not seen_result and now - result_since > RESULT_TIMEOUT_S:
             print("ERROR: no test result within %ds" % RESULT_TIMEOUT_S, flush=True)
             if tail:
                 print("Last serial output before timeout:", flush=True)
                 print(tail.decode("utf-8", errors="replace"), end="" if tail.endswith(b"\n") else "\n", flush=True)
-            if stderr_tail:
-                print("QEMU stderr before timeout:", flush=True)
-                print(stderr_tail.decode("utf-8", errors="replace"), end="" if stderr_tail.endswith(b"\n") else "\n", flush=True)
+            print("Complete emulator output saved to %s" % log_file, flush=True)
+            print("QEMU debug output saved to %s" % debug_file, flush=True)
+            print("QEMU process status: %s" % (proc.poll() if proc.poll() is not None else "still running"), flush=True)
             exit_code = 1
             break
-        if seen_result and time.time() - quiet_since > DONE_SILENCE_S:
+        elif seen_result and now - quiet_since > DONE_SILENCE_S:
             print("ERROR: emulator went silent before Unity summary", flush=True)
             if tail:
                 print("Last serial output:", flush=True)
                 print(tail.decode("utf-8", errors="replace"), end="" if tail.endswith(b"\n") else "\n", flush=True)
-            if stderr_tail:
-                print("QEMU stderr:", flush=True)
-                print(stderr_tail.decode("utf-8", errors="replace"), end="" if stderr_tail.endswith(b"\n") else "\n", flush=True)
+            print("Complete emulator output saved to %s" % log_file, flush=True)
+            print("QEMU debug output saved to %s" % debug_file, flush=True)
+            print("QEMU process status: %s" % (proc.poll() if proc.poll() is not None else "still running"), flush=True)
             exit_code = 1
             break
-        if summary_at is not None and time.time() - summary_at >= SUMMARY_GRACE_S:
+        elif summary_at is not None and now - summary_at >= SUMMARY_GRACE_S:
             break
 
-        ready, _, _ = select.select(streams, [], [], 0.5)
+        ready, _, _ = select.select([proc.stdout], [], [], 0.5)
         if not ready:
-            continue
-
-        if proc.stderr in ready:
-            error_chunk = os.read(proc.stderr.fileno(), 4096)
-            if error_chunk:
-                stderr_tail = (stderr_tail + error_chunk)[-4096:]
-                crash_marker = next((marker for marker in CRASH_MARKERS if marker in stderr_tail), None)
-                if crash_marker is not None:
-                    crash_detected = True
-                    crash_start = stderr_tail.find(crash_marker)
-                    print("ERROR: QEMU reported an emulator crash:", flush=True)
-                    print(stderr_tail[crash_start:].decode("utf-8", errors="replace"), flush=True)
-                    exit_code = 1
-                    break
-            else:
-                streams.remove(proc.stderr)
-
-        if proc.stdout not in ready:
             continue
 
         chunk = os.read(proc.stdout.fileno(), 4096)
         if not chunk:
-            # An emulator exit before Unity's summary is a test failure. Keep
-            # the return code and any QEMU diagnostic visible in the runner.
+            # An emulator exit before Unity's summary is a test failure. The
+            # merged stream has already been drained, so the log contains all
+            # diagnostics that QEMU managed to emit.
             return_code = proc.poll()
             if return_code is None:
                 try:
                     return_code = proc.wait(timeout=1)
                 except subprocess.TimeoutExpired:
                     return_code = "unknown"
-            if summary_at is None:
+            if crash_detected_at is None and summary_at is None:
                 print("ERROR: emulator exited before Unity summary (status %s)" % return_code, flush=True)
-                if stderr_tail:
-                    print("QEMU stderr:", flush=True)
-                    print(stderr_tail.decode("utf-8", errors="replace"), end="" if stderr_tail.endswith(b"\n") else "\n", flush=True)
+                print("Complete emulator output saved to %s" % log_file, flush=True)
+                print("QEMU debug output saved to %s" % debug_file, flush=True)
                 exit_code = 1
             break
-        # Do not forward bytes emitted after Unity's final summary. In
-        # particular, the test image may print a post-summary allocator
-        # diagnostic and reboot before the next broker iteration can kill it.
-        # Find and truncate on raw bytes: decoding with errors="replace" can
-        # change the length when malformed UTF-8 is present. Include the
-        # rolling tail so a summary split across reads is handled as one line.
-        combined = tail + chunk
+
+        # Save every byte before inspecting it. In particular, do not truncate
+        # the log at the first panic marker: the register dump and backtrace
+        # follow that marker and are often split across reads. Keep the old
+        # summary truncation only for PlatformIO's parser, so post-summary
+        # reboot noise cannot create duplicate Unity results.
+        raw_chunk = chunk
+        combined = tail + raw_chunk
         summary_match = SUMMARY_RE.search(combined)
         summary_complete = False
+        forward_chunk = raw_chunk
         if summary_match is not None:
             line_end = combined.find(b"\n", summary_match.end())
             if line_end >= 0:
@@ -228,24 +301,22 @@ def main():
                 # Only emit the new portion of the combined buffer. The tail
                 # was already forwarded during the previous iteration.
                 chunk_end = line_end + 1
-                chunk = combined[len(tail) : chunk_end] if chunk_end > len(tail) else b""
-        text = chunk.decode("utf-8", errors="replace")
-        any_output = True
-        sys.stdout.buffer.write(chunk)
-        sys.stdout.buffer.flush()
+                forward_chunk = combined[len(tail) : chunk_end] if chunk_end > len(tail) else b""
 
-        crash_marker = next((marker for marker in CRASH_MARKERS if marker in tail + chunk), None)
-        if crash_marker is not None:
-            crash_detected = True
-            crash_start = chunk.find(crash_marker)
-            if crash_start < 0:
-                crash_start = 0
-            crash_output = chunk[crash_start:].decode("utf-8", errors="replace")
-            print("ERROR: emulator reported firmware crash:", flush=True)
-            print(crash_output, end="" if crash_output.endswith("\n") else "\n", flush=True)
+        output_log.write(raw_chunk)
+        output_log.flush()
+        sys.stdout.buffer.write(forward_chunk)
+        sys.stdout.buffer.flush()
+        any_output = True
+        last_output_at = time.time()
+
+        text = forward_chunk.decode("utf-8", errors="replace")
+        crash_marker = next((marker for marker in CRASH_MARKERS if marker in combined), None)
+        if crash_marker is not None and crash_detected_at is None:
+            crash_detected_at = time.time()
             exit_code = 1
 
-        tail = (tail + chunk)[-256:]
+        tail = (tail + forward_chunk)[-4096:]
 
         if RESULT_RE.search(text):
             if not seen_result:
@@ -253,18 +324,16 @@ def main():
             quiet_since = time.time()
         if summary_complete and summary_at is None:
             summary_at = time.time()
-        if summary_complete or crash_detected:
+        if summary_complete and crash_detected_at is None:
             break
 
-    try:
-        os.killpg(proc.pid, signal.SIGKILL)
-    except ProcessLookupError:
-        pass
-    try:
-        proc.wait(timeout=5)
-    except subprocess.TimeoutExpired:
-        print("ERROR: failed to terminate emulator after test failure", flush=True)
+    if crash_detected_at is not None:
+        print("ERROR: emulator reported firmware crash; complete output saved to %s" % log_file, flush=True)
+        print("QEMU debug output saved to %s" % debug_file, flush=True)
+
+    if not cleanup_process():
         exit_code = 1
+    atexit.unregister(cleanup_process)
     return exit_code
 
 
