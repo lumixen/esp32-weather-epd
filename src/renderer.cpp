@@ -493,7 +493,7 @@ void drawCurrentHumidity(const current_t &current) {
 
   // humidity
   display.setFont(&FONT_12pt8b);
-  dataStr = String(current.humidity);
+  dataStr = current.humidity.has_value() ? String(current.humidity.value()) : "--";
   drawString(48 + (162 * PosX), 204 + 17 / 2 + (48 + 8) * PosY + 48 / 2, dataStr, LEFT);
   display.setFont(&FONT_8pt8b);
   drawString(display.getCursorX(), 204 + 17 / 2 + (48 + 8) * PosY + 48 / 2, "%", LEFT);

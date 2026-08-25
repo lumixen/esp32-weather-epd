@@ -107,6 +107,14 @@ static void test_points_and_observation_mapping() {
   TEST_ASSERT_EQUAL(1015, current.pressure);
   TEST_ASSERT_EQUAL_FLOAT(5.0f, current.wind_speed);
   TEST_ASSERT_EQUAL(25, current.clouds);
+
+  String missingHumidity =
+      "{\"properties\":{\"timestamp\":\"2026-08-25T15:00:00-04:00\",\"temperature\":{\"value\":22}}}";
+  current_t missingHumidityCurrent{};
+  StringStream missingHumidityStream(missingHumidity);
+  result = NoaaForecastProvider::deserializeObservation(missingHumidityStream, missingHumidityCurrent);
+  TEST_ASSERT_TRUE(result.isOk());
+  TEST_ASSERT_FALSE(missingHumidityCurrent.humidity.has_value());
 }
 
 static void test_dependency_graph() {

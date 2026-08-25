@@ -116,7 +116,7 @@ static void test_lima_current(void) {
   TEST_ASSERT_EQUAL_FLOAT(21.5f, forecast.current.temp);
   TEST_ASSERT_EQUAL_FLOAT(20.6f, forecast.current.feels_like);
   TEST_ASSERT_EQUAL_INT(1001, forecast.current.pressure);  // 1001.7 hPa
-  TEST_ASSERT_EQUAL_INT(60, forecast.current.humidity);
+  TEST_ASSERT_EQUAL_INT(60, forecast.current.humidity.value());
   TEST_ASSERT_EQUAL_FLOAT(13.4f, forecast.current.dew_point);
   TEST_ASSERT_EQUAL_INT(45, forecast.current.clouds);
   TEST_ASSERT_EQUAL_FLOAT(8.45f, forecast.current.uvi);      // daily[0] uv_index_max

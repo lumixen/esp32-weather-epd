@@ -847,7 +847,8 @@ ProviderResult NoaaForecastProvider::deserializeObservation(Stream &json, curren
   current.temp = handler.values[0];
   const int apparent = handler.hasValue[1] ? 1 : handler.hasValue[2] ? 2 : -1;
   current.feels_like = apparent >= 0 ? handler.values[apparent] : current.temp;
-  current.humidity = handler.hasValue[3] ? static_cast<int>(handler.values[3]) : 0;
+  if (handler.hasValue[3])
+    current.humidity = static_cast<int>(handler.values[3]);
   current.dew_point = handler.hasValue[4] ? handler.values[4] : 0.0f;
   int pressureSlot = handler.hasValue[5] ? 5 : handler.hasValue[6] ? 6 : -1;
   if (pressureSlot >= 0) {
