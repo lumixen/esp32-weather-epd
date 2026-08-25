@@ -20,6 +20,11 @@
 namespace {
 
 class DependencyScheduler {
+  struct SkippedOperation {
+    size_t operationIndex;
+    size_t failedDependencyIndex;
+  };
+
  public:
   enum class InitializeResult { Ready, InvalidGraph, ResourcesUnavailable };
 
@@ -34,6 +39,10 @@ class DependencyScheduler {
     if (doneSem_ != nullptr) {
       vSemaphoreDelete(doneSem_);
       doneSem_ = nullptr;
+    }
+    if (scratchMutex_ != nullptr) {
+      vSemaphoreDelete(scratchMutex_);
+      scratchMutex_ = nullptr;
     }
     if (mutex_ != nullptr) {
       vSemaphoreDelete(mutex_);
@@ -58,11 +67,14 @@ class DependencyScheduler {
         ready_.push_back(index);
       }
     }
+    completedWithoutExecution_.reserve(operationCount_);
+    skippedOperations_.reserve(operationCount_);
 
     mutex_ = xSemaphoreCreateMutex();
+    scratchMutex_ = xSemaphoreCreateMutex();
     readySem_ = xSemaphoreCreateCounting(static_cast<UBaseType_t>(operationCount_), 0);
     doneSem_ = xSemaphoreCreateCounting(static_cast<UBaseType_t>(workerCount_), 0);
-    if (mutex_ == nullptr || readySem_ == nullptr || doneSem_ == nullptr) {
+    if (mutex_ == nullptr || scratchMutex_ == nullptr || readySem_ == nullptr || doneSem_ == nullptr) {
       LOG_WARNING("FetchExecutor: scheduler synchronization creation failed");
       return InitializeResult::ResourcesUnavailable;
     }
@@ -209,35 +221,28 @@ class DependencyScheduler {
   }
 
   void completeOperation(size_t index, const ProviderResult &result) {
-    struct SkippedOperation {
-      size_t operationIndex;
-      size_t failedDependencyIndex;
-    };
-
     size_t readySignals = 0;
     bool wakeWorkers = false;
-    std::vector<size_t> completedWithoutExecution;
-    // A failed operation can resolve an entire dependent chain. Reserve the
-    // full graph size before taking the scheduler mutex so propagation cannot
-    // trigger a heap allocation while shared state is locked.
-    completedWithoutExecution.reserve(operationCount_);
-    std::vector<SkippedOperation> skippedOperations;
-    // Reserve before taking the scheduler mutex so a long dependency chain
-    // cannot trigger vector allocation while workers are updating state.
-    skippedOperations.reserve(operationCount_);
+
+    // Completion callbacks can run concurrently. Serialize access to the
+    // preallocated scratch buffers, but keep logging outside the scheduler
+    // mutex so another worker can continue resolving independent work.
+    lockScratch();
+    completedWithoutExecution_.clear();
+    skippedOperations_.clear();
 
     lock();
     results_[index] = result;
     completed_[index] = true;
     --activeCount_;
     ++finishedCount_;
-    completedWithoutExecution.push_back(index);
+    completedWithoutExecution_.push_back(index);
 
     // A failed operation may make a whole dependent branch ineligible. Those
     // skipped nodes are resolved here so their own dependents can be released.
     size_t cursor = 0;
-    while (cursor < completedWithoutExecution.size()) {
-      const size_t completedIndex = completedWithoutExecution[cursor++];
+    while (cursor < completedWithoutExecution_.size()) {
+      const size_t completedIndex = completedWithoutExecution_[cursor++];
       for (size_t dependent : dependents_[completedIndex]) {
         if (!results_[completedIndex].isOk()) {
           dependencyFailed_[dependent] = true;
@@ -259,8 +264,8 @@ class DependencyScheduler {
           results_[dependent] = ProviderResult::error("Required fetch dependency failed");
           completed_[dependent] = true;
           ++finishedCount_;
-          completedWithoutExecution.push_back(dependent);
-          skippedOperations.push_back({dependent, failedDependencyIndex});
+          completedWithoutExecution_.push_back(dependent);
+          skippedOperations_.push_back({dependent, failedDependencyIndex});
         } else {
           ready_.push_back(dependent);
           ++readySignals;
@@ -274,15 +279,6 @@ class DependencyScheduler {
     }
     unlock();
 
-    for (const SkippedOperation &skipped : skippedOperations) {
-      if (skipped.failedDependencyIndex < operationCount_) {
-        LOG_WARNING("FetchWorker %s skipped: Required fetch dependency failed: %s",
-                    ops_[skipped.operationIndex]->name(), ops_[skipped.failedDependencyIndex]->name());
-      } else {
-        LOG_WARNING("FetchWorker %s skipped: Required fetch dependency failed", ops_[skipped.operationIndex]->name());
-      }
-    }
-
     if (readySem_ != nullptr) {
       for (size_t i = 0; i < readySignals; ++i) {
         xSemaphoreGive(readySem_);
@@ -295,6 +291,17 @@ class DependencyScheduler {
         xSemaphoreGive(readySem_);
       }
     }
+
+    for (const SkippedOperation &skipped : skippedOperations_) {
+      if (skipped.failedDependencyIndex < operationCount_) {
+        LOG_WARNING("FetchWorker %s skipped: Required fetch dependency failed: %s",
+                    ops_[skipped.operationIndex]->name(), ops_[skipped.failedDependencyIndex]->name());
+      } else {
+        LOG_WARNING("FetchWorker %s skipped: Required fetch dependency failed", ops_[skipped.operationIndex]->name());
+      }
+    }
+
+    unlockScratch();
   }
 
   void lock() {
@@ -309,6 +316,18 @@ class DependencyScheduler {
     }
   }
 
+  void lockScratch() {
+    if (scratchMutex_ != nullptr) {
+      xSemaphoreTake(scratchMutex_, portMAX_DELAY);
+    }
+  }
+
+  void unlockScratch() {
+    if (scratchMutex_ != nullptr) {
+      xSemaphoreGive(scratchMutex_);
+    }
+  }
+
   std::vector<std::unique_ptr<FetchOperation>> &ops_;
   std::vector<ProviderResult> &results_;
   const size_t operationCount_;
@@ -319,12 +338,15 @@ class DependencyScheduler {
   std::vector<bool> dependencyFailed_;
   std::vector<bool> completed_;
   std::vector<size_t> ready_;
+  std::vector<size_t> completedWithoutExecution_;
+  std::vector<SkippedOperation> skippedOperations_;
   size_t readyHead_ = 0;
   size_t finishedCount_ = 0;
   size_t activeCount_ = 0;
   size_t workerCount_ = 0;
 
   SemaphoreHandle_t mutex_ = nullptr;
+  SemaphoreHandle_t scratchMutex_ = nullptr;
   SemaphoreHandle_t readySem_ = nullptr;
   SemaphoreHandle_t doneSem_ = nullptr;
   std::atomic<bool> complete_{false};
