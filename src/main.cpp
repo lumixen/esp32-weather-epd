@@ -129,7 +129,9 @@ void publishMqtt(uint32_t batteryVoltage, uint8_t batteryPercent, int8_t wifiRSS
 void handleNetworkError(const unsigned char *icon, const String &statusStr, const String &tmpStr,
                         unsigned long startTime, tm *timeInfo, uint32_t batteryVoltage, uint8_t batteryPercent,
                         int8_t wifiRSSI, FetchExecution &sensorExecution, const sensor_readings &sensorReadings) {
-  sensorExecution.wait();
+  // close() waits for the local producer and releases the sensor before any
+  // error status is published or the display enters its error path.
+  sensorExecution.close();
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
   publishMqtt(batteryVoltage, batteryPercent, wifiRSSI, 0, sensorReadings);
 #endif
@@ -140,9 +142,6 @@ void handleNetworkError(const unsigned char *icon, const String &statusStr, cons
     drawError(icon, statusStr, tmpStr);
   } while (display.nextPage());
   powerOffDisplay();
-  // Deep sleep does not unwind setup(), so explicitly destroy the execution
-  // handle to run the owned sensor's power-off destructor.
-  sensorExecution = FetchExecution();
   beginDeepSleep(startTime, timeInfo);
 }
 
@@ -247,6 +246,7 @@ void setup() {
   int8_t wifiRSSI = 0;  // “Received Signal Strength Indicator"
   wl_status_t wifiStatus = startWiFi(wifiRSSI);
   if (wifiStatus != WL_CONNECTED) {  // WiFi Connection Failed
+    sensorExecution.close();
     killWiFi();
     initDisplay();
     if (wifiStatus == WL_NO_SSID_AVAIL) {
@@ -261,9 +261,6 @@ void setup() {
       } while (display.nextPage());
     }
     powerOffDisplay();
-    // esp_deep_sleep_start() does not unwind setup(); release the sensor before
-    // entering sleep so its destructor powers down the BME280.
-    sensorExecution = FetchExecution();
     beginDeepSleep(startTime, &timeInfo);
   }
 
@@ -292,8 +289,9 @@ void setup() {
       LOG_WARNING("Optional provider operation %s failed: %s", fetchBundle.ops[i]->name(), results[i].detail().c_str());
     }
   }
-  // Synchronize the local report once, immediately before consumers use it.
-  sensorExecution.wait();
+  // Synchronize and release the local producer once, immediately before
+  // consumers use the report. The report owns the copied readings after this.
+  sensorExecution.close();
 
 // SEND MQTT STATUS (success case)
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
@@ -329,9 +327,6 @@ void setup() {
   powerOffDisplay();
 
   // DEEP SLEEP
-  // esp_deep_sleep_start() does not unwind setup(), so release the owned
-  // BME280 before entering sleep.
-  sensorExecution = FetchExecution();
   beginDeepSleep(startTime, &timeInfo);
 }  // end setup
 

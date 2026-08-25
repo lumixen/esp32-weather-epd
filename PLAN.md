@@ -239,7 +239,7 @@ helper that has access to it.
 On the normal path:
 
 ```cpp
-sensorExecution.wait();
+sensorExecution.close();  // waits, then releases the local producer
 
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
 publishMqtt(..., environment_data.sensor);
@@ -248,13 +248,15 @@ publishMqtt(..., environment_data.sensor);
 // Render using environment_data.sensor.
 ```
 
-The wait is a synchronization point only; it should not copy values into a
-second sensor structure. `publishMqtt()` should source values directly from
+`close()` is the synchronization point and also releases the producer once
+its report data has been published. It should not copy values into a second
+sensor structure. `publishMqtt()` should source values directly from
 `environment_data.sensor` or receive a `const sensor_readings &`.
 
-For network/time error paths, wait before MQTT publication as well if local
+For network/time error paths, close before MQTT publication as well if local
 sensor readings are expected in the error status. WiFi failure paths that do
-not publish MQTT do not need to force a sensor wait before sleeping.
+not publish MQTT should still close before sleeping so the local sensor is
+powered down.
 
 ### 6. Remove the old main-file sensor state
 

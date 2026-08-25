@@ -34,6 +34,9 @@ class FetchExecution {
   ~FetchExecution();
 
   bool wait(TickType_t timeout = portMAX_DELAY);
+  // Wait for completion and release the owned operations and executor state.
+  // Safe to call repeatedly; results must not be used after close().
+  void close();
   bool isComplete() const;
   const std::vector<ProviderResult> &results() const;
 

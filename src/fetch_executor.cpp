@@ -126,25 +126,26 @@ FetchExecution::FetchExecution(FetchExecution &&other) noexcept : state_(std::mo
 
 FetchExecution &FetchExecution::operator=(FetchExecution &&other) noexcept {
   if (this != &other) {
-    if (state_) {
-      wait(portMAX_DELAY);
-    }
+    close();
     state_ = std::move(other.state_);
   }
   return *this;
 }
 
-FetchExecution::~FetchExecution() {
-  if (state_) {
-    wait(portMAX_DELAY);
-  }
-}
+FetchExecution::~FetchExecution() { close(); }
 
 bool FetchExecution::wait(TickType_t timeout) {
   if (!state_) {
     return true;
   }
   return waitForWorkers(*state_, timeout);
+}
+
+void FetchExecution::close() {
+  if (state_) {
+    wait(portMAX_DELAY);
+    state_.reset();
+  }
 }
 
 bool FetchExecution::isComplete() const { return !state_ || state_->complete.load(std::memory_order_acquire); }

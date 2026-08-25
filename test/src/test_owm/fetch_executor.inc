@@ -168,6 +168,8 @@ static void test_async_handle_owns_operation_until_completion(void) {
     TEST_ASSERT_FALSE(destroyed);
     TEST_ASSERT_TRUE(execution.wait(pdMS_TO_TICKS(1000)));
     TEST_ASSERT_FALSE(destroyed);
+    execution.close();
+    TEST_ASSERT_TRUE(destroyed);
   }
   TEST_ASSERT_TRUE(destroyed);
 }
