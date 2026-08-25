@@ -28,6 +28,10 @@ class EnvSensor {
   // Initialize the sensor, return true on success
   virtual bool begin() = 0;
 
+  // Release active hardware resources and enter the lowest-power state. The
+  // default is suitable for sensors that do not need an explicit shutdown.
+  virtual void shutdown() {}
+
   virtual std::optional<float> getTemperature() = 0;
   virtual std::optional<float> getHumidity() = 0;
   virtual std::optional<float> getPressure() = 0;

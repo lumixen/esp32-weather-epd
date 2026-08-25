@@ -29,6 +29,7 @@ ProviderResult EnvironmentSensorFetchOperation::execute() {
   }
 
   if (!sensor_->begin()) {
+    sensor_->shutdown();
     report_.sensor = {};
     LOG_WARNING("Environment sensor initialization failed");
     return ProviderResult::error("Failed to initialize environment sensor");
@@ -39,6 +40,9 @@ ProviderResult EnvironmentSensorFetchOperation::execute() {
       .humidity = sensor_->getHumidity(),
       .pressure = sensor_->getPressure(),
   };
+  // The operation remains alive for executor lifetime safety, but the
+  // hardware no longer needs to remain powered after the readings are taken.
+  sensor_->shutdown();
   report_.sensor = readings;
 
   LOG_INFO("Temp: %s°C, Humidity: %s%%, Pressure: %s hPa", String(readings.temperature.value_or(NAN)).c_str(),

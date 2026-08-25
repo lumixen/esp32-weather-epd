@@ -38,6 +38,8 @@ class FakeSensor final : public EnvSensor {
     calls.push_back(0);
     return beginResult_;
   }
+  void shutdown() override { calls.push_back(4); }
+
   std::optional<float> getTemperature() override {
     calls.push_back(1);
     return temperature_;
@@ -76,11 +78,12 @@ static void test_successful_readings_are_published_atomically(void) {
   TEST_ASSERT_EQUAL_FLOAT(21.5f, report.sensor.temperature.value());
   TEST_ASSERT_EQUAL_FLOAT(48.0f, report.sensor.humidity.value());
   TEST_ASSERT_EQUAL_FLOAT(1012.3f, report.sensor.pressure.value());
-  TEST_ASSERT_EQUAL(4, fake->calls.size());
+  TEST_ASSERT_EQUAL(5, fake->calls.size());
   TEST_ASSERT_EQUAL(0, fake->calls[0]);
   TEST_ASSERT_EQUAL(1, fake->calls[1]);
   TEST_ASSERT_EQUAL(2, fake->calls[2]);
   TEST_ASSERT_EQUAL(3, fake->calls[3]);
+  TEST_ASSERT_EQUAL(4, fake->calls[4]);
   TEST_ASSERT_FALSE(destroyed);
 }
 
@@ -106,7 +109,8 @@ static void test_initialization_failure_clears_stale_data_and_does_not_abort(voi
   ProviderResult result = operation->execute();
   TEST_ASSERT_FALSE(result.isOk());
   TEST_ASSERT_FALSE(operation->shouldAbortOnFailure());
-  TEST_ASSERT_EQUAL(1, fake->calls.size());
+  TEST_ASSERT_EQUAL(2, fake->calls.size());
+  TEST_ASSERT_EQUAL(4, fake->calls[1]);
   TEST_ASSERT_FALSE(report.sensor.temperature.has_value());
   TEST_ASSERT_FALSE(report.sensor.humidity.has_value());
   TEST_ASSERT_FALSE(report.sensor.pressure.has_value());

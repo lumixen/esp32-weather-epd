@@ -22,6 +22,9 @@ Completed:
 - [x] Added `EnvironmentSensorFetchOperation` with dependency injection for
       `EnvSensor`, atomic report publication, optional readings, failure
       clearing, and non-aborting results.
+- [x] Added an explicit `EnvSensor::shutdown()` lifecycle hook so the BME280
+      powers down immediately after each reading, rather than waiting for
+      execution-handle destruction.
 - [x] Added the production local-sensor factory and disabled-factory path for
       `BME_TYPE_NONE`.
 - [x] Started the local sensor execution before WiFi and synchronized it before
@@ -199,8 +202,9 @@ that creates one optional `FetchOperation`. The operation should:
 1. construct the configured `EnvSensor` implementation;
 2. initialize it;
 3. read temperature, humidity, and pressure;
-4. assign a completed `sensor_readings` value to `report.sensor`;
-5. return a non-aborting `ProviderResult`.
+4. shut down the local sensor after all readings are collected;
+5. assign a completed `sensor_readings` value to `report.sensor`;
+6. return a non-aborting `ProviderResult`.
 
 Read into a temporary aggregate and assign it only after the readings are
 collected, so another task cannot observe a partially populated sensor value.
