@@ -18,6 +18,47 @@ CAPABILITIES = {
 
 REQUIRED_FORECAST = {"current_forecast", "hourly_forecast", "daily_forecast"}
 
+# Precipitation display settings require a corresponding value in the
+# forecast response. Probability is represented by the provider-independent
+# `pop` model field; amount is represented by rain/snow model fields.
+PRECIPITATION_SUPPORT = {
+    "open_meteo_forecast": {
+        "hourly": {"probability", "amount"},
+        "daily": {"probability", "amount"},
+    },
+    "noaa_forecast": {
+        "hourly": {"probability"},
+        "daily": {"probability"},
+    },
+    "openweathermap_onecall_v3": {
+        "hourly": {"probability", "amount"},
+        "daily": {"probability", "amount"},
+    },
+}
+
+
+def precipitation_kind(unit):
+    return "probability" if unit.value == "probability of precipitation" else "amount"
+
+
+def validate_precipitation_support(config, errors):
+    forecast_providers = [
+        provider.provider
+        for provider in config.providers
+        if "current_forecast" in CAPABILITIES.get(provider.provider, set())
+    ]
+    if len(forecast_providers) != 1:
+        return
+
+    support = PRECIPITATION_SUPPORT.get(forecast_providers[0], {})
+    requested = {
+        "hourly": precipitation_kind(config.unitsHourlyPrecip),
+        "daily": precipitation_kind(config.unitsDailyPrecip),
+    }
+    for period, kind in requested.items():
+        if kind not in support.get(period, set()):
+            errors.append(f"{period} precipitation {kind} is not supported by the selected forecast provider")
+
 
 def validate_capabilities(config):
     """Reject missing required groups and duplicate ownership.
@@ -47,6 +88,7 @@ def validate_capabilities(config):
     missing = sorted(required - owners.keys())
     if missing:
         errors.append("missing required provider data capability/capabilities: " + ", ".join(missing))
+    validate_precipitation_support(config, errors)
     if errors:
         raise ValueError("; ".join(errors))
     return owners

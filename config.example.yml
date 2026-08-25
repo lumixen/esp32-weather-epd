@@ -53,9 +53,6 @@ unitsPres: hPa
 unitsDistance: km
 unitsHourlyPrecip: probability of precipitation
 unitsDailyPrecip: mm
-# For the noaa_forecast provider, use probability of precipitation for both:
-# unitsHourlyPrecip: probability of precipitation
-# unitsDailyPrecip: probability of precipitation
 windDirectionIndicator: arrow
 windArrowPrecision: secondary intercardinal
 font: FreeSans
