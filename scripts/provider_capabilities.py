@@ -8,6 +8,7 @@
 
 CAPABILITIES = {
     "open_meteo_forecast": {"current_forecast", "hourly_forecast", "daily_forecast"},
+    "noaa_forecast": {"current_forecast", "hourly_forecast", "daily_forecast"},
     "open_meteo_air_quality": {"air_quality"},
     "openweathermap_onecall_v3": {"current_forecast", "hourly_forecast", "daily_forecast", "alerts"},
     "openweathermap_air_quality": {"air_quality"},

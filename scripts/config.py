@@ -189,6 +189,7 @@ INTERNAL_CONSTANTS = [
     ("OWM_ENDPOINT", "String", "api.openweathermap.org"),
     ("OM_ENDPOINT", "String", "api.open-meteo.com"),
     ("OM_AIR_QUALITY_ENDPOINT", "String", "air-quality-api.open-meteo.com"),
+    ("NOAA_ENDPOINT", "String", "api.weather.gov"),
     ("WARN_BATTERY_VOLTAGE", "uint32_t", 3535),          # (millivolts) ~20%
     ("LOW_BATTERY_VOLTAGE", "uint32_t", 3462),           # (millivolts) ~10%
     ("VERY_LOW_BATTERY_VOLTAGE", "uint32_t", 3442),      # (millivolts)  ~8%
@@ -331,6 +332,7 @@ def generate(config_path, header_path, write_header=True):
         if hasattr(provider, "transport"):
             transport_prefix = {
                 "open_meteo_forecast": "OPEN_METEO_FORECAST",
+                "noaa_forecast": "NOAA_FORECAST",
                 "open_meteo_air_quality": "OPEN_METEO_AIR_QUALITY",
                 "openweathermap_onecall_v3": "OPENWEATHERMAP_ONECALL_V3",
                 "openweathermap_air_quality": "OPENWEATHERMAP_AIR_QUALITY",
