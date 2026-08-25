@@ -22,13 +22,15 @@ static ProviderResult parse(const String &text, forecast_t &forecast,
 static String hourlyJson() {
   String json = "{\"properties\":{\"periods\":[";
   for (int i = 0; i < NUM_HOURLY; ++i) {
-    if (i) json += ",";
+    if (i)
+      json += ",";
     const int hour = (10 + i) % 24;
     const String hourText = (hour < 10 ? "0" : "") + String(hour);
     json += "{\"startTime\":\"2026-08-" + String(25 + (10 + i) / 24) + "T" + hourText +
             ":00:00-04:00\",\"isDaytime\":true,\"temperature\":" + String(20 + i) +
             ",\"dewpoint\":{\"value\":10},\"relativeHumidity\":{\"value\":50},";
-    json += "\"probabilityOfPrecipitation\":{\"value\":40},\"windSpeed\":\"5 to 15 km/h\",\"windDirection\":\"NNE\",\"shortForecast\":\"Partly Cloudy\"}";
+    json += "\"probabilityOfPrecipitation\":{\"value\":40},\"windSpeed\":\"5 to 15 "
+            "km/h\",\"windDirection\":\"NNE\",\"shortForecast\":\"Partly Cloudy\"}";
   }
   return json + "]}}";
 }
@@ -36,12 +38,12 @@ static String hourlyJson() {
 static String dailyJson() {
   String json = "{\"properties\":{\"periods\":[";
   for (int i = 0; i < NUM_DAILY * 2; ++i) {
-    if (i) json += ",";
+    if (i)
+      json += ",";
     const int day = 25 + i / 2;
     json += "{\"startTime\":\"2026-08-" + String(day) + "T" + (i % 2 ? "22" : "10") +
             ":00:00-04:00\",\"isDaytime\":" + String(i % 2 == 0 ? "true" : "false") +
-            ",\"temperature\":" + String(25 - i) +
-            ",\"probabilityOfPrecipitation\":{\"value\":" + String(i * 5) +
+            ",\"temperature\":" + String(25 - i) + ",\"probabilityOfPrecipitation\":{\"value\":" + String(i * 5) +
             "},\"windSpeed\":\"10 km/h\",\"windDirection\":\"S\",\"shortForecast\":\"Sunny\"}";
   }
   return json + "]}}";
@@ -50,7 +52,8 @@ static String dailyJson() {
 static void test_api_and_helpers() {
   NoaaForecastProvider provider;
   TEST_ASSERT_EQUAL_STRING("NOAA/NWS API", provider.getApiName());
-  TEST_ASSERT_EQUAL(weather_condition::THUNDERSTORM, NoaaForecastProvider::mapDescription("Chance Showers And Thunderstorms"));
+  TEST_ASSERT_EQUAL(weather_condition::THUNDERSTORM,
+                    NoaaForecastProvider::mapDescription("Chance Showers And Thunderstorms"));
   TEST_ASSERT_EQUAL(weather_condition::PARTLY_CLOUDY, NoaaForecastProvider::mapDescription("Partly Cloudy"));
   TEST_ASSERT_EQUAL_INT64(1787688000LL, NoaaForecastProvider::parseIso8601("2026-08-25T15:00:00-05:00"));
   TEST_ASSERT_EQUAL_INT64(1787688000LL, NoaaForecastProvider::parseIso8601("2026-08-25T20:00:00Z"));
@@ -80,7 +83,10 @@ static void test_daily_mapping() {
 
 static void test_points_and_observation_mapping() {
   String urls[3];
-  String points = "{\"properties\":{\"forecast\":\"https://api.weather.gov/gridpoints/BOX/1,2/forecast\",\"forecastHourly\":\"https://api.weather.gov/gridpoints/BOX/1,2/forecast/hourly\",\"observationStations\":\"https://api.weather.gov/gridpoints/BOX/1,2/stations\",\"timeZone\":[\"America/New_York\"]}}";
+  String points = "{\"properties\":{\"forecast\":\"https://api.weather.gov/gridpoints/BOX/1,2/"
+                  "forecast\",\"forecastHourly\":\"https://api.weather.gov/gridpoints/BOX/1,2/forecast/"
+                  "hourly\",\"observationStations\":\"https://api.weather.gov/gridpoints/BOX/1,2/"
+                  "stations\",\"timeZone\":[\"America/New_York\"]}}";
   StringStream pointsStream(points);
   String timezone;
   ProviderResult result = NoaaForecastProvider::deserializePoints(pointsStream, urls[0], urls[1], urls[2], timezone);
@@ -88,7 +94,11 @@ static void test_points_and_observation_mapping() {
   TEST_ASSERT_EQUAL_STRING("America/New_York", timezone.c_str());
   TEST_ASSERT_TRUE(urls[0].endsWith("/forecast"));
 
-  String observation = "{\"properties\":{\"timestamp\":\"2026-08-25T15:00:00-04:00\",\"textDescription\":\"Partly Cloudy\",\"temperature\":{\"value\":22,\"unitCode\":\"wmoUnit:degC\"},\"relativeHumidity\":{\"value\":55},\"seaLevelPressure\":{\"value\":101500,\"unitCode\":\"wmoUnit:Pa\"},\"windSpeed\":{\"value\":18,\"unitCode\":\"wmoUnit:km_h-1\"},\"precipitationLastHour\":{\"value\":0.2},\"cloudLayers\":[{\"amount\":\"FEW\"}]}}";
+  String observation =
+      "{\"properties\":{\"timestamp\":\"2026-08-25T15:00:00-04:00\",\"textDescription\":\"Partly "
+      "Cloudy\",\"temperature\":{\"value\":22,\"unitCode\":\"wmoUnit:degC\"},\"relativeHumidity\":{\"value\":55},"
+      "\"seaLevelPressure\":{\"value\":101500,\"unitCode\":\"wmoUnit:Pa\"},\"windSpeed\":{\"value\":18,\"unitCode\":"
+      "\"wmoUnit:km_h-1\"},\"precipitationLastHour\":{\"value\":0.2},\"cloudLayers\":[{\"amount\":\"FEW\"}]}}";
   current_t current{};
   StringStream observationStream(observation);
   result = NoaaForecastProvider::deserializeObservation(observationStream, current);

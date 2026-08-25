@@ -16,7 +16,8 @@ void setup() {
   UNITY_BEGIN();
   test_noaa::registerTests();
   UNITY_END();
-  for (;;) delay(1000);
+  for (;;)
+    delay(1000);
 }
 
 void loop() {}

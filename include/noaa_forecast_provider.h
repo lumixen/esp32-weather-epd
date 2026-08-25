@@ -35,7 +35,10 @@ class NoaaForecastProvider : public RemoteDataProvider {
    * or malformed points response cannot redirect the device elsewhere. */
   static bool normalizeApiUrl(const String &url, String &normalized);
   static String normalizeApiUrl(const String &url);
-  static bool isValidApiUrl(const String &url) { String ignored; return normalizeApiUrl(url, ignored); }
+  static bool isValidApiUrl(const String &url) {
+    String ignored;
+    return normalizeApiUrl(url, ignored);
+  }
 
   /* Public parser seams used by fixture tests. Each parser resets its
    * destination before parsing and rejects empty, malformed, truncated, or

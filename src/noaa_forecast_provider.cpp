@@ -13,6 +13,12 @@
 #if defined(REMOTE_PROVIDER_NOAA_FORECAST)
 
 #include <Arduino.h>
+/* NWS station collections contain a long pagination.next URL (currently
+ * roughly 826 bytes). The parser must consume that unknown field even though
+ * the provider discards it, so use a larger but still bounded token buffer. */
+#ifndef JSON_PARSER_BUFFER_MAX_LENGTH
+#define JSON_PARSER_BUFFER_MAX_LENGTH 1024
+#endif
 #include <ArduinoStreamParser.h>
 #include <cmath>
 #include <cstdlib>
@@ -54,9 +60,11 @@ bool validDate(int year, unsigned month, unsigned day) {
 }
 
 bool digits(const String &s, int start, int count) {
-  if (start < 0 || start + count > static_cast<int>(s.length())) return false;
+  if (start < 0 || start + count > static_cast<int>(s.length()))
+    return false;
   for (int i = 0; i < count; ++i) {
-    if (s.charAt(start + i) < '0' || s.charAt(start + i) > '9') return false;
+    if (s.charAt(start + i) < '0' || s.charAt(start + i) > '9')
+      return false;
   }
   return true;
 }
@@ -75,8 +83,10 @@ bool keyIs(const char *actual, const char *wanted) { return actual != nullptr &&
 
 float firstNumber(const String &text) {
   const char *start = text.c_str();
-  while (*start != '\0' && ((*start < '0' || *start > '9') && *start != '-' && *start != '+' && *start != '.')) ++start;
-  if (*start == '\0') return NAN;
+  while (*start != '\0' && ((*start < '0' || *start > '9') && *start != '-' && *start != '+' && *start != '.'))
+    ++start;
+  if (*start == '\0')
+    return NAN;
   char *end = nullptr;
   const double value = strtod(start, &end);
   return end == start ? NAN : static_cast<float>(value);
@@ -87,9 +97,12 @@ float speedMs(float kmh) { return std::isnan(kmh) ? 0.0f : kmh / 3.6f; }
 float observationSpeed(float value, const String &unit) {
   String code = unit;
   code.toLowerCase();
-  if (code.indexOf("km_h") >= 0 || code.indexOf("km/h") >= 0 || code.indexOf("kilomet") >= 0) return value / 3.6f;
-  if (code.indexOf("mile") >= 0 || code.indexOf("mi_h") >= 0 || code.indexOf("mph") >= 0) return value * 0.44704f;
-  if (code.indexOf("knot") >= 0) return value * 0.514444f;
+  if (code.indexOf("km_h") >= 0 || code.indexOf("km/h") >= 0 || code.indexOf("kilomet") >= 0)
+    return value / 3.6f;
+  if (code.indexOf("mile") >= 0 || code.indexOf("mi_h") >= 0 || code.indexOf("mph") >= 0)
+    return value * 0.44704f;
+  if (code.indexOf("knot") >= 0)
+    return value * 0.514444f;
   return value;  // SI m/s, or an unknown unit already supplied by NWS.
 }
 
@@ -98,12 +111,14 @@ int compassDegrees(const String &direction) {
   d.trim();
   char *end = nullptr;
   const double numeric = strtod(d.c_str(), &end);
-  if (end != d.c_str() && *end == '\0') return static_cast<int>(std::lround(numeric));
+  if (end != d.c_str() && *end == '\0')
+    return static_cast<int>(std::lround(numeric));
   d.toUpperCase();
-  static const char *names[] = {"N",   "NNE", "NE",  "ENE", "E",   "ESE", "SE",  "SSE",
-                                "S",   "SSW", "SW",  "WSW", "W",   "WNW", "NW",  "NNW"};
+  static const char *names[] = {"N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+                                "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"};
   for (int i = 0; i < 16; ++i) {
-    if (d == names[i]) return static_cast<int>(i * 22.5);
+    if (d == names[i])
+      return static_cast<int>(i * 22.5);
   }
   return 0;
 }
@@ -123,37 +138,40 @@ class HttpClientStream : public Stream {
   int peek() override { return -1; }
   size_t write(uint8_t) override { return 0; }
   size_t readBytes(char *buffer, size_t length) override {
-    if (length == 0) return 0;
+    if (length == 0)
+      return 0;
     const int n = esp_http_client_read(client_, buffer, static_cast<int>(length));
-    if (n < 0) readError_ = true;
+    if (n < 0)
+      readError_ = true;
     return n > 0 ? static_cast<size_t>(n) : 0;
   }
   bool hadReadError() const { return readError_; }
-  size_t readBytes(uint8_t *buffer, size_t length) {
-    return readBytes(reinterpret_cast<char *>(buffer), length);
-  }
+  size_t readBytes(uint8_t *buffer, size_t length) { return readBytes(reinterpret_cast<char *>(buffer), length); }
 
  private:
   esp_http_client_handle_t client_;
   bool readError_ = false;
 };
 
-template <typename Complete, typename Started>
-ProviderResult parseStreamingJson(Stream &json, JsonHandler &handler, Complete complete, Started started, const char *label) {
+template<typename Complete, typename Started>
+ProviderResult parseStreamingJson(Stream &json, JsonHandler &handler, Complete complete, Started started,
+                                  const char *label) {
   ArduinoStreamParser parser;
   parser.setHandler(&handler);
   uint8_t buffer[256];
   while (!parser.hasParseError() && !complete()) {
     const size_t count = json.readBytes(buffer, sizeof(buffer));
-    if (count == 0) break;
+    if (count == 0)
+      break;
     parser.write(buffer, count);
   }
   if (parser.hasParseError()) {
     LOG_WARNING("NOAA %s JSON parse error: %s", label, parser.getErrorMessage());
     return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT);
   }
-  if (!complete()) return ProviderResult::error(started() ? TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT
-                                                           : TXT_DESERIALIZATION_ERROR_EMPTY_INPUT);
+  if (!complete())
+    return ProviderResult::error(started() ? TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT
+                                           : TXT_DESERIALIZATION_ERROR_EMPTY_INPUT);
   return ProviderResult::ok();
 }
 
@@ -191,7 +209,8 @@ ProviderResult requestNoaa(const String &url, std::function<ProviderResult(Strea
         } else {
           HttpClientStream stream(client);
           result = consume(stream);
-          if (stream.hadReadError()) result = ProviderResult::error(esp_err_to_name(ESP_FAIL));
+          if (stream.hadReadError())
+            result = ProviderResult::error(esp_err_to_name(ESP_FAIL));
         }
       }
       esp_http_client_close(client);
@@ -199,7 +218,8 @@ ProviderResult requestNoaa(const String &url, std::function<ProviderResult(Strea
     }
     LOG_INFO("NOAA %d %s %s", status, result.isOk() ? getHttpResponsePhrase(status) : result.detail().c_str(),
              url.c_str());
-    if (!result.isOk() && attempt < 2) delay(100);
+    if (!result.isOk() && attempt < 2)
+      delay(100);
   }
   return result;
 }
@@ -219,12 +239,17 @@ struct PointsHandler : public JsonHandler {
   void endArray(ElementPath) override {}
   void whitespace(char) override {}
   void value(ElementPath path, ElementValue value) override {
-    if (path.getCount() < 2 || !value.isString() || !keyIs(keyAt(path, 0), "properties")) return;
+    if (path.getCount() < 2 || !value.isString() || !keyIs(keyAt(path, 0), "properties"))
+      return;
     const char *field = keyAt(path, 1);
-    if (keyIs(field, "forecast") && path.getCount() == 2) forecast = value.getString();
-    else if (keyIs(field, "forecastHourly") && path.getCount() == 2) hourly = value.getString();
-    else if (keyIs(field, "observationStations") && path.getCount() == 2) stations = value.getString();
-    else if (keyIs(field, "timeZone")) timezone = value.getString();
+    if (keyIs(field, "forecast") && path.getCount() == 2)
+      forecast = value.getString();
+    else if (keyIs(field, "forecastHourly") && path.getCount() == 2)
+      hourly = value.getString();
+    else if (keyIs(field, "observationStations") && path.getCount() == 2)
+      stations = value.getString();
+    else if (keyIs(field, "timeZone"))
+      timezone = value.getString();
   }
 };
 
@@ -260,9 +285,11 @@ class ForecastPeriodsHandler : public JsonHandler {
   void endArray(ElementPath) override {}
   void whitespace(char) override {}
   void value(ElementPath path, ElementValue value) override {
-    if (path.getCount() < 4 || !keyIs(keyAt(path, 0), "properties") || !keyIs(keyAt(path, 1), "periods")) return;
+    if (path.getCount() < 4 || !keyIs(keyAt(path, 0), "properties") || !keyIs(keyAt(path, 1), "periods"))
+      return;
     const int index = indexAt(path, 2);
-    if (index < 0 || index >= static_cast<int>(periods_.size())) return;
+    if (index < 0 || index >= static_cast<int>(periods_.size()))
+      return;
     PeriodData &period = periods_[index];
     const char *field = keyAt(path, 3);
     if (keyIs(field, "startTime") && value.isString()) {
@@ -279,8 +306,8 @@ class ForecastPeriodsHandler : public JsonHandler {
                (value.isInt() || value.isFloat())) {
       period.humidity = value.getDouble();
       period.hasHumidity = true;
-    } else if (keyIs(field, "probabilityOfPrecipitation") && path.getCount() >= 5 &&
-               keyIs(keyAt(path, 4), "value") && (value.isInt() || value.isFloat())) {
+    } else if (keyIs(field, "probabilityOfPrecipitation") && path.getCount() >= 5 && keyIs(keyAt(path, 4), "value") &&
+               (value.isInt() || value.isFloat())) {
       period.pop = value.getDouble();
       period.hasPop = true;
     } else if (keyIs(field, "windSpeed") && value.isString()) {
@@ -324,22 +351,29 @@ class StationsHandler : public JsonHandler {
   void endArray(ElementPath) override {}
   void whitespace(char) override {}
   void value(ElementPath path, ElementValue value) override {
-    if (path.getCount() < 4 || !keyIs(keyAt(path, 0), "features") || !keyIs(keyAt(path, 2), "properties")) return;
+    if (path.getCount() < 4 || !keyIs(keyAt(path, 0), "features") || !keyIs(keyAt(path, 2), "properties"))
+      return;
     const int index = indexAt(path, 1);
-    if (index < 0) return;
+    if (index < 0)
+      return;
     if (index >= static_cast<int>(candidateIds_.size())) {
       candidateIds_.resize(index + 1);
       distances_.resize(index + 1, 0.0f);
     }
-    if (keyIs(keyAt(path, 3), "stationIdentifier") && value.isString()) candidateIds_[index] = value.getString();
-    if (keyIs(keyAt(path, 3), "distance") && (value.isInt() || value.isFloat())) distances_[index] = value.getDouble();
+    if (keyIs(keyAt(path, 3), "stationIdentifier") && value.isString())
+      candidateIds_[index] = value.getString();
+    if (keyIs(keyAt(path, 3), "distance") && (value.isInt() || value.isFloat()))
+      distances_[index] = value.getDouble();
     if (keyIs(keyAt(path, 3), "distance") && path.getCount() >= 5 && keyIs(keyAt(path, 4), "value") &&
-        (value.isInt() || value.isFloat())) distances_[index] = value.getDouble();
+        (value.isInt() || value.isFloat()))
+      distances_[index] = value.getDouble();
   }
   void endObject(ElementPath path) override {
-    if (path.getCount() != 2 || !keyIs(keyAt(path, 0), "features")) return;
+    if (path.getCount() != 2 || !keyIs(keyAt(path, 0), "features"))
+      return;
     const int index = indexAt(path, 1);
-    if (index < 0 || index >= static_cast<int>(candidateIds_.size()) || candidateIds_[index].isEmpty()) return;
+    if (index < 0 || index >= static_cast<int>(candidateIds_.size()) || candidateIds_[index].isEmpty())
+      return;
     NoaaStationCandidate candidate;
     candidate.stationId = candidateIds_[index];
     candidate.distance = index < static_cast<int>(distances_.size()) ? distances_[index] : 0.0f;
@@ -375,19 +409,23 @@ class ObservationHandler : public JsonHandler {
   void endArray(ElementPath) override {}
   void whitespace(char) override {}
   void value(ElementPath path, ElementValue value) override {
-    if (path.getCount() < 2 || !keyIs(keyAt(path, 0), "properties")) return;
+    if (path.getCount() < 2 || !keyIs(keyAt(path, 0), "properties"))
+      return;
     const char *field = keyAt(path, 1);
     const int slot = slotFor(field);
     if (path.getCount() == 2 && value.isString()) {
       if (keyIs(field, "timestamp")) {
         timestamp = value.getString();
         hasTimestamp = NoaaForecastProvider::parseIso8601(timestamp) >= 0;
-      } else if (keyIs(field, "textDescription")) textDescription = value.getString();
-      else if (keyIs(field, "icon")) { icon = value.getString(); hasIcon = true; }
+      } else if (keyIs(field, "textDescription"))
+        textDescription = value.getString();
+      else if (keyIs(field, "icon")) {
+        icon = value.getString();
+        hasIcon = true;
+      }
       return;
     }
-    if (slot >= 0 && path.getCount() >= 3 && keyIs(keyAt(path, 2), "value") &&
-        (value.isInt() || value.isFloat())) {
+    if (slot >= 0 && path.getCount() >= 3 && keyIs(keyAt(path, 2), "value") && (value.isInt() || value.isFloat())) {
       values[slot] = value.getDouble();
       hasValue[slot] = true;
     } else if (slot >= 0 && path.getCount() >= 3 && keyIs(keyAt(path, 2), "unitCode") && value.isString()) {
@@ -397,35 +435,48 @@ class ObservationHandler : public JsonHandler {
       values[slotFor("windDirection")] = value.getDouble();
       hasValue[slotFor("windDirection")] = true;
     }
-    if (keyIs(field, "cloudLayers") && value.isString() && path.getCount() >= 4 &&
-        keyIs(keyAt(path, 3), "amount")) {
+    if (keyIs(field, "cloudLayers") && value.isString() && path.getCount() >= 4 && keyIs(keyAt(path, 3), "amount")) {
       String coverage = value.getString();
       coverage.toUpperCase();
-      int amount = coverage == "FEW" ? 25 : coverage == "SCT" ? 50 : coverage == "BKN" ? 75 : coverage == "OVC" ? 100 : 0;
-      if (amount > current_.clouds) current_.clouds = amount;
+      int amount = coverage == "FEW"   ? 25
+                   : coverage == "SCT" ? 50
+                   : coverage == "BKN" ? 75
+                   : coverage == "OVC" ? 100
+                                       : 0;
+      if (amount > current_.clouds)
+        current_.clouds = amount;
     } else if (keyIs(field, "cloudLayers") && path.getCount() >= 5 && keyIs(keyAt(path, 3), "amount") &&
                keyIs(keyAt(path, 4), "value") && value.isString()) {
       String coverage = value.getString();
       coverage.toUpperCase();
-      int amount = coverage == "FEW" ? 25 : coverage == "SCT" ? 50 : coverage == "BKN" ? 75 : coverage == "OVC" ? 100 : 0;
-      if (amount > current_.clouds) current_.clouds = amount;
+      int amount = coverage == "FEW"   ? 25
+                   : coverage == "SCT" ? 50
+                   : coverage == "BKN" ? 75
+                   : coverage == "OVC" ? 100
+                                       : 0;
+      if (amount > current_.clouds)
+        current_.clouds = amount;
     }
   }
 
  private:
   static int slotFor(const char *field) {
-    static const char *names[] = {"temperature", "heatIndex", "windChill", "relativeHumidity", "dewpoint",
-                                  "seaLevelPressure", "barometricPressure", "visibility", "windSpeed", "windGust",
-                                  "windDirection", "precipitationLastHour"};
-    for (int i = 0; i < 12; ++i) if (keyIs(field, names[i])) return i;
+    static const char *names[] = {"temperature", "heatIndex",        "windChill",          "relativeHumidity",
+                                  "dewpoint",    "seaLevelPressure", "barometricPressure", "visibility",
+                                  "windSpeed",   "windGust",         "windDirection",      "precipitationLastHour"};
+    for (int i = 0; i < 12; ++i)
+      if (keyIs(field, names[i]))
+        return i;
     return -1;
   }
   current_t &current_;
 };
 
 String conditionText(const PeriodData &period) {
-  if (!period.shortForecast.isEmpty()) return period.shortForecast;
-  if (!period.textDescription.isEmpty()) return period.textDescription;
+  if (!period.shortForecast.isEmpty())
+    return period.shortForecast;
+  if (!period.textDescription.isEmpty())
+    return period.textDescription;
   return period.icon;
 }
 
@@ -459,15 +510,23 @@ struct DailyBucket {
 String localDate(const String &timestamp) { return timestamp.length() >= 10 ? timestamp.substring(0, 10) : String(); }
 
 int64_t localMidnight(const String &timestamp) {
-  if (timestamp.length() < 19) return -1;
+  if (timestamp.length() < 19)
+    return -1;
   String midnight = timestamp.substring(0, 19);
-  midnight.setCharAt(11, '0'); midnight.setCharAt(12, '0'); midnight.setCharAt(14, '0'); midnight.setCharAt(15, '0');
-  midnight.setCharAt(17, '0'); midnight.setCharAt(18, '0');
+  midnight.setCharAt(11, '0');
+  midnight.setCharAt(12, '0');
+  midnight.setCharAt(14, '0');
+  midnight.setCharAt(15, '0');
+  midnight.setCharAt(17, '0');
+  midnight.setCharAt(18, '0');
   int position = 19;
   while (position < static_cast<int>(timestamp.length()) && timestamp.charAt(position) != 'Z' &&
-         timestamp.charAt(position) != 'z' && timestamp.charAt(position) != '+' && timestamp.charAt(position) != '-') ++position;
-  if (position < static_cast<int>(timestamp.length())) midnight += timestamp.substring(position);
-  else return -1;
+         timestamp.charAt(position) != 'z' && timestamp.charAt(position) != '+' && timestamp.charAt(position) != '-')
+    ++position;
+  if (position < static_cast<int>(timestamp.length()))
+    midnight += timestamp.substring(position);
+  else
+    return -1;
   return NoaaForecastProvider::parseIso8601(midnight);
 }
 
@@ -479,7 +538,11 @@ std::vector<std::unique_ptr<FetchOperation>> NoaaForecastProvider::createFetchOp
   std::vector<std::unique_ptr<FetchOperation>> operations;
   auto points = std::make_unique<CallbackFetchOperation>("NOAA points", true, [this, &out]() {
     out.resetForecast();
-    forecastUrl_.clear(); hourlyUrl_.clear(); observationStationsUrl_.clear(); timeZone_.clear(); stations_.clear();
+    forecastUrl_.clear();
+    hourlyUrl_.clear();
+    observationStationsUrl_.clear();
+    timeZone_.clear();
+    stations_.clear();
     out.forecast.lat = strtod(LAT.c_str(), nullptr);
     out.forecast.lon = strtod(LON.c_str(), nullptr);
     return fetchPoints(out.forecast);
@@ -489,7 +552,9 @@ std::vector<std::unique_ptr<FetchOperation>> NoaaForecastProvider::createFetchOp
 
   auto daily = std::make_unique<CallbackFetchOperation>("NOAA daily forecast", true, [this, &out]() {
     ProviderResult result = fetchDaily(out.forecast);
-    if (!result.isOk()) for (daily_t &entry : out.forecast.daily) entry = {};
+    if (!result.isOk())
+      for (daily_t &entry : out.forecast.daily)
+        entry = {};
     return result;
   });
   daily->dependsOn(*pointsOperation);
@@ -497,7 +562,9 @@ std::vector<std::unique_ptr<FetchOperation>> NoaaForecastProvider::createFetchOp
 
   auto hourly = std::make_unique<CallbackFetchOperation>("NOAA hourly forecast", true, [this, &out]() {
     ProviderResult result = fetchHourly(out.forecast);
-    if (!result.isOk()) for (hourly_t &entry : out.forecast.hourly) entry = {};
+    if (!result.isOk())
+      for (hourly_t &entry : out.forecast.hourly)
+        entry = {};
     return result;
   });
   hourly->dependsOn(*pointsOperation);
@@ -505,7 +572,8 @@ std::vector<std::unique_ptr<FetchOperation>> NoaaForecastProvider::createFetchOp
 
   auto current = std::make_unique<CallbackFetchOperation>("NOAA current observation", true, [this, &out]() {
     ProviderResult result = fetchCurrent(out.forecast.current);
-    if (!result.isOk()) out.forecast.current = {};
+    if (!result.isOk())
+      out.forecast.current = {};
     return result;
   });
   current->dependsOn(*pointsOperation);
@@ -516,50 +584,66 @@ std::vector<std::unique_ptr<FetchOperation>> NoaaForecastProvider::createFetchOp
 bool NoaaForecastProvider::normalizeApiUrl(const String &url, String &normalized) {
   normalized = url;
   normalized.trim();
-  if (!(normalized.startsWith("https://") || normalized.startsWith("http://"))) return false;
+  if (!(normalized.startsWith("https://") || normalized.startsWith("http://")))
+    return false;
   const int schemeEnd = normalized.indexOf("://");
   const int hostStart = schemeEnd + 3;
   int hostEnd = normalized.indexOf('/', hostStart);
-  if (hostEnd < 0) hostEnd = normalized.length();
+  if (hostEnd < 0)
+    hostEnd = normalized.length();
   String host = normalized.substring(hostStart, hostEnd);
   host.toLowerCase();
   if (!(host == kEndpoint || host == String(kEndpoint) + ":80" || host == String(kEndpoint) + ":443") ||
-      normalized.indexOf('@', hostStart) >= 0 || normalized.indexOf('?', hostStart) == hostStart) return false;
+      normalized.indexOf('@', hostStart) >= 0 || normalized.indexOf('?', hostStart) == hostStart)
+    return false;
   return hostEnd < static_cast<int>(normalized.length());
 }
 
-String NoaaForecastProvider::normalizeApiUrl(const String &url) { String result; return normalizeApiUrl(url, result) ? result : String(); }
+String NoaaForecastProvider::normalizeApiUrl(const String &url) {
+  String result;
+  return normalizeApiUrl(url, result) ? result : String();
+}
 
 int64_t NoaaForecastProvider::parseIso8601(const String &s) {
   if (s.length() < 20 || s.charAt(4) != '-' || s.charAt(7) != '-' || (s.charAt(10) != 'T' && s.charAt(10) != 't') ||
       s.charAt(13) != ':' || s.charAt(16) != ':' || !digits(s, 0, 4) || !digits(s, 5, 2) || !digits(s, 8, 2) ||
-      !digits(s, 11, 2) || !digits(s, 14, 2) || !digits(s, 17, 2)) return -1;
+      !digits(s, 11, 2) || !digits(s, 14, 2) || !digits(s, 17, 2))
+    return -1;
   const int year = atoi(s.substring(0, 4).c_str());
   const unsigned month = atoi(s.substring(5, 7).c_str());
   const unsigned day = atoi(s.substring(8, 10).c_str());
   const int hour = atoi(s.substring(11, 13).c_str());
   const int minute = atoi(s.substring(14, 16).c_str());
   const int second = atoi(s.substring(17, 19).c_str());
-  if (!validDate(year, month, day) || hour > 23 || minute > 59 || second > 60) return -1;
+  if (!validDate(year, month, day) || hour > 23 || minute > 59 || second > 60)
+    return -1;
   int pos = 19;
   if (s.charAt(pos) == '.') {
     ++pos;
     const int begin = pos;
-    while (pos < static_cast<int>(s.length()) && s.charAt(pos) >= '0' && s.charAt(pos) <= '9') ++pos;
-    if (pos == begin) return -1;
+    while (pos < static_cast<int>(s.length()) && s.charAt(pos) >= '0' && s.charAt(pos) <= '9')
+      ++pos;
+    if (pos == begin)
+      return -1;
   }
   int offsetMinutes = 0;
-  if (pos >= static_cast<int>(s.length())) return -1;
+  if (pos >= static_cast<int>(s.length()))
+    return -1;
   const char zone = s.charAt(pos++);
   if (zone == 'Z' || zone == 'z') {
-    if (pos != static_cast<int>(s.length())) return -1;
+    if (pos != static_cast<int>(s.length()))
+      return -1;
   } else if (zone == '+' || zone == '-') {
-    if (pos + 5 != static_cast<int>(s.length()) || !digits(s, pos, 2) || s.charAt(pos + 2) != ':' || !digits(s, pos + 3, 2)) return -1;
+    if (pos + 5 != static_cast<int>(s.length()) || !digits(s, pos, 2) || s.charAt(pos + 2) != ':' ||
+        !digits(s, pos + 3, 2))
+      return -1;
     const int hours = atoi(s.substring(pos, pos + 2).c_str());
     const int minutes = atoi(s.substring(pos + 3, pos + 5).c_str());
-    if (hours > 23 || minutes > 59) return -1;
+    if (hours > 23 || minutes > 59)
+      return -1;
     offsetMinutes = (hours * 60 + minutes) * (zone == '-' ? -1 : 1);
-  } else return -1;
+  } else
+    return -1;
   return daysFromCivil(year, month, day) * 86400LL + hour * 3600 + minute * 60 + second - offsetMinutes * 60LL;
 }
 
@@ -568,40 +652,69 @@ weather_condition NoaaForecastProvider::mapDescription(const String &description
   text.toLowerCase();
   text.replace('_', ' ');
   text.replace('-', ' ');
-  if (text.indexOf("tornado") >= 0) return weather_condition::TORNADO;
-  if (text.indexOf("thunderstorm") >= 0) return text.indexOf("hail") >= 0 ? weather_condition::THUNDERSTORM_HAIL : weather_condition::THUNDERSTORM;
-  if (text.indexOf("freezing rain") >= 0) return weather_condition::FREEZING_RAIN;
-  if (text.indexOf("hail") >= 0) return weather_condition::THUNDERSTORM_HAIL;
-  if (text.indexOf("sleet") >= 0 || text.indexOf("wintry") >= 0) return weather_condition::SLEET;
-  if (text.indexOf("snow shower") >= 0) return weather_condition::SNOW_SHOWERS;
-  if (text.indexOf("snow") >= 0) return weather_condition::SNOW;
-  if (text.indexOf("drizzle") >= 0) return weather_condition::DRIZZLE;
-  if (text.indexOf("rain shower") >= 0) return weather_condition::RAIN_SHOWERS;
-  if (text.indexOf("rain") >= 0) return weather_condition::RAIN;
-  if (text.indexOf("fog") >= 0) return weather_condition::FOG;
-  if (text.indexOf("smoke") >= 0) return weather_condition::SMOKE;
-  if (text.indexOf("haze") >= 0) return weather_condition::HAZE;
-  if (text.indexOf("dust") >= 0) return weather_condition::DUST;
-  if (text.indexOf("overcast") >= 0 || text.indexOf("ovc") >= 0) return weather_condition::OVERCAST;
-  if (text.indexOf("mostly cloudy") >= 0) return weather_condition::CLOUDY;
-  if (text.indexOf("partly cloudy") >= 0 || text.indexOf("few") >= 0 || text.indexOf("sct") >= 0) return weather_condition::PARTLY_CLOUDY;
-  if (text.indexOf("cloudy") >= 0) return weather_condition::CLOUDY;
-  if (text.indexOf("sunny") >= 0 || text.indexOf("clear") >= 0 || text.indexOf("skc") >= 0) return weather_condition::CLEAR;
+  if (text.indexOf("tornado") >= 0)
+    return weather_condition::TORNADO;
+  if (text.indexOf("thunderstorm") >= 0)
+    return text.indexOf("hail") >= 0 ? weather_condition::THUNDERSTORM_HAIL : weather_condition::THUNDERSTORM;
+  if (text.indexOf("freezing rain") >= 0)
+    return weather_condition::FREEZING_RAIN;
+  if (text.indexOf("hail") >= 0)
+    return weather_condition::THUNDERSTORM_HAIL;
+  if (text.indexOf("sleet") >= 0 || text.indexOf("wintry") >= 0)
+    return weather_condition::SLEET;
+  if (text.indexOf("snow shower") >= 0)
+    return weather_condition::SNOW_SHOWERS;
+  if (text.indexOf("snow") >= 0)
+    return weather_condition::SNOW;
+  if (text.indexOf("drizzle") >= 0)
+    return weather_condition::DRIZZLE;
+  if (text.indexOf("rain shower") >= 0)
+    return weather_condition::RAIN_SHOWERS;
+  if (text.indexOf("rain") >= 0)
+    return weather_condition::RAIN;
+  if (text.indexOf("fog") >= 0)
+    return weather_condition::FOG;
+  if (text.indexOf("smoke") >= 0)
+    return weather_condition::SMOKE;
+  if (text.indexOf("haze") >= 0)
+    return weather_condition::HAZE;
+  if (text.indexOf("dust") >= 0)
+    return weather_condition::DUST;
+  if (text.indexOf("overcast") >= 0 || text.indexOf("ovc") >= 0)
+    return weather_condition::OVERCAST;
+  if (text.indexOf("mostly cloudy") >= 0)
+    return weather_condition::CLOUDY;
+  if (text.indexOf("partly cloudy") >= 0 || text.indexOf("few") >= 0 || text.indexOf("sct") >= 0)
+    return weather_condition::PARTLY_CLOUDY;
+  if (text.indexOf("cloudy") >= 0)
+    return weather_condition::CLOUDY;
+  if (text.indexOf("sunny") >= 0 || text.indexOf("clear") >= 0 || text.indexOf("skc") >= 0)
+    return weather_condition::CLEAR;
   return weather_condition::UNKNOWN;
 }
 
 ProviderResult NoaaForecastProvider::deserializePoints(Stream &json, String &forecastUrl, String &hourlyUrl,
-                                                        String &observationStationsUrl, String &timeZone) {
-  forecastUrl = String(); hourlyUrl = String(); observationStationsUrl = String(); timeZone = String();
+                                                       String &observationStationsUrl, String &timeZone) {
+  forecastUrl = String();
+  hourlyUrl = String();
+  observationStationsUrl = String();
+  timeZone = String();
   PointsHandler handler;
-  ProviderResult result = parseStreamingJson(json, handler, [&handler] { return handler.finished; }, [&handler] { return handler.started; }, "points");
+  ProviderResult result = parseStreamingJson(
+      json, handler, [&handler] { return handler.finished; }, [&handler] { return handler.started; }, "points");
   if (!result.isOk()) {
-    forecastUrl = String(); hourlyUrl = String(); observationStationsUrl = String(); timeZone = String();
+    forecastUrl = String();
+    hourlyUrl = String();
+    observationStationsUrl = String();
+    timeZone = String();
     return result;
   }
   if (!normalizeApiUrl(handler.forecast, forecastUrl) || !normalizeApiUrl(handler.hourly, hourlyUrl) ||
       !normalizeApiUrl(handler.stations, observationStationsUrl) || handler.timezone.isEmpty()) {
-    forecastUrl = String(); hourlyUrl = String(); observationStationsUrl = String(); timeZone = String();
+    forecastUrl = String();
+    hourlyUrl = String();
+    observationStationsUrl = String();
+    timeZone = String();
     return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT);
   }
   timeZone = handler.timezone;
@@ -613,49 +726,78 @@ ProviderResult NoaaForecastProvider::deserializePoints(Stream &json) {
 }
 
 ProviderResult NoaaForecastProvider::deserializeHourly(Stream &json, forecast_t &forecast) {
-  for (hourly_t &entry : forecast.hourly) entry = {};
+  for (hourly_t &entry : forecast.hourly)
+    entry = {};
   std::vector<PeriodData> periods(NUM_HOURLY + 1);
   ForecastPeriodsHandler handler(periods);
-  ProviderResult result = parseStreamingJson(json, handler, [&handler] { return handler.finished; }, [&handler] { return handler.started; }, "hourly");
+  ProviderResult result = parseStreamingJson(
+      json, handler, [&handler] { return handler.finished; }, [&handler] { return handler.started; }, "hourly");
   int usable = 0;
-  for (int i = 0; i < NUM_HOURLY; ++i) if (periods[i].hasStart && periods[i].hasTemperature) ++usable;
+  for (int i = 0; i < NUM_HOURLY; ++i)
+    if (periods[i].hasStart && periods[i].hasTemperature)
+      ++usable;
   if (!result.isOk() || usable != NUM_HOURLY) {
-    for (hourly_t &entry : forecast.hourly) entry = {};
+    for (hourly_t &entry : forecast.hourly)
+      entry = {};
     return result.isOk() ? ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT) : result;
   }
-  for (int i = 0; i < NUM_HOURLY; ++i) copyPeriod(periods[i], forecast.hourly[i]);
+  for (int i = 0; i < NUM_HOURLY; ++i)
+    copyPeriod(periods[i], forecast.hourly[i]);
   return ProviderResult::ok();
 }
 
 ProviderResult NoaaForecastProvider::deserializeDaily(Stream &json, forecast_t &forecast) {
-  for (daily_t &entry : forecast.daily) entry = {};
+  for (daily_t &entry : forecast.daily)
+    entry = {};
   std::vector<PeriodData> periods(NUM_DAILY * 2 + 8);
   ForecastPeriodsHandler handler(periods);
-  ProviderResult result = parseStreamingJson(json, handler, [&handler] { return handler.finished; }, [&handler] { return handler.started; }, "daily");
+  ProviderResult result = parseStreamingJson(
+      json, handler, [&handler] { return handler.finished; }, [&handler] { return handler.started; }, "daily");
   std::vector<DailyBucket> buckets(NUM_DAILY);
   for (const PeriodData &period : periods) {
-    if (!period.hasStart) continue;
+    if (!period.hasStart)
+      continue;
     const String date = localDate(period.start);
     int bucket = -1;
-    for (int i = 0; i < NUM_DAILY; ++i) if (buckets[i].used && buckets[i].date == date) bucket = i;
-    if (bucket < 0) for (int i = 0; i < NUM_DAILY; ++i) if (!buckets[i].used) { bucket = i; break; }
-    if (bucket < 0) continue;
+    for (int i = 0; i < NUM_DAILY; ++i)
+      if (buckets[i].used && buckets[i].date == date)
+        bucket = i;
+    if (bucket < 0)
+      for (int i = 0; i < NUM_DAILY; ++i)
+        if (!buckets[i].used) {
+          bucket = i;
+          break;
+        }
+    if (bucket < 0)
+      continue;
     DailyBucket &day = buckets[bucket];
-    if (!day.used) { day.used = true; day.date = date; day.dt = localMidnight(period.start); }
+    if (!day.used) {
+      day.used = true;
+      day.date = date;
+      day.dt = localMidnight(period.start);
+    }
     day.pop = std::max(day.pop, period.hasPop ? static_cast<int>(period.pop) : 0);
     if (period.isDay) {
-      if (period.hasTemperature) { day.hasDay = true; day.day = period.temperature; }
-      if (day.condition.isEmpty()) day.condition = conditionText(period);
+      if (period.hasTemperature) {
+        day.hasDay = true;
+        day.day = period.temperature;
+      }
+      if (day.condition.isEmpty())
+        day.condition = conditionText(period);
       day.wind = speedMs(firstNumber(period.windSpeed));
       day.windDeg = compassDegrees(period.windDirection);
     } else if (period.hasTemperature) {
-      day.hasNight = true; day.night = period.temperature;
+      day.hasNight = true;
+      day.night = period.temperature;
     }
   }
   int used = 0;
-  for (int i = 0; i < NUM_DAILY; ++i) if (buckets[i].used && buckets[i].dt >= 0) ++used;
+  for (int i = 0; i < NUM_DAILY; ++i)
+    if (buckets[i].used && buckets[i].dt >= 0)
+      ++used;
   if (!result.isOk() || used < NUM_DAILY) {
-    for (daily_t &entry : forecast.daily) entry = {};
+    for (daily_t &entry : forecast.daily)
+      entry = {};
     return result.isOk() ? ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT) : result;
   }
   for (int i = 0; i < NUM_DAILY; ++i) {
@@ -674,21 +816,29 @@ ProviderResult NoaaForecastProvider::deserializeDaily(Stream &json, forecast_t &
   return ProviderResult::ok();
 }
 
-ProviderResult NoaaForecastProvider::deserializeObservationStations(Stream &json, std::vector<NoaaStationCandidate> &stations) {
+ProviderResult NoaaForecastProvider::deserializeObservationStations(Stream &json,
+                                                                    std::vector<NoaaStationCandidate> &stations) {
   stations.clear();
   StationsHandler handler(stations);
-  ProviderResult result = parseStreamingJson(json, handler, [&handler] { return handler.finished; }, [&handler] { return handler.started; }, "stations");
+  ProviderResult result = parseStreamingJson(
+      json, handler, [&handler] { return handler.finished; }, [&handler] { return handler.started; }, "stations");
   std::stable_sort(stations.begin(), stations.end(), [](const NoaaStationCandidate &a, const NoaaStationCandidate &b) {
     return a.distance < b.distance;
   });
-  if (!result.isOk() || stations.empty()) { stations.clear(); return result.isOk() ? ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT) : result; }
+  if (stations.size() > kMaxStationCandidates)
+    stations.resize(kMaxStationCandidates);
+  if (!result.isOk() || stations.empty()) {
+    stations.clear();
+    return result.isOk() ? ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT) : result;
+  }
   return result;
 }
 
 ProviderResult NoaaForecastProvider::deserializeObservation(Stream &json, current_t &current) {
   current = {};
   ObservationHandler handler(current);
-  ProviderResult result = parseStreamingJson(json, handler, [&handler] { return handler.finished; }, [&handler] { return handler.started; }, "observation");
+  ProviderResult result = parseStreamingJson(
+      json, handler, [&handler] { return handler.finished; }, [&handler] { return handler.started; }, "observation");
   if (!result.isOk() || !handler.hasTimestamp || !handler.hasValue[0]) {
     current = {};
     return result.isOk() ? ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT) : result;
@@ -704,19 +854,27 @@ ProviderResult NoaaForecastProvider::deserializeObservation(Stream &json, curren
     const bool pascals = handler.units[pressureSlot].indexOf("Pa") >= 0 || handler.values[pressureSlot] > 2000.0f;
     current.pressure = static_cast<int>(handler.values[pressureSlot] / (pascals ? 100.0f : 1.0f));
   }
-  if (handler.hasValue[7]) current.visibility = static_cast<int>(handler.values[7]);
-  if (handler.hasValue[8]) current.wind_speed = observationSpeed(handler.values[8], handler.units[8]);
-  if (handler.hasValue[9]) current.wind_gust = observationSpeed(handler.values[9], handler.units[9]);
-  if (handler.hasValue[10]) current.wind_deg = static_cast<int>(handler.values[10]);
-  if (handler.hasValue[11]) current.rain_1h = handler.values[11];
-  current.weather.condition = NoaaForecastProvider::mapDescription(!handler.textDescription.isEmpty() ? handler.textDescription : handler.icon);
-  String icon = handler.icon; icon.toLowerCase();
-  current.is_day = handler.hasIcon ? (icon.indexOf("night") < 0) : ((current.dt / 3600) % 24 >= 6 && (current.dt / 3600) % 24 < 18);
+  if (handler.hasValue[7])
+    current.visibility = static_cast<int>(handler.values[7]);
+  if (handler.hasValue[8])
+    current.wind_speed = observationSpeed(handler.values[8], handler.units[8]);
+  if (handler.hasValue[9])
+    current.wind_gust = observationSpeed(handler.values[9], handler.units[9]);
+  if (handler.hasValue[10])
+    current.wind_deg = static_cast<int>(handler.values[10]);
+  if (handler.hasValue[11])
+    current.rain_1h = handler.values[11];
+  current.weather.condition =
+      NoaaForecastProvider::mapDescription(!handler.textDescription.isEmpty() ? handler.textDescription : handler.icon);
+  String icon = handler.icon;
+  icon.toLowerCase();
+  current.is_day =
+      handler.hasIcon ? (icon.indexOf("night") < 0) : ((current.dt / 3600) % 24 >= 6 && (current.dt / 3600) % 24 < 18);
   return ProviderResult::ok();
 }
 
 ProviderResult NoaaForecastProvider::fetchPoints(forecast_t &forecast) {
-  (void)forecast;
+  (void) forecast;
 #if defined(NOAA_FORECAST_TRANSPORT_HTTP)
   const String scheme = "http";
 #else
@@ -732,30 +890,32 @@ ProviderResult NoaaForecastProvider::fetchPoints(forecast_t &forecast) {
 }
 
 ProviderResult NoaaForecastProvider::fetchDaily(forecast_t &forecast) {
-  return requestNoaa(forecastUrl_ + (forecastUrl_.indexOf('?') >= 0 ? "&units=si" : "?units=si"), [&forecast](Stream &json) {
-    return deserializeDaily(json, forecast);
-  });
+  return requestNoaa(forecastUrl_ + (forecastUrl_.indexOf('?') >= 0 ? "&units=si" : "?units=si"),
+                     [&forecast](Stream &json) { return deserializeDaily(json, forecast); });
 }
 
 ProviderResult NoaaForecastProvider::fetchHourly(forecast_t &forecast) {
-  return requestNoaa(hourlyUrl_ + (hourlyUrl_.indexOf('?') >= 0 ? "&units=si" : "?units=si"), [&forecast](Stream &json) {
-    return deserializeHourly(json, forecast);
-  });
+  return requestNoaa(hourlyUrl_ + (hourlyUrl_.indexOf('?') >= 0 ? "&units=si" : "?units=si"),
+                     [&forecast](Stream &json) { return deserializeHourly(json, forecast); });
 }
 
 ProviderResult NoaaForecastProvider::fetchCurrent(current_t &current) {
-  ProviderResult result = requestNoaa(observationStationsUrl_, [this](Stream &json) {
-    return deserializeObservationStations(json, stations_);
-  });
-  if (!result.isOk()) return result;
+  ProviderResult result = requestNoaa(observationStationsUrl_,
+                                      [this](Stream &json) { return deserializeObservationStations(json, stations_); });
+  if (!result.isOk())
+    return result;
   const String scheme = baseScheme(observationStationsUrl_);
   int tried = 0;
   for (const NoaaStationCandidate &station : stations_) {
-    if (tried++ >= kMaxStationCandidates) break;
+    if (tried++ >= kMaxStationCandidates)
+      break;
     current_t candidate = {};
     const String url = scheme + "://" + NOAA_ENDPOINT + "/stations/" + station.stationId + "/observations/latest";
     result = requestNoaa(url, [&candidate](Stream &json) { return deserializeObservation(json, candidate); });
-    if (result.isOk()) { current = candidate; return result; }
+    if (result.isOk()) {
+      current = candidate;
+      return result;
+    }
   }
   current = {};
   return result.isOk() ? ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT) : result;
