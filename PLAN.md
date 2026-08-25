@@ -43,8 +43,7 @@ Completed:
 
 Pending investigation:
 
-- [ ] Re-run the normal build and formatter check after incorporating the
-      latest `main` branch changes.
+- None.
 
 ## Current constraints
 
