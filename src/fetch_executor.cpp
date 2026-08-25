@@ -118,6 +118,8 @@ bool waitForWorkers(FetchExecution::State &state, TickType_t timeout) {
 
 }  // namespace
 
+FetchExecution::FetchExecution() = default;
+
 FetchExecution::FetchExecution(std::unique_ptr<State> state) : state_(std::move(state)) {}
 
 FetchExecution::FetchExecution(FetchExecution &&other) noexcept : state_(std::move(other.state_)) {}

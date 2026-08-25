@@ -89,6 +89,12 @@ providers:
   # MeteoAlarm warnings are filtered by the configured location (lat/lon).
   - provider: meteoalarm_alert
     country: netherlands
+  # Add this entry to enable a local BME280 sensor. Omit it to disable it.
+  # - provider: bme280
+  #   pinPwr: 27
+  #   pinSDA: 21
+  #   pinSCL: 22
+  #   address: 0x76
 # Other provider IDs are openweathermap_onecall_v3 and
 # openweathermap_air_quality. OWM entries carry their own apiKey, for example:
 #   - provider: openweathermap_onecall_v3
@@ -105,13 +111,6 @@ pin:
   epdMOSI: 23
   epdPwr: 2
 useImperialUnitsAsDefault: false
-# Add this entry to providers to enable the local sensor. Omit it to disable
-# local sensor reporting:
-#   - provider: bme280
-#     pinPwr: 27
-#     pinSDA: 21
-#     pinSCL: 22
-#     address: 0x76
 ntp:
   server_1: pool.ntp.org
   server_2: time.nist.gov

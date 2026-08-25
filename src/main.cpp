@@ -128,7 +128,8 @@ void publishMqtt(uint32_t batteryVoltage, uint8_t batteryPercent, int8_t wifiRSS
 
 void handleNetworkError(const unsigned char *icon, const String &statusStr, const String &tmpStr,
                         unsigned long startTime, tm *timeInfo, uint32_t batteryVoltage, uint8_t batteryPercent,
-                        int8_t wifiRSSI, const sensor_readings &sensorReadings) {
+                        int8_t wifiRSSI, FetchExecution &sensorExecution, const sensor_readings &sensorReadings) {
+  sensorExecution.wait();
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
   publishMqtt(batteryVoltage, batteryPercent, wifiRSSI, 0, sensorReadings);
 #endif
@@ -139,6 +140,9 @@ void handleNetworkError(const unsigned char *icon, const String &statusStr, cons
     drawError(icon, statusStr, tmpStr);
   } while (display.nextPage());
   powerOffDisplay();
+  // Deep sleep does not unwind setup(), so explicitly destroy the execution
+  // handle to run the owned sensor's power-off destructor.
+  sensorExecution = FetchExecution();
   beginDeepSleep(startTime, timeInfo);
 }
 
@@ -257,6 +261,9 @@ void setup() {
       } while (display.nextPage());
     }
     powerOffDisplay();
+    // esp_deep_sleep_start() does not unwind setup(); release the sensor before
+    // entering sleep so its destructor powers down the BME280.
+    sensorExecution = FetchExecution();
     beginDeepSleep(startTime, &timeInfo);
   }
 
@@ -264,9 +271,8 @@ void setup() {
 
   if (!timeConfigured) {
     LOG_WARNING("%s", TXT_TIME_SYNCHRONIZATION_FAILED);
-    sensorExecution.wait();
     handleNetworkError(wi_time_4_196x196, TXT_TIME_SYNCHRONIZATION_FAILED, "", startTime, &timeInfo, batteryVoltage,
-                       batteryPercent, wifiRSSI, environment_data.sensor);
+                       batteryPercent, wifiRSSI, sensorExecution, environment_data.sensor);
   }
 
   unsigned long apiRequestsStartTime = millis();
@@ -277,9 +283,8 @@ void setup() {
     if (!results[i].isOk() && fetchBundle.ops[i]->shouldAbortOnFailure()) {
       statusStr = fetchBundle.ops[i]->name();
       tmpStr = results[i].detail();
-      sensorExecution.wait();
       handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
-                         wifiRSSI, environment_data.sensor);
+                         wifiRSSI, sensorExecution, environment_data.sensor);
     }
     // Optional failures are logged and their provider operation has already
     // disengaged its report group; rendering continues.
@@ -324,6 +329,9 @@ void setup() {
   powerOffDisplay();
 
   // DEEP SLEEP
+  // esp_deep_sleep_start() does not unwind setup(), so release the owned
+  // BME280 before entering sleep.
+  sensorExecution = FetchExecution();
   beginDeepSleep(startTime, &timeInfo);
 }  // end setup
 

@@ -26,7 +26,7 @@ class FetchExecution {
  public:
   struct State;
 
-  FetchExecution() = default;
+  FetchExecution();
   FetchExecution(FetchExecution &&) noexcept;
   FetchExecution &operator=(FetchExecution &&) noexcept;
   FetchExecution(const FetchExecution &) = delete;
