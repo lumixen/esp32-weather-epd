@@ -217,7 +217,10 @@ class DependencyScheduler {
     size_t readySignals = 0;
     bool wakeWorkers = false;
     std::vector<size_t> completedWithoutExecution;
-    completedWithoutExecution.reserve(dependents_[index].size());
+    // A failed operation can resolve an entire dependent chain. Reserve the
+    // full graph size before taking the scheduler mutex so propagation cannot
+    // trigger a heap allocation while shared state is locked.
+    completedWithoutExecution.reserve(operationCount_);
     std::vector<SkippedOperation> skippedOperations;
     // Reserve before taking the scheduler mutex so a long dependency chain
     // cannot trigger vector allocation while workers are updating state.
@@ -251,8 +254,8 @@ class DependencyScheduler {
               break;
             }
           }
-          // Set the terminal failure state while holding the lock. The more
-          // detailed message and warning are produced after it is released.
+          // Set the terminal failure state while holding the lock. The
+          // warning is produced after the lock is released.
           results_[dependent] = ProviderResult::error("Required fetch dependency failed");
           completed_[dependent] = true;
           ++finishedCount_;
@@ -272,13 +275,12 @@ class DependencyScheduler {
     unlock();
 
     for (const SkippedOperation &skipped : skippedOperations) {
-      String detail = "Required fetch dependency failed";
       if (skipped.failedDependencyIndex < operationCount_) {
-        detail += ": ";
-        detail += ops_[skipped.failedDependencyIndex]->name();
+        LOG_WARNING("FetchWorker %s skipped: Required fetch dependency failed: %s",
+                    ops_[skipped.operationIndex]->name(), ops_[skipped.failedDependencyIndex]->name());
+      } else {
+        LOG_WARNING("FetchWorker %s skipped: Required fetch dependency failed", ops_[skipped.operationIndex]->name());
       }
-      results_[skipped.operationIndex] = ProviderResult::error(detail);
-      LOG_WARNING("FetchWorker %s skipped: %s", ops_[skipped.operationIndex]->name(), detail.c_str());
     }
 
     if (readySem_ != nullptr) {
