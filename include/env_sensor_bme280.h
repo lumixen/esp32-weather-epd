@@ -28,6 +28,7 @@ class BME280EnvSensor : public EnvSensor {
   BME280EnvSensor();
   ~BME280EnvSensor() override;
   bool begin() override;
+  void shutdown() override;
   std::optional<float> getTemperature() override;
   std::optional<float> getHumidity() override;
   std::optional<float> getPressure() override;
@@ -37,5 +38,7 @@ class BME280EnvSensor : public EnvSensor {
   uint8_t i2cAddress;
   TwoWire wire;
   bool initialized;
+  bool powered;
+  bool wireStarted;
 };
 #endif

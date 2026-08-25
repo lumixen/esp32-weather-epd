@@ -18,11 +18,8 @@
 
 #include "config.h"
 #include <Arduino.h>
-#include <Adafruit_Sensor.h>
-#include <HTTPClient.h>
 #include <Preferences.h>
 #include <WiFi.h>
-#include <Wire.h>
 
 #include "_locale.h"
 #include "time_utils.h"
@@ -36,29 +33,18 @@
 #include "provider_factory.h"
 #include "provider_result.h"
 #include "fetch_executor.h"
+#include "environment_sensor_fetch_operation.h"
 #include "renderer.h"
 #include "moon_tools.h"
 #include "sun_tools.h"
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
 #include "home_assistant_mqtt_client.h"
 #endif
-#ifndef BME_TYPE_NONE
-#include "env_sensor.h"
-#ifdef BME_TYPE_BME280
-#include "env_sensor_bme280.h"
-#endif
-#endif
 
 // too large to allocate locally on stack
 static weather_report_t environment_data;
 
 Preferences prefs;
-
-static SemaphoreHandle_t sensorReadingDoneSemaphore = nullptr;
-
-std::optional<float> inTemp = {};
-std::optional<float> inHumidity = {};
-std::optional<float> inPressure = {};
 
 /* Toggle the built-in LED on or off. */
 void toggleBuiltinLED(bool state) {
@@ -125,30 +111,9 @@ void beginDeepSleep(unsigned long startTime, tm *timeInfo) {
   esp_deep_sleep_start();
 }  // end beginDeepSleep
 
-sensor_readings getSensorReadings() {
-  if (sensorReadingDoneSemaphore == nullptr) {
-    return {.temperature = inTemp, .humidity = inHumidity, .pressure = inPressure};
-  }
-  std::optional<float> inTempSafeCopy = {};
-  std::optional<float> inHumiditySafeCopy = {};
-  std::optional<float> inPressureSafeCopy = {};
-#ifndef BME_TYPE_NONE
-  if (xSemaphoreTake(sensorReadingDoneSemaphore, pdMS_TO_TICKS(2000)) == pdTRUE) {
-    inTempSafeCopy = inTemp;
-    inHumiditySafeCopy = inHumidity;
-    inPressureSafeCopy = inPressure;
-    vSemaphoreDelete(sensorReadingDoneSemaphore);
-    sensorReadingDoneSemaphore = nullptr;
-  } else {
-    LOG_CRITICAL("Timeout waiting for sensor reading to complete");
-  }
-#endif
-  return {.temperature = inTempSafeCopy, .humidity = inHumiditySafeCopy, .pressure = inPressureSafeCopy};
-}
-
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
-void publishMqtt(uint32_t batteryVoltage, uint8_t batteryPercent, int8_t wifiRSSI, unsigned long apiActivityDuration) {
-  sensor_readings sensorReadings = getSensorReadings();
+void publishMqtt(uint32_t batteryVoltage, uint8_t batteryPercent, int8_t wifiRSSI, unsigned long apiActivityDuration,
+                 const sensor_readings &sensorReadings) {
   if (WiFi.status() == WL_CONNECTED) {
     sendMQTTStatus({.batteryVoltage = batteryVoltage,
                     .batteryPercentage = batteryPercent,
@@ -163,9 +128,12 @@ void publishMqtt(uint32_t batteryVoltage, uint8_t batteryPercent, int8_t wifiRSS
 
 void handleNetworkError(const unsigned char *icon, const String &statusStr, const String &tmpStr,
                         unsigned long startTime, tm *timeInfo, uint32_t batteryVoltage, uint8_t batteryPercent,
-                        int8_t wifiRSSI) {
+                        int8_t wifiRSSI, FetchExecution &sensorExecution, const sensor_readings &sensorReadings) {
+  // close() waits for the local producer and releases the sensor before any
+  // error status is published or the display enters its error path.
+  sensorExecution.close();
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
-  publishMqtt(batteryVoltage, batteryPercent, wifiRSSI, 0);
+  publishMqtt(batteryVoltage, batteryPercent, wifiRSSI, 0, sensorReadings);
 #endif
 
   killWiFi();
@@ -176,27 +144,6 @@ void handleNetworkError(const unsigned char *icon, const String &statusStr, cons
   powerOffDisplay();
   beginDeepSleep(startTime, timeInfo);
 }
-
-#ifndef BME_TYPE_NONE
-void envSensorReadingTask(void *pvParameters) {
-#ifdef BME_TYPE_BME280
-  EnvSensor *sensor = new BME280EnvSensor();
-#endif
-  if (sensor->begin()) {
-    inTemp = sensor->getTemperature();
-    inHumidity = sensor->getHumidity();
-    inPressure = sensor->getPressure();
-
-    LOG_INFO("Temp: %s°C, Humidity: %s%%, Pressure: %s hPa", String(inTemp.value_or(NAN)).c_str(),
-             String(inHumidity.value_or(NAN)).c_str(), String(inPressure.value_or(NAN)).c_str());
-  } else {
-    LOG_CRITICAL("Failed to initialize BME sensor");
-  }
-  delete sensor;
-  xSemaphoreGive(sensorReadingDoneSemaphore);  // Signal completion
-  vTaskDelete(NULL);                           // Delete this task when done
-}
-#endif
 
 #if !defined(PIO_UNIT_TESTING)
 
@@ -283,15 +230,10 @@ void setup() {
   String tmpStr = {};
   tm timeInfo = {};
 
-#ifndef BME_TYPE_NONE
-  sensorReadingDoneSemaphore = xSemaphoreCreateBinary();
-  xTaskCreate(envSensorReadingTask, "EnvSensorReadingTask",
-              4096,  // Stack size
-              NULL,  // Parameters
-              1,     // Priority
-              NULL   // Task handle
-  );
-#endif
+  // Start local data collection independently of the network phase. The
+  // execution handle owns the operation and sensor until the explicit wait
+  // before MQTT/rendering.
+  auto sensorExecution = executeParallelAsync(createEnvironmentSensorOperations(environment_data));
 
   // START TIMING FOR WIFI + TIME SYNC + API
   unsigned long networkStartTime = millis();
@@ -300,6 +242,7 @@ void setup() {
   int8_t wifiRSSI = 0;  // “Received Signal Strength Indicator"
   wl_status_t wifiStatus = startWiFi(wifiRSSI);
   if (wifiStatus != WL_CONNECTED) {  // WiFi Connection Failed
+    sensorExecution.close();
     killWiFi();
     initDisplay();
     if (wifiStatus == WL_NO_SSID_AVAIL) {
@@ -322,7 +265,7 @@ void setup() {
   if (!timeConfigured) {
     LOG_WARNING("%s", TXT_TIME_SYNCHRONIZATION_FAILED);
     handleNetworkError(wi_time_4_196x196, TXT_TIME_SYNCHRONIZATION_FAILED, "", startTime, &timeInfo, batteryVoltage,
-                       batteryPercent, wifiRSSI);
+                       batteryPercent, wifiRSSI, sensorExecution, environment_data.sensor);
   }
 
   unsigned long apiRequestsStartTime = millis();
@@ -334,7 +277,7 @@ void setup() {
       statusStr = fetchBundle.ops[i]->name();
       tmpStr = results[i].detail();
       handleNetworkError(wi_cloud_down_196x196, statusStr, tmpStr, startTime, &timeInfo, batteryVoltage, batteryPercent,
-                         wifiRSSI);
+                         wifiRSSI, sensorExecution, environment_data.sensor);
     }
     // Optional failures are logged and their provider operation has already
     // disengaged its report group; rendering continues.
@@ -342,9 +285,13 @@ void setup() {
       LOG_WARNING("Optional provider operation %s failed: %s", fetchBundle.ops[i]->name(), results[i].detail().c_str());
     }
   }
+  // Synchronize and release the local producer once, immediately before
+  // consumers use the report. The report owns the copied readings after this.
+  sensorExecution.close();
+
 // SEND MQTT STATUS (success case)
 #if defined(HOME_ASSISTANT_MQTT_ENABLED) && HOME_ASSISTANT_MQTT_ENABLED
-  publishMqtt(batteryVoltage, batteryPercent, wifiRSSI, millis() - apiRequestsStartTime);
+  publishMqtt(batteryVoltage, batteryPercent, wifiRSSI, millis() - apiRequestsStartTime, environment_data.sensor);
 #endif
 
   killWiFi();  // WiFi no longer needed
@@ -358,8 +305,6 @@ void setup() {
   getRefreshTimeStr(refreshTimeStr, timeConfigured, &timeInfo);
   String dateStr;
   getDateStr(dateStr, &timeInfo);
-
-  environment_data.sensor = getSensorReadings();
 
   // RENDER FULL REFRESH
   initDisplay();

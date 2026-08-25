@@ -10,6 +10,7 @@
 
 #include <memory>
 #include <vector>
+#include "environment_sensor_fetch_operation.h"
 #include "fetch_operation.h"
 #include "remote_data_provider.h"
 #include "weather_report.h"

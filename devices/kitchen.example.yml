@@ -19,15 +19,20 @@ epdDriver: Waveshare
 locale: en_US
 
 # Weather data providers and transports.
-remoteProviders:
+providers:
   - provider: open_meteo_forecast
     transport: HTTP
   - provider: open_meteo_air_quality
     transport: HTTP
   - provider: meteoalarm_alert
     country: ukraine
+  - provider: bme280
+    pinPwr: 27
+    pinSDA: 21
+    pinSCL: 22
+    address: 0x76
 
-# For OpenWeatherMap, put apiKey inside each OWM remoteProviders entry:
+# For OpenWeatherMap, put apiKey inside each OWM providers entry:
 #   - provider: openweathermap_onecall_v3
 #     transport: HTTPS_VERIFY
 #     apiKey: your-owm-api-key
@@ -106,9 +111,7 @@ hourlyGraphMax: 24
 # Moon phase icon style: alternative or default.
 moonPhaseStyle: alternative
 
-# Optional I2C BME280/BME680 environmental sensor.
-bme:
-  type: BME280
+# Omit the bme280 provider entry above to disable the local sensor.
 
 # Left panel row order (POS_* layout macros).
 leftPanelLayout:

@@ -287,7 +287,7 @@ def generate(config_path, header_path, write_header=True):
     except (ValidationError, ValueError) as exc:
         raise SystemExit(f"Invalid configuration in {config_path}:\n{exc}") from exc
 
-    print("Remote provider capabilities:")
+    print("Provider capabilities:")
     for tag, owner in sorted(capability_owners.items()):
         print(f"  {tag}: {owner}")
 
@@ -318,11 +318,14 @@ def generate(config_path, header_path, write_header=True):
     # LOCALE is a token-pasting target in locale.cpp (no quotes)
     emit_define(header_lines, "LOCALE", config.locale.value)
 
-    # remoteProviders configuration. These macros select the compiled
-    # provider implementations; ownership tags remain Python-only.
-    header_lines.append("// remote provider configuration")
-    for provider in config.remoteProviders:
+    # providers configuration. Remote macros select compiled HTTP provider
+    # implementations; local providers select their hardware implementations.
+    header_lines.append("// provider configuration")
+    for provider in config.providers:
         provider_id = provider.provider
+        if provider_id == "bme280":
+            emit_define(header_lines, "LOCAL_PROVIDER_BME280")
+            continue
         macro = "REMOTE_PROVIDER_" + upper_snake(provider_id)
         emit_define(header_lines, macro)
         if hasattr(provider, "transport"):
@@ -350,14 +353,18 @@ def generate(config_path, header_path, write_header=True):
     emit_typed(header_lines, "NTP_TIMEOUT", config.ntp.timeout)
     emit_define(header_lines, "RTC_DRIFT_CORRECTION", 1 if config.ntp.rtcCorrection else 0)
 
-    # bme configuration
-    header_lines.append("// bme configuration")
-    emit_define(header_lines, f"BME_TYPE_{config.bme.type.upper()}")
-    for key in ("pinPwr", "pinSDA", "pinSCL"):
-        if hasattr(config.bme, key):
-            emit_typed(header_lines, f"BME_{upper_snake(key)}", getattr(config.bme, key))
-    if hasattr(config.bme, "address"):
-        emit_typed(header_lines, "BME_ADDRESS", config.bme.address)
+    # local environment-sensor configuration. Preserve the established BME
+    # macros for the C++ hardware abstraction while sourcing them from the
+    # corresponding provider entry.
+    header_lines.append("// local sensor configuration")
+    bme_provider = next((provider for provider in config.providers if provider.provider == "bme280"), None)
+    if bme_provider is None:
+        emit_define(header_lines, "BME_TYPE_NONE")
+    else:
+        emit_define(header_lines, "BME_TYPE_BME280")
+        for key in ("pinPwr", "pinSDA", "pinSCL"):
+            emit_typed(header_lines, f"BME_{upper_snake(key)}", getattr(bme_provider, key))
+        emit_typed(header_lines, "BME_ADDRESS", bme_provider.address)
     header_lines.append("")
 
     # units and display configuration

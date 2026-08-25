@@ -1,4 +1,4 @@
-# Build-time ownership declarations for remote providers.
+# Build-time ownership declarations for configured providers.
 # Copyright (C) 2026  Max Bodaniuk
 #
 # This program is free software: you can redistribute it and/or modify
@@ -12,6 +12,7 @@ CAPABILITIES = {
     "openweathermap_onecall_v3": {"current_forecast", "hourly_forecast", "daily_forecast", "alerts"},
     "openweathermap_air_quality": {"air_quality"},
     "meteoalarm_alert": {"alerts"},
+    "bme280": {"in_temperature", "in_humidity", "in_pressure"},
 }
 
 REQUIRED_FORECAST = {"current_forecast", "hourly_forecast", "daily_forecast"}
@@ -25,13 +26,13 @@ def validate_capabilities(config):
     """
     owners = {}
     errors = []
-    for index, provider in enumerate(config.remoteProviders):
+    for index, provider in enumerate(config.providers):
         provider_id = provider.provider
         tags = CAPABILITIES.get(provider_id)
         if tags is None:
-            errors.append(f"unknown remote provider '{provider_id}'")
+            errors.append(f"unknown provider '{provider_id}'")
             continue
-        owner = f"{provider_id} (remoteProviders[{index}])"
+        owner = f"{provider_id} (providers[{index}])"
         for tag in tags:
             previous = owners.get(tag)
             if previous is not None and previous != owner:
@@ -44,7 +45,7 @@ def validate_capabilities(config):
         required.add("air_quality")
     missing = sorted(required - owners.keys())
     if missing:
-        errors.append("missing required remote data capability/capabilities: " + ", ".join(missing))
+        errors.append("missing required provider data capability/capabilities: " + ", ".join(missing))
     if errors:
         raise ValueError("; ".join(errors))
     return owners
