@@ -32,6 +32,13 @@ struct FetchExecution::State {
   size_t consumedWorkers = 0;
   std::atomic<bool> runUnclaimedSequentially{false};
   std::atomic<bool> complete{false};
+
+  ~State() {
+    if (doneSem != nullptr) {
+      vSemaphoreDelete(doneSem);
+      doneSem = nullptr;
+    }
+  }
 };
 
 namespace {
@@ -59,19 +66,24 @@ void fetchWorker(void *pvParameters) {
     LOG_DEBUG("FetchWorker %s: done in %ums ok=%d", op->name(), static_cast<unsigned>(millis() - t0),
               state->results[index].isOk());
   }
-  // Give the completion token before the task's final scheduler call. The
-  // handle consumes one token per worker, so its destructor cannot release
-  // the state while this task still accesses the semaphore.
-  xSemaphoreGive(state->doneSem);
-  if (!state->runUnclaimedSequentially &&
-      state->finishedWorkers.fetch_add(1, std::memory_order_acq_rel) + 1 == state->workerCount) {
+  // Finish every access to State before signaling the handle. The semaphore
+  // handle is copied locally because the token is the final operation before
+  // this task deletes itself; no State member may be read after it is given.
+  SemaphoreHandle_t doneSem = state->doneSem;
+  const bool runUnclaimedSequentially = state->runUnclaimedSequentially.load(std::memory_order_acquire);
+  const size_t workerCount = state->workerCount;
+  if (!runUnclaimedSequentially && state->finishedWorkers.fetch_add(1, std::memory_order_acq_rel) + 1 == workerCount) {
     state->complete.store(true, std::memory_order_release);
   }
+  xSemaphoreGive(doneSem);
   vTaskDelete(nullptr);
 }
 
 bool waitForWorkers(FetchExecution::State &state, TickType_t timeout) {
-  if (state.complete.load(std::memory_order_acquire)) {
+  // A worker sets complete immediately before giving its token. Do not take
+  // this fast path until every completion token has also been accounted for;
+  // otherwise the handle could destroy State while the worker is signaling.
+  if (state.complete.load(std::memory_order_acquire) && state.consumedWorkers == state.workerCount) {
     return true;
   }
 
@@ -123,10 +135,6 @@ FetchExecution &FetchExecution::operator=(FetchExecution &&other) noexcept {
 FetchExecution::~FetchExecution() {
   if (state_) {
     wait(portMAX_DELAY);
-    if (state_->doneSem != nullptr) {
-      vSemaphoreDelete(state_->doneSem);
-      state_->doneSem = nullptr;
-    }
   }
 }
 
@@ -158,9 +166,9 @@ FetchExecution executeParallelAsync(std::vector<std::unique_ptr<FetchOperation>>
   state->workerCount = state->operationCount < FETCH_MAX_CONCURRENCY ? state->operationCount : FETCH_MAX_CONCURRENCY;
   state->doneSem = xSemaphoreCreateCounting(state->workerCount, 0);
   if (state->doneSem == nullptr) {
-    LOG_WARNING("FetchExecutor: async semaphore create failed, running sequentially");
+    LOG_WARNING("FetchExecutor: async semaphore create failed, returning failed execution");
     for (size_t i = 0; i < state->operationCount; ++i) {
-      state->results[i] = state->ops[i]->execute();
+      state->results[i] = ProviderResult::error("Failed to schedule asynchronous fetch operation");
     }
     state->complete.store(true, std::memory_order_release);
     state->workerCount = 0;
@@ -177,9 +185,10 @@ FetchExecution executeParallelAsync(std::vector<std::unique_ptr<FetchOperation>>
       state->workerCount = created;
       state->runUnclaimedSequentially = true;
       if (created == 0) {
-        // There is no worker whose lifetime needs to be kept asynchronous.
+        // Do not run operations inline: the async API must return promptly
+        // even when task creation is unavailable.
         for (size_t index = 0; index < state->operationCount; ++index) {
-          state->results[index] = state->ops[index]->execute();
+          state->results[index] = ProviderResult::error("Failed to schedule asynchronous fetch operation");
         }
         state->runUnclaimedSequentially = false;
         state->complete.store(true, std::memory_order_release);
