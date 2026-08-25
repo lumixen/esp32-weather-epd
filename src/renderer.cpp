@@ -924,32 +924,39 @@ void drawCurrentVisibility(const current_t &current) {
       // day of week label
       display.setFont(&FONT_11pt8b);
       char dayBuffer[8] = {};
-      tm dayTime = timeInfo;
-      if (daily[i].dt > 0) {
-        tm *forecastTime = localtime(&daily[i].dt);
-        if (forecastTime != nullptr)
-          dayTime = *forecastTime;
-      } else {
-        dayTime.tm_wday = (timeInfo.tm_wday + i) % 7;
-      }
-      _strftime(dayBuffer, sizeof(dayBuffer), "%a", &dayTime);  // abbrv'd day
+      _strftime(dayBuffer, sizeof(dayBuffer), "%a", &timeInfo);  // abbrv'd day
       drawString(x + 31 - 2, 98 + 69 / 2 - 32 - 26 - 6 + 16, dayBuffer, CENTER);
+      timeInfo.tm_wday = (timeInfo.tm_wday + 1) % 7;  // increment to next day
 
       // high | low
       display.setFont(&FONT_8pt8b);
       drawString(x + 31, 98 + 69 / 2 + 38 - 6 + 12, "|", CENTER);
+      if (daily[i].temp.max.has_value()) {
 #ifdef UNITS_TEMP_KELVIN
-      hiStr = String(static_cast<int>(std::round(celsius_to_kelvin(daily[i].temp.max))));
-      loStr = String(static_cast<int>(std::round(celsius_to_kelvin(daily[i].temp.min))));
+        hiStr = String(static_cast<int>(std::round(celsius_to_kelvin(daily[i].temp.max.value()))));
 #endif
 #ifdef UNITS_TEMP_CELSIUS
-      hiStr = String(static_cast<int>(std::round(daily[i].temp.max))) + "\260";
-      loStr = String(static_cast<int>(std::round(daily[i].temp.min))) + "\260";
+        hiStr = String(static_cast<int>(std::round(daily[i].temp.max.value()))) + "\260";
 #endif
 #ifdef UNITS_TEMP_FAHRENHEIT
-      hiStr = String(static_cast<int>(std::round(celsius_to_fahrenheit(daily[i].temp.max)))) + "\260";
-      loStr = String(static_cast<int>(std::round(celsius_to_fahrenheit(daily[i].temp.min)))) + "\260";
+        hiStr = String(static_cast<int>(std::round(celsius_to_fahrenheit(daily[i].temp.max.value())))) + "\260";
 #endif
+      } else {
+        hiStr = "--";
+      }
+      if (daily[i].temp.min.has_value()) {
+#ifdef UNITS_TEMP_KELVIN
+        loStr = String(static_cast<int>(std::round(celsius_to_kelvin(daily[i].temp.min.value()))));
+#endif
+#ifdef UNITS_TEMP_CELSIUS
+        loStr = String(static_cast<int>(std::round(daily[i].temp.min.value()))) + "\260";
+#endif
+#ifdef UNITS_TEMP_FAHRENHEIT
+        loStr = String(static_cast<int>(std::round(celsius_to_fahrenheit(daily[i].temp.min.value())))) + "\260";
+#endif
+      } else {
+        loStr = "--";
+      }
       drawString(x + 31 - 4, 98 + 69 / 2 + 38 - 6 + 12, hiStr, RIGHT);
       drawString(x + 31 + 5, 98 + 69 / 2 + 38 - 6 + 12, loStr, LEFT);
 

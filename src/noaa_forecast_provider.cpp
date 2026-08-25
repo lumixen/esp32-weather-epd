@@ -753,17 +753,17 @@ ProviderResult NoaaForecastProvider::deserializeDaily(Stream &json, forecast_t &
   ForecastPeriodsHandler handler(periods);
   ProviderResult result = parseStreamingJson(
       json, handler, [&handler] { return handler.finished; }, [&handler] { return handler.started; }, "daily");
-  std::vector<DailyBucket> buckets(NUM_DAILY * 2 + 8);
+  std::vector<DailyBucket> buckets(NUM_DAILY);
   for (const PeriodData &period : periods) {
     if (!period.hasStart)
       continue;
     const String date = localDate(period.start);
     int bucket = -1;
-    for (int i = 0; i < static_cast<int>(buckets.size()); ++i)
+    for (int i = 0; i < NUM_DAILY; ++i)
       if (buckets[i].used && buckets[i].date == date)
         bucket = i;
     if (bucket < 0)
-      for (int i = 0; i < static_cast<int>(buckets.size()); ++i)
+      for (int i = 0; i < NUM_DAILY; ++i)
         if (!buckets[i].used) {
           bucket = i;
           break;
@@ -791,24 +791,23 @@ ProviderResult NoaaForecastProvider::deserializeDaily(Stream &json, forecast_t &
       day.night = period.temperature;
     }
   }
-  std::vector<const DailyBucket *> completeDays;
-  completeDays.reserve(NUM_DAILY);
-  for (const DailyBucket &day : buckets)
-    if (day.used && day.dt >= 0 && day.hasDay && day.hasNight)
-      completeDays.push_back(&day);
-  if (!result.isOk() || completeDays.size() < NUM_DAILY) {
+  int used = 0;
+  for (int i = 0; i < NUM_DAILY; ++i)
+    if (buckets[i].used && buckets[i].dt >= 0)
+      ++used;
+  if (!result.isOk() || used < NUM_DAILY) {
     for (daily_t &entry : forecast.daily)
       entry = {};
     return result.isOk() ? ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT) : result;
   }
   for (int i = 0; i < NUM_DAILY; ++i) {
-    const DailyBucket &day = *completeDays[i];
+    const DailyBucket &day = buckets[i];
     daily_t &out = forecast.daily[i];
     out.dt = day.dt;
-    out.temp.day = day.day;
-    out.temp.max = day.day;
-    out.temp.night = day.night;
-    out.temp.min = day.night;
+    out.temp.day = day.hasDay ? day.day : 0.0f;
+    out.temp.max = day.hasDay ? std::optional<float>(day.day) : std::nullopt;
+    out.temp.night = day.hasNight ? day.night : 0.0f;
+    out.temp.min = day.hasNight ? std::optional<float>(day.night) : std::nullopt;
     out.pop = day.pop;
     out.wind_speed = day.wind;
     out.wind_deg = day.windDeg;

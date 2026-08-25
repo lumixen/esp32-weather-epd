@@ -154,15 +154,15 @@ static void test_zaragoza_forecast_fixture(void) {
   TEST_ASSERT_TRUE(forecast.hourly[23].is_day);
 
   TEST_ASSERT_EQUAL_INT64(1787486400LL, forecast.daily[0].dt);
-  TEST_ASSERT_EQUAL_FLOAT(22.33f, forecast.daily[0].temp.min);
-  TEST_ASSERT_EQUAL_FLOAT(32.57f, forecast.daily[0].temp.max);
+  TEST_ASSERT_EQUAL_FLOAT(22.33f, forecast.daily[0].temp.min.value());
+  TEST_ASSERT_EQUAL_FLOAT(32.57f, forecast.daily[0].temp.max.value());
   TEST_ASSERT_EQUAL_INT(100, forecast.daily[0].pop);
   TEST_ASSERT_EQUAL_FLOAT(4.51f, forecast.daily[0].rain);
   TEST_ASSERT_EQUAL(weather_condition::RAIN, forecast.daily[0].weather.condition);
 
   TEST_ASSERT_EQUAL_INT64(1787832000LL, forecast.daily[4].dt);
-  TEST_ASSERT_EQUAL_FLOAT(20.75f, forecast.daily[4].temp.min);
-  TEST_ASSERT_EQUAL_FLOAT(30.3f, forecast.daily[4].temp.max);
+  TEST_ASSERT_EQUAL_FLOAT(20.75f, forecast.daily[4].temp.min.value());
+  TEST_ASSERT_EQUAL_FLOAT(30.3f, forecast.daily[4].temp.max.value());
   TEST_ASSERT_EQUAL(weather_condition::OVERCAST, forecast.daily[4].weather.condition);
 }
 
@@ -219,7 +219,7 @@ static void test_forecast_arrays_are_capped(void) {
   TEST_ASSERT_EQUAL_INT64(1800000000LL + (NUM_HOURLY - 1) * 3600LL, forecast.hourly[NUM_HOURLY - 1].dt);
   TEST_ASSERT_EQUAL_FLOAT(10.0f + NUM_HOURLY - 1, forecast.hourly[NUM_HOURLY - 1].temp);
   TEST_ASSERT_EQUAL_INT64(1900000000LL + (NUM_DAILY - 1) * 86400LL, forecast.daily[NUM_DAILY - 1].dt);
-  TEST_ASSERT_EQUAL_FLOAT(5.0f + NUM_DAILY - 1, forecast.daily[NUM_DAILY - 1].temp.min);
+  TEST_ASSERT_EQUAL_FLOAT(5.0f + NUM_DAILY - 1, forecast.daily[NUM_DAILY - 1].temp.min.value());
 }
 
 static void test_missing_optional_forecast_fields_default_safely(void) {
@@ -237,7 +237,7 @@ static void test_missing_optional_forecast_fields_default_safely(void) {
   TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.lat);
   TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.current.temp);
   TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.hourly[0].rain_1h);
-  TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.daily[0].temp.min);
+  TEST_ASSERT_FALSE(forecast.daily[0].temp.min.has_value());
   TEST_ASSERT_EQUAL(weather_condition::UNKNOWN, forecast.current.weather.condition);
 }
 

@@ -95,8 +95,8 @@ static void test_daily_mapping() {
   forecast_t partialForecast{};
   result = parse(partialJson, partialForecast, NoaaForecastProvider::deserializeDaily);
   TEST_ASSERT_TRUE(result.isOk());
-  TEST_ASSERT_EQUAL_FLOAT(20.0f, partialForecast.daily[0].temp.max);
-  TEST_ASSERT_EQUAL_FLOAT(10.0f, partialForecast.daily[0].temp.min);
+  TEST_ASSERT_FALSE(partialForecast.daily[0].temp.max.has_value());
+  TEST_ASSERT_EQUAL_FLOAT(18.0f, partialForecast.daily[0].temp.min.value());
   TEST_ASSERT_EQUAL(weather_condition::CLEAR, partialForecast.daily[0].weather.condition);
 }
 

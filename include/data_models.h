@@ -82,12 +82,12 @@ typedef struct weather {
  * Units – default: kelvin, metric: Celsius, imperial: Fahrenheit.
  */
 typedef struct temperature {
-  float morn;   // Morning temperature.
-  float day;    // Day temperature.
-  float eve;    // Evening temperature.
-  float night;  // Night temperature.
-  float min;    // Min daily temperature.
-  float max;    // Max daily temperature.
+  float morn;                // Morning temperature.
+  float day;                 // Day temperature.
+  float eve;                 // Evening temperature.
+  float night;               // Night temperature.
+  std::optional<float> min;  // Min daily temperature, when available.
+  std::optional<float> max;  // Max daily temperature, when available.
 } temperature_t;
 
 /*

@@ -255,8 +255,10 @@ ProviderResult OpenWeatherMapOneCallV3Provider::deserializeOneCall(Stream &json,
     report.forecast.daily[i].temp.day = daily_temp["day"].as<float>();
     report.forecast.daily[i].temp.eve = daily_temp["eve"].as<float>();
     report.forecast.daily[i].temp.night = daily_temp["night"].as<float>();
-    report.forecast.daily[i].temp.min = daily_temp["min"].as<float>();
-    report.forecast.daily[i].temp.max = daily_temp["max"].as<float>();
+    if (!daily_temp["min"].isNull())
+      report.forecast.daily[i].temp.min = daily_temp["min"].as<float>();
+    if (!daily_temp["max"].isNull())
+      report.forecast.daily[i].temp.max = daily_temp["max"].as<float>();
     report.forecast.daily[i].pressure = daily["pressure"].as<int>();
     report.forecast.daily[i].humidity = daily["humidity"].as<int>();
     report.forecast.daily[i].dew_point = daily["dew_point"].as<float>();
