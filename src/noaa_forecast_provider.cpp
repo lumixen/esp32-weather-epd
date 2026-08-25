@@ -753,17 +753,17 @@ ProviderResult NoaaForecastProvider::deserializeDaily(Stream &json, forecast_t &
   ForecastPeriodsHandler handler(periods);
   ProviderResult result = parseStreamingJson(
       json, handler, [&handler] { return handler.finished; }, [&handler] { return handler.started; }, "daily");
-  std::vector<DailyBucket> buckets(NUM_DAILY);
+  std::vector<DailyBucket> buckets(NUM_DAILY * 2 + 8);
   for (const PeriodData &period : periods) {
     if (!period.hasStart)
       continue;
     const String date = localDate(period.start);
     int bucket = -1;
-    for (int i = 0; i < NUM_DAILY; ++i)
+    for (int i = 0; i < static_cast<int>(buckets.size()); ++i)
       if (buckets[i].used && buckets[i].date == date)
         bucket = i;
     if (bucket < 0)
-      for (int i = 0; i < NUM_DAILY; ++i)
+      for (int i = 0; i < static_cast<int>(buckets.size()); ++i)
         if (!buckets[i].used) {
           bucket = i;
           break;
@@ -777,13 +777,13 @@ ProviderResult NoaaForecastProvider::deserializeDaily(Stream &json, forecast_t &
       day.dt = localMidnight(period.start);
     }
     day.pop = std::max(day.pop, period.hasPop ? static_cast<int>(period.pop) : 0);
+    if (day.condition.isEmpty())
+      day.condition = conditionText(period);
     if (period.isDay) {
       if (period.hasTemperature) {
         day.hasDay = true;
         day.day = period.temperature;
       }
-      if (day.condition.isEmpty())
-        day.condition = conditionText(period);
       day.wind = speedMs(firstNumber(period.windSpeed));
       day.windDeg = compassDegrees(period.windDirection);
     } else if (period.hasTemperature) {
@@ -791,23 +791,24 @@ ProviderResult NoaaForecastProvider::deserializeDaily(Stream &json, forecast_t &
       day.night = period.temperature;
     }
   }
-  int used = 0;
-  for (int i = 0; i < NUM_DAILY; ++i)
-    if (buckets[i].used && buckets[i].dt >= 0)
-      ++used;
-  if (!result.isOk() || used < NUM_DAILY) {
+  std::vector<const DailyBucket *> completeDays;
+  completeDays.reserve(NUM_DAILY);
+  for (const DailyBucket &day : buckets)
+    if (day.used && day.dt >= 0 && day.hasDay && day.hasNight)
+      completeDays.push_back(&day);
+  if (!result.isOk() || completeDays.size() < NUM_DAILY) {
     for (daily_t &entry : forecast.daily)
       entry = {};
     return result.isOk() ? ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT) : result;
   }
   for (int i = 0; i < NUM_DAILY; ++i) {
-    const DailyBucket &day = buckets[i];
+    const DailyBucket &day = *completeDays[i];
     daily_t &out = forecast.daily[i];
     out.dt = day.dt;
-    out.temp.day = day.hasDay ? day.day : 0.0f;
-    out.temp.max = day.hasDay ? day.day : 0.0f;
-    out.temp.night = day.hasNight ? day.night : 0.0f;
-    out.temp.min = day.hasNight ? day.night : 0.0f;
+    out.temp.day = day.day;
+    out.temp.max = day.day;
+    out.temp.night = day.night;
+    out.temp.min = day.night;
     out.pop = day.pop;
     out.wind_speed = day.wind;
     out.wind_deg = day.windDeg;

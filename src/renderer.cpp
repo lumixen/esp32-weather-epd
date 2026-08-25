@@ -924,9 +924,16 @@ void drawCurrentVisibility(const current_t &current) {
       // day of week label
       display.setFont(&FONT_11pt8b);
       char dayBuffer[8] = {};
-      _strftime(dayBuffer, sizeof(dayBuffer), "%a", &timeInfo);  // abbrv'd day
+      tm dayTime = timeInfo;
+      if (daily[i].dt > 0) {
+        tm *forecastTime = localtime(&daily[i].dt);
+        if (forecastTime != nullptr)
+          dayTime = *forecastTime;
+      } else {
+        dayTime.tm_wday = (timeInfo.tm_wday + i) % 7;
+      }
+      _strftime(dayBuffer, sizeof(dayBuffer), "%a", &dayTime);  // abbrv'd day
       drawString(x + 31 - 2, 98 + 69 / 2 - 32 - 26 - 6 + 16, dayBuffer, CENTER);
-      timeInfo.tm_wday = (timeInfo.tm_wday + 1) % 7;  // increment to next day
 
       // high | low
       display.setFont(&FONT_8pt8b);

@@ -79,6 +79,25 @@ static void test_daily_mapping() {
   TEST_ASSERT_EQUAL_FLOAT(25.0f, forecast.daily[0].temp.day);
   TEST_ASSERT_EQUAL_FLOAT(24.0f, forecast.daily[0].temp.night);
   TEST_ASSERT_EQUAL(5, forecast.daily[0].pop);
+
+  String partialJson = "{\"properties\":{\"periods\":[{\"startTime\":\"2026-08-25T18:00:00-04:00\",\"isDaytime\":false,"
+                       "\"temperature\":18,\"probabilityOfPrecipitation\":{\"value\":0},\"shortForecast\":\"Clear\"}";
+  for (int i = 0; i < NUM_DAILY; ++i) {
+    const int day = 26 + i;
+    partialJson += ",{\"startTime\":\"2026-08-" + String(day) +
+                   "T10:00:00-04:00\",\"isDaytime\":true,\"temperature\":" + String(20 + i) +
+                   ",\"probabilityOfPrecipitation\":{\"value\":0},\"shortForecast\":\"Clear\"},"
+                   "{\"startTime\":\"2026-08-" +
+                   String(day) + "T22:00:00-04:00\",\"isDaytime\":false,\"temperature\":" + String(10 + i) +
+                   ",\"probabilityOfPrecipitation\":{\"value\":0},\"shortForecast\":\"Clear\"}";
+  }
+  partialJson += "]}}";
+  forecast_t partialForecast{};
+  result = parse(partialJson, partialForecast, NoaaForecastProvider::deserializeDaily);
+  TEST_ASSERT_TRUE(result.isOk());
+  TEST_ASSERT_EQUAL_FLOAT(20.0f, partialForecast.daily[0].temp.max);
+  TEST_ASSERT_EQUAL_FLOAT(10.0f, partialForecast.daily[0].temp.min);
+  TEST_ASSERT_EQUAL(weather_condition::CLEAR, partialForecast.daily[0].weather.condition);
 }
 
 static void test_points_and_observation_mapping() {
