@@ -37,14 +37,14 @@ Completed:
 - [x] `./scripts/format.sh --check` passes.
 - [x] The normal `lolin_d32` build passes, including the BME-enabled path.
 - [x] The Open-Meteo QEMU suite passes (70 test cases).
+- [x] The OWM QEMU suite passes (40 test cases) after incorporating the fixes
+      from `main`.
+- [x] The full Docker QEMU test command passes (110 test cases total).
 
 Pending investigation:
 
-- [ ] Complete the OWM QEMU suite. The Docker run reaches 20 successful test
-      cases and then exits with `SIGHUP`; the direct host invocation was not a
-      valid comparison because it omitted `ESP32_EPD_CONFIG=test/configs/owm.yml`
-      and selected the Open-Meteo configuration instead.
-- [ ] Re-run the full validation commands after resolving the OWM test issue.
+- [ ] Re-run the normal build and formatter check after incorporating the
+      latest `main` branch changes.
 
 ## Current constraints
 

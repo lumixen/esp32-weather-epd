@@ -54,7 +54,7 @@ std::unique_ptr<FetchOperation> createEnvironmentSensorOperation(weather_report_
 #if defined(LOCAL_PROVIDER_BME280)
   return std::make_unique<EnvironmentSensorFetchOperation>(report, std::make_unique<BME280EnvSensor>());
 #else
-  (void)report;
+  (void) report;
   return nullptr;
 #endif
 }

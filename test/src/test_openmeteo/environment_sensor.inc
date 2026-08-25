@@ -23,7 +23,10 @@ class FakeSensor final : public EnvSensor {
  public:
   FakeSensor(bool beginResult, std::optional<float> temperature, std::optional<float> humidity,
              std::optional<float> pressure, bool *destroyed = nullptr)
-      : beginResult_(beginResult), temperature_(temperature), humidity_(humidity), pressure_(pressure),
+      : beginResult_(beginResult),
+        temperature_(temperature),
+        humidity_(humidity),
+        pressure_(pressure),
         destroyed_(destroyed) {}
   ~FakeSensor() override {
     if (destroyed_ != nullptr) {
@@ -58,9 +61,7 @@ class FakeSensor final : public EnvSensor {
   bool *destroyed_;
 };
 
-static sensor_readings sentinelReadings() {
-  return {.temperature = 1.0f, .humidity = 2.0f, .pressure = 3.0f};
-}
+static sensor_readings sentinelReadings() { return {.temperature = 1.0f, .humidity = 2.0f, .pressure = 3.0f}; }
 
 static void test_successful_readings_are_published_atomically(void) {
   weather_report_t report{};
