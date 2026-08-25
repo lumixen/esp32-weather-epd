@@ -13,8 +13,8 @@
 #include <vector>
 #include "fetch_operation.h"
 
-/* Small adapter used by providers to describe arbitrary operations without
- * adding runtime data-tag metadata or a dependency graph to the executor. */
+/* Small adapter used by providers to describe arbitrary operations while
+ * retaining optional dependency metadata from FetchOperation. */
 class CallbackFetchOperation : public FetchOperation {
  public:
   CallbackFetchOperation(const char *name, bool abortOnFailure, std::function<ProviderResult()> callback)

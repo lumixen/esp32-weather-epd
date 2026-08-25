@@ -186,6 +186,187 @@ static void test_execute_parallel_propagates_results(void) {
   TEST_ASSERT_EQUAL_STRING("fail detail", results[1].detail().c_str());
 }
 
+static void test_dependency_waits_for_successful_prerequisite(void) {
+  std::atomic<bool> prerequisiteFinished{false};
+  std::atomic<bool> dependentStartedTooEarly{false};
+  std::atomic<bool> dependentExecuted{false};
+  std::vector<std::unique_ptr<FetchOperation>> ops;
+
+  auto prerequisite = std::make_unique<CallbackFetchOperation>("Prerequisite", true, [&]() {
+    vTaskDelay(pdMS_TO_TICKS(20));
+    prerequisiteFinished.store(true);
+    return ProviderResult::ok();
+  });
+  auto dependent = std::make_unique<CallbackFetchOperation>("Dependent", true, [&]() {
+    if (!prerequisiteFinished.load()) {
+      dependentStartedTooEarly.store(true);
+    }
+    dependentExecuted.store(true);
+    return ProviderResult::ok();
+  });
+  dependent->dependsOn(*prerequisite);
+  ops.push_back(std::move(prerequisite));
+  ops.push_back(std::move(dependent));
+
+  auto results = executeParallel(ops);
+  TEST_ASSERT_TRUE(results[0].isOk());
+  TEST_ASSERT_TRUE(results[1].isOk());
+  TEST_ASSERT_TRUE(dependentExecuted.load());
+  TEST_ASSERT_FALSE(dependentStartedTooEarly.load());
+}
+
+static void test_failed_dependency_skips_dependent(void) {
+  std::atomic<bool> dependentExecuted{false};
+  std::vector<std::unique_ptr<FetchOperation>> ops;
+
+  auto prerequisite = std::make_unique<CallbackFetchOperation>(
+      "Failed prerequisite", true, []() { return ProviderResult::error("gridpoints unavailable"); });
+  auto dependent = std::make_unique<CallbackFetchOperation>("Dependent", true, [&]() {
+    dependentExecuted.store(true);
+    return ProviderResult::ok();
+  });
+  dependent->dependsOn(*prerequisite);
+  ops.push_back(std::move(prerequisite));
+  ops.push_back(std::move(dependent));
+
+  auto results = executeParallel(ops);
+  TEST_ASSERT_FALSE(results[0].isOk());
+  TEST_ASSERT_FALSE(results[1].isOk());
+  TEST_ASSERT_FALSE(dependentExecuted.load());
+  TEST_ASSERT_FALSE(results[1].detail().isEmpty());
+}
+
+static void test_multiple_dependencies_wait_for_all_prerequisites(void) {
+  std::atomic<bool> firstFinished{false};
+  std::atomic<bool> secondFinished{false};
+  std::atomic<bool> dependentExecuted{false};
+  std::vector<std::unique_ptr<FetchOperation>> ops;
+
+  auto first = std::make_unique<CallbackFetchOperation>("First prerequisite", true, [&]() {
+    vTaskDelay(pdMS_TO_TICKS(10));
+    firstFinished.store(true);
+    return ProviderResult::ok();
+  });
+  auto second = std::make_unique<CallbackFetchOperation>("Second prerequisite", true, [&]() {
+    vTaskDelay(pdMS_TO_TICKS(20));
+    secondFinished.store(true);
+    return ProviderResult::ok();
+  });
+  auto dependent = std::make_unique<CallbackFetchOperation>("Dependent", true, [&]() {
+    dependentExecuted.store(firstFinished.load() && secondFinished.load());
+    return ProviderResult::ok();
+  });
+  dependent->dependsOn(*first);
+  dependent->dependsOn(*second);
+  ops.push_back(std::move(first));
+  ops.push_back(std::move(second));
+  ops.push_back(std::move(dependent));
+
+  auto results = executeParallel(ops);
+  TEST_ASSERT_EQUAL(3, results.size());
+  TEST_ASSERT_TRUE(results[0].isOk());
+  TEST_ASSERT_TRUE(results[1].isOk());
+  TEST_ASSERT_TRUE(results[2].isOk());
+  TEST_ASSERT_TRUE(dependentExecuted.load());
+}
+
+static void test_dependency_failure_propagates_through_chain(void) {
+  std::atomic<int> executed{0};
+  std::vector<std::unique_ptr<FetchOperation>> ops;
+
+  auto root = std::make_unique<CallbackFetchOperation>("Root", true, [&]() {
+    ++executed;
+    return ProviderResult::error("root failed");
+  });
+  auto middle = std::make_unique<CallbackFetchOperation>("Middle", true, [&]() {
+    ++executed;
+    return ProviderResult::ok();
+  });
+  auto leaf = std::make_unique<CallbackFetchOperation>("Leaf", true, [&]() {
+    ++executed;
+    return ProviderResult::ok();
+  });
+  middle->dependsOn(*root);
+  leaf->dependsOn(*middle);
+  ops.push_back(std::move(root));
+  ops.push_back(std::move(middle));
+  ops.push_back(std::move(leaf));
+
+  auto results = executeParallel(ops);
+  TEST_ASSERT_EQUAL(3, results.size());
+  TEST_ASSERT_FALSE(results[0].isOk());
+  TEST_ASSERT_FALSE(results[1].isOk());
+  TEST_ASSERT_FALSE(results[2].isOk());
+  TEST_ASSERT_EQUAL(1, executed.load());
+}
+
+static void test_invalid_dependency_graph_does_not_execute(void) {
+  std::atomic<bool> executed{false};
+  std::vector<std::unique_ptr<FetchOperation>> ops;
+  auto external = std::make_unique<CallbackFetchOperation>("External", true, []() { return ProviderResult::ok(); });
+  auto dependent = std::make_unique<CallbackFetchOperation>("Dependent", true, [&]() {
+    executed.store(true);
+    return ProviderResult::ok();
+  });
+  dependent->dependsOn(*external);
+  ops.push_back(std::move(dependent));
+
+  auto results = executeParallel(ops);
+  TEST_ASSERT_EQUAL(1, results.size());
+  TEST_ASSERT_FALSE(results[0].isOk());
+  TEST_ASSERT_FALSE(executed.load());
+}
+
+static void test_cyclic_dependency_graph_does_not_execute(void) {
+  std::atomic<bool> executed{false};
+  std::vector<std::unique_ptr<FetchOperation>> ops;
+  auto first = std::make_unique<CallbackFetchOperation>("First", true, [&]() {
+    executed.store(true);
+    return ProviderResult::ok();
+  });
+  auto second = std::make_unique<CallbackFetchOperation>("Second", true, [&]() {
+    executed.store(true);
+    return ProviderResult::ok();
+  });
+  first->dependsOn(*second);
+  second->dependsOn(*first);
+  ops.push_back(std::move(first));
+  ops.push_back(std::move(second));
+
+  auto results = executeParallel(ops);
+  TEST_ASSERT_EQUAL(2, results.size());
+  TEST_ASSERT_FALSE(results[0].isOk());
+  TEST_ASSERT_FALSE(results[1].isOk());
+  TEST_ASSERT_FALSE(executed.load());
+}
+
+static void test_async_dependency_waits_for_prerequisite(void) {
+  std::atomic<bool> prerequisiteFinished{false};
+  std::atomic<bool> dependentExecuted{false};
+  std::vector<std::unique_ptr<FetchOperation>> ops;
+
+  auto prerequisite = std::make_unique<CallbackFetchOperation>("Async prerequisite", true, [&]() {
+    vTaskDelay(pdMS_TO_TICKS(20));
+    prerequisiteFinished.store(true);
+    return ProviderResult::ok();
+  });
+  auto dependent = std::make_unique<CallbackFetchOperation>("Async dependent", true, [&]() {
+    dependentExecuted.store(prerequisiteFinished.load());
+    return ProviderResult::ok();
+  });
+  dependent->dependsOn(*prerequisite);
+  ops.push_back(std::move(prerequisite));
+  ops.push_back(std::move(dependent));
+
+  auto execution = executeParallelAsync(std::move(ops));
+  TEST_ASSERT_TRUE(execution.wait(pdMS_TO_TICKS(1000)));
+  TEST_ASSERT_TRUE(execution.isComplete());
+  TEST_ASSERT_EQUAL(2, execution.results().size());
+  TEST_ASSERT_TRUE(execution.results()[0].isOk());
+  TEST_ASSERT_TRUE(execution.results()[1].isOk());
+  TEST_ASSERT_TRUE(dependentExecuted.load());
+}
+
 static void test_create_fetch_operations_from_unified_providers(void) {
   static weather_report_t report{};
   report.resetForecast();
@@ -220,6 +401,13 @@ void registerTests() {
   RUN_TEST(fetch_executor_tests::test_execute_parallel_single_op_no_task);
   RUN_TEST(fetch_executor_tests::test_execute_parallel_empty);
   RUN_TEST(fetch_executor_tests::test_execute_parallel_propagates_results);
+  RUN_TEST(fetch_executor_tests::test_dependency_waits_for_successful_prerequisite);
+  RUN_TEST(fetch_executor_tests::test_failed_dependency_skips_dependent);
+  RUN_TEST(fetch_executor_tests::test_multiple_dependencies_wait_for_all_prerequisites);
+  RUN_TEST(fetch_executor_tests::test_dependency_failure_propagates_through_chain);
+  RUN_TEST(fetch_executor_tests::test_invalid_dependency_graph_does_not_execute);
+  RUN_TEST(fetch_executor_tests::test_cyclic_dependency_graph_does_not_execute);
+  RUN_TEST(fetch_executor_tests::test_async_dependency_waits_for_prerequisite);
   RUN_TEST(fetch_executor_tests::test_async_execution_returns_before_delayed_operation_finishes);
   RUN_TEST(fetch_executor_tests::test_async_single_operation_is_not_run_inline);
   RUN_TEST(fetch_executor_tests::test_async_empty_execution_is_complete_and_wait_is_repeatable);

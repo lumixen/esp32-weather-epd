@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <vector>
 #include "provider_result.h"
 
 class FetchOperation {
@@ -17,4 +18,13 @@ class FetchOperation {
   virtual ProviderResult execute() = 0;
   virtual const char *name() const = 0;
   virtual bool shouldAbortOnFailure() const = 0;
+
+  // Dependencies are non-owning references to operations submitted in the
+  // same execution. They must be declared before the operation is submitted
+  // to the executor.
+  void dependsOn(const FetchOperation &operation) { dependencies_.push_back(&operation); }
+  const std::vector<const FetchOperation *> &dependencies() const { return dependencies_; }
+
+ private:
+  std::vector<const FetchOperation *> dependencies_;
 };

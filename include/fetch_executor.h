@@ -1,4 +1,5 @@
-/* FetchExecutor — bounded FreeRTOS pool for provider fetches.
+/* FetchExecutor — bounded FreeRTOS pool for provider fetches and their
+ * dependency relationships.
  * Copyright (C) 2026  Max Bodaniuk
  *
  * This program is free software: you can redistribute it and/or modify
