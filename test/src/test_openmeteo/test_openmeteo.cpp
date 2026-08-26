@@ -11,6 +11,7 @@
 #include <unity.h>
 
 #include "../test_harness.h"
+#include "../iso8601.inc"
 
 #include "display_utils.inc"
 #include "environment_sensor.inc"
@@ -29,6 +30,7 @@ void setup() {
   delay(200);  // let the emulated UART settle
   UNITY_BEGIN();
 
+  iso8601_tests::registerTests();
   display_utils_tests::registerTests();
   environment_sensor_tests::registerTests();
   rtc_drift_correction_tests::registerTests();

@@ -24,6 +24,7 @@
 #include "_locale.h"
 #include "display_utils.h"
 #include "esp_http_client_utils.h"
+#include "iso8601.h"
 #include "noaa_forecast_provider.h"
 #include "provider_fetch_operations.h"
 
@@ -33,31 +34,9 @@ constexpr const char *kEndpoint = "api.weather.gov";
 constexpr const char *kUserAgent = "esp32-weather-epd";
 constexpr int kMaxStationCandidates = 3;
 
-int64_t daysFromCivil(int y, unsigned m, unsigned d) {
-  y -= (m <= 2);
-  const int era = (y >= 0 ? y : y - 399) / 400;
-  const unsigned yoe = static_cast<unsigned>(y - era * 400);
-  const unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
-  const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-  return static_cast<int64_t>(era) * 146097 + static_cast<int64_t>(doe) - 719468;
-}
-
-bool leapYear(int year) { return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0); }
-
-bool validDate(int year, unsigned month, unsigned day) {
-  static const unsigned days[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-  return year >= 1970 && month >= 1 && month <= 12 && day >= 1 &&
-         day <= days[month] + (month == 2 && leapYear(year) ? 1 : 0);
-}
-
-bool digits(const String &s, int start, int count) {
-  if (start < 0 || start + count > static_cast<int>(s.length()))
-    return false;
-  for (int i = 0; i < count; ++i) {
-    if (s.charAt(start + i) < '0' || s.charAt(start + i) > '9')
-      return false;
-  }
-  return true;
+int64_t parseTimestamp(const String &value) {
+  int64_t epoch;
+  return iso8601::parse(value.c_str(), epoch) ? epoch : -1;
 }
 
 const char *keyAt(ElementPath &path, int index) {
@@ -250,7 +229,8 @@ class ForecastPeriodsHandler : public JsonHandler {
     const char *field = keyAt(path, 3);
     if (keyIs(field, "startTime") && value.isString()) {
       period.start = value.getString();
-      period.hasStart = NoaaForecastProvider::parseIso8601(period.start) >= 0;
+      int64_t epoch;
+      period.hasStart = iso8601::parse(period.start.c_str(), epoch);
     } else if (keyIs(field, "temperature") && (value.isInt() || value.isFloat())) {
       period.temperature = value.getDouble();
       period.hasTemperature = true;
@@ -372,7 +352,8 @@ class ObservationHandler : public JsonHandler {
     if (path.getCount() == 2 && value.isString()) {
       if (keyIs(field, "timestamp")) {
         timestamp = value.getString();
-        hasTimestamp = NoaaForecastProvider::parseIso8601(timestamp) >= 0;
+        int64_t epoch;
+        hasTimestamp = iso8601::parse(timestamp.c_str(), epoch);
       } else if (keyIs(field, "textDescription"))
         textDescription = value.getString();
       else if (keyIs(field, "icon")) {
@@ -437,7 +418,7 @@ String conditionText(const PeriodData &period) {
 }
 
 void copyPeriod(const PeriodData &period, hourly_t &hourly) {
-  hourly.dt = NoaaForecastProvider::parseIso8601(period.start);
+  hourly.dt = parseTimestamp(period.start);
   hourly.temp = period.temperature;
   hourly.feels_like = period.temperature;
   hourly.dew_point = period.hasDewpoint ? period.dewpoint : 0.0f;
@@ -483,7 +464,7 @@ int64_t localMidnight(const String &timestamp) {
     midnight += timestamp.substring(position);
   else
     return -1;
-  return NoaaForecastProvider::parseIso8601(midnight);
+  return parseTimestamp(midnight);
 }
 
 }  // namespace
@@ -558,49 +539,6 @@ bool NoaaForecastProvider::normalizeApiUrl(const String &url, String &normalized
 String NoaaForecastProvider::normalizeApiUrl(const String &url) {
   String result;
   return normalizeApiUrl(url, result) ? result : String();
-}
-
-int64_t NoaaForecastProvider::parseIso8601(const String &s) {
-  if (s.length() < 20 || s.charAt(4) != '-' || s.charAt(7) != '-' || (s.charAt(10) != 'T' && s.charAt(10) != 't') ||
-      s.charAt(13) != ':' || s.charAt(16) != ':' || !digits(s, 0, 4) || !digits(s, 5, 2) || !digits(s, 8, 2) ||
-      !digits(s, 11, 2) || !digits(s, 14, 2) || !digits(s, 17, 2))
-    return -1;
-  const int year = atoi(s.substring(0, 4).c_str());
-  const unsigned month = atoi(s.substring(5, 7).c_str());
-  const unsigned day = atoi(s.substring(8, 10).c_str());
-  const int hour = atoi(s.substring(11, 13).c_str());
-  const int minute = atoi(s.substring(14, 16).c_str());
-  const int second = atoi(s.substring(17, 19).c_str());
-  if (!validDate(year, month, day) || hour > 23 || minute > 59 || second > 60)
-    return -1;
-  int pos = 19;
-  if (s.charAt(pos) == '.') {
-    ++pos;
-    const int begin = pos;
-    while (pos < static_cast<int>(s.length()) && s.charAt(pos) >= '0' && s.charAt(pos) <= '9')
-      ++pos;
-    if (pos == begin)
-      return -1;
-  }
-  int offsetMinutes = 0;
-  if (pos >= static_cast<int>(s.length()))
-    return -1;
-  const char zone = s.charAt(pos++);
-  if (zone == 'Z' || zone == 'z') {
-    if (pos != static_cast<int>(s.length()))
-      return -1;
-  } else if (zone == '+' || zone == '-') {
-    if (pos + 5 != static_cast<int>(s.length()) || !digits(s, pos, 2) || s.charAt(pos + 2) != ':' ||
-        !digits(s, pos + 3, 2))
-      return -1;
-    const int hours = atoi(s.substring(pos, pos + 2).c_str());
-    const int minutes = atoi(s.substring(pos + 3, pos + 5).c_str());
-    if (hours > 23 || minutes > 59)
-      return -1;
-    offsetMinutes = (hours * 60 + minutes) * (zone == '-' ? -1 : 1);
-  } else
-    return -1;
-  return daysFromCivil(year, month, day) * 86400LL + hour * 3600 + minute * 60 + second - offsetMinutes * 60LL;
 }
 
 weather_condition NoaaForecastProvider::mapDescription(const String &description) {
@@ -799,7 +737,7 @@ ProviderResult NoaaForecastProvider::deserializeObservation(Stream &json, curren
     current = {};
     return result.isOk() ? ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT) : result;
   }
-  current.dt = parseIso8601(handler.timestamp);
+  current.dt = parseTimestamp(handler.timestamp);
   current.temp = handler.values[0];
   const int apparent = handler.hasValue[1] ? 1 : handler.hasValue[2] ? 2 : -1;
   current.feels_like = apparent >= 0 ? handler.values[apparent] : current.temp;

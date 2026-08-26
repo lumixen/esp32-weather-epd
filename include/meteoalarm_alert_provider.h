@@ -96,10 +96,6 @@ class MeteoAlarmAlertProvider : public RemoteDataProvider {
     uint32_t tStart_ = 0;
   };
 
-  /* Parse an ISO 8601 timestamp ("YYYY-MM-DDTHH:MM:SSZ" or "±HH:MM") to Unix
-   * epoch seconds in UTC. Returns -1 on failure. */
-  static int64_t parseIso8601(const String &s);
-
   /* Strip a leading color word ("yellow ", "orange ", "red ") and any
    * trailing "warning"/"watch"/"alert" suffix from an event name and return
    * the remaining hazard in title case, e.g.

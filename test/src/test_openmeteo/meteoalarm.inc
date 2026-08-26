@@ -40,20 +40,6 @@ static ProviderResult parseFeed(const String &xml, std::vector<weather_alert_t> 
   return parser.finish();
 }
 
-static void test_parse_iso8601(void) {
-  TEST_ASSERT_EQUAL_INT64(kSquallStart, MeteoAlarmAlertProvider::parseIso8601("2026-08-07T10:44:20Z"));
-  TEST_ASSERT_EQUAL_INT64(kSquallStart, MeteoAlarmAlertProvider::parseIso8601("2026-08-07T10:44:20+00:00"));
-  TEST_ASSERT_EQUAL_INT64(kSquallStart, MeteoAlarmAlertProvider::parseIso8601("2026-08-07T12:44:20+02:00"));
-  TEST_ASSERT_EQUAL_INT64(kSquallStart, MeteoAlarmAlertProvider::parseIso8601("2026-08-07T05:14:20-05:30"));
-  TEST_ASSERT_EQUAL_INT64(1709164800LL, MeteoAlarmAlertProvider::parseIso8601("2024-02-29T00:00:00Z"));
-  TEST_ASSERT_EQUAL_INT64(-1, MeteoAlarmAlertProvider::parseIso8601(""));
-  TEST_ASSERT_EQUAL_INT64(-1, MeteoAlarmAlertProvider::parseIso8601("2026-08-07"));
-  TEST_ASSERT_EQUAL_INT64(-1, MeteoAlarmAlertProvider::parseIso8601("2026-08-07T10:44:20X"));
-  TEST_ASSERT_EQUAL_INT64(-1, MeteoAlarmAlertProvider::parseIso8601("2026-08-07T10:44:20+02"));
-  TEST_ASSERT_EQUAL_INT64(-1, MeteoAlarmAlertProvider::parseIso8601("2026-08-07T10:44:20+02:0"));
-  TEST_ASSERT_EQUAL_INT64(-1, MeteoAlarmAlertProvider::parseIso8601("abcd-ef-ghTij:kl:mnZ"));
-}
-
 static void test_hazard_from_event(void) {
   TEST_ASSERT_EQUAL_STRING("Squall", MeteoAlarmAlertProvider::hazardFromEvent("Squall warning").c_str());
   TEST_ASSERT_EQUAL_STRING("Thunderstorm", MeteoAlarmAlertProvider::hazardFromEvent("Thunderstormwarning").c_str());
@@ -671,7 +657,6 @@ static void test_large_feed_full_consumption(void) {
 
 void registerTests() {
   test_harness::selectCallbacks(setUp, tearDown);
-  RUN_TEST(meteoalarm_tests::test_parse_iso8601);
   RUN_TEST(meteoalarm_tests::test_hazard_from_event);
   RUN_TEST(meteoalarm_tests::test_color_from_severity);
   RUN_TEST(meteoalarm_tests::test_parse_real_feed);

@@ -26,6 +26,7 @@
 #include "_locale.h"
 #include "display_utils.h"
 #include "esp_http_client_utils.h"
+#include "iso8601.h"
 #include "meteoalarm_alert_provider.h"
 #include "provider_fetch_operations.h"
 
@@ -64,14 +65,9 @@ int severityRankFromEvent(const String &event) {
   return METEOALARM_SEVERITY_RANK_NONE;
 }
 
-/* Days from civil epoch (1970-01-01), from Howard Hinnant's date algorithms. */
-int64_t daysFromCivil(int y, unsigned m, unsigned d) {
-  y -= (m <= 2);
-  const int era = (y >= 0 ? y : y - 399) / 400;
-  const unsigned yoe = static_cast<unsigned>(y - era * 400);
-  const unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
-  const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-  return static_cast<int64_t>(era) * 146097 + static_cast<int64_t>(doe) - 719468;
+int64_t parseTimestamp(const String &value) {
+  int64_t epoch;
+  return iso8601::parse(value.c_str(), epoch) ? epoch : -1;
 }
 
 /* No event handler is used: fetch() reads via esp_http_client_read in a
@@ -152,52 +148,6 @@ bool MeteoAlarmAlertProvider::pointInPolygon(double lat, double lon, const Strin
 
   return inside;
 }  // MeteoAlarmAlertProvider::pointInPolygon
-
-int64_t MeteoAlarmAlertProvider::parseIso8601(const String &s) {
-  if (s.length() < 19) {
-    return -1;
-  }
-  for (int i = 0; i < 19; ++i) {
-    const char c = s.charAt(i);
-    bool valid;
-    if (i == 10) {
-      valid = (c == 'T' || c == 't');
-    } else if (i == 4 || i == 7) {
-      valid = (c == '-');
-    } else if (i == 13 || i == 16) {
-      valid = (c == ':');
-    } else {
-      valid = (c >= '0' && c <= '9');
-    }
-    if (!valid) {
-      return -1;
-    }
-  }
-  const int64_t y = (s[0] - '0') * 1000 + (s[1] - '0') * 100 + (s[2] - '0') * 10 + (s[3] - '0');
-  const unsigned mo = (s[5] - '0') * 10 + (s[6] - '0');
-  const unsigned d = (s[8] - '0') * 10 + (s[9] - '0');
-  const int h = (s[11] - '0') * 10 + (s[12] - '0');
-  const int mi = (s[14] - '0') * 10 + (s[15] - '0');
-  const int se = (s[17] - '0') * 10 + (s[18] - '0');
-
-  int64_t offsetMin = 0;  // minutes east of UTC
-  if (s.length() >= 20) {
-    const char tz = s.charAt(19);
-    if (tz == '+' || tz == '-') {
-      if (s.length() < 25) {
-        return -1;
-      }
-      offsetMin = ((s[20] - '0') * 10 + (s[21] - '0')) * 60 + (s[23] - '0') * 10 + (s[24] - '0');
-      if (tz == '-') {
-        offsetMin = -offsetMin;
-      }
-    } else if (tz != 'Z' && tz != 'z') {
-      return -1;
-    }
-  }
-
-  return daysFromCivil(y, mo, d) * 86400 + h * 3600 + mi * 60 + se - offsetMin * 60;
-}  // MeteoAlarmAlertProvider::parseIso8601
 
 /* Strip the leading color word ("yellow ", "orange ", "red ") and any
  * trailing "warning"/"watch"/"alert" suffix from an event name and return the
@@ -371,8 +321,8 @@ void MeteoAlarmAlertProvider::FeedParser::addEntry() {
   const String color = colorFromSeverity(entry_.severity);
   weather_alert_t alert = {};
   alert.event = color.isEmpty() ? (hazard + " Warning") : (color + " " + hazard + " Warning");
-  alert.start = parseIso8601(!entry_.onset.isEmpty() ? entry_.onset : entry_.effective);
-  alert.end = parseIso8601(entry_.expires);
+  alert.start = parseTimestamp(!entry_.onset.isEmpty() ? entry_.onset : entry_.effective);
+  alert.end = parseTimestamp(entry_.expires);
 
   // Skip warnings that have already expired, unless the clock is not
   // synchronized yet (epoch < 2021).
