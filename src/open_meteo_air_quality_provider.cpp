@@ -286,7 +286,9 @@ static ProviderResult parseAirQualityResponse(esp_http_client_handle_t client, a
         break;
       }
       parser.discard();
-      return espHttpErrorResult(espHttpReadError(n));
+      const esp_err_t readError = espHttpReadError(n);
+      LOG_WARNING("Open-Meteo air quality HTTP read error: %s", esp_err_to_name(readError));
+      return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT);
     }
   }
 
