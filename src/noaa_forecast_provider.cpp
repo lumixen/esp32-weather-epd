@@ -137,15 +137,16 @@ class HttpClientStream : public Stream {
       return 0;
     const int n = esp_http_client_read(client_, buffer, static_cast<int>(length));
     if (n < 0)
-      readError_ = true;
+      readError_ = espHttpReadError(n);
     return n > 0 ? static_cast<size_t>(n) : 0;
   }
-  bool hadReadError() const { return readError_; }
+  bool hadReadError() const { return readError_ != ESP_OK; }
+  esp_err_t readError() const { return readError_; }
   size_t readBytes(uint8_t *buffer, size_t length) { return readBytes(reinterpret_cast<char *>(buffer), length); }
 
  private:
   esp_http_client_handle_t client_;
-  bool readError_ = false;
+  esp_err_t readError_ = ESP_OK;
 };
 
 template<typename Complete, typename Started>
@@ -180,7 +181,7 @@ ProviderResult requestNoaa(const String &url, std::function<ProviderResult(Strea
     HttpClientStream stream(client);
     ProviderResult result = consume(stream);
     if (stream.hadReadError())
-      return ProviderResult::error(esp_err_to_name(ESP_FAIL));
+      return espHttpErrorResult(stream.readError());
     return result;
   });
 }
