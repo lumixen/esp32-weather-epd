@@ -13,12 +13,6 @@
 #if defined(REMOTE_PROVIDER_NOAA_FORECAST)
 
 #include <Arduino.h>
-/* NWS station collections contain a long pagination.next URL (currently
- * roughly 826 bytes). The parser must consume that unknown field even though
- * the provider discards it, so use a larger but still bounded token buffer. */
-#ifndef JSON_PARSER_BUFFER_MAX_LENGTH
-#define JSON_PARSER_BUFFER_MAX_LENGTH 1024
-#endif
 #include <ArduinoStreamParser.h>
 #include <cmath>
 #include <cstdlib>
