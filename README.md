@@ -99,7 +99,6 @@ providers:
 # openweathermap_air_quality. NOAA/NWS is primarily a US service, uses the
 # fixed User-Agent `esp32-weather-epd`, and has no API key:
 #   - provider: noaa_forecast
-#     transport: HTTPS_VERIFY
 # OWM entries carry their own apiKey, for example:
 #   - provider: openweathermap_onecall_v3
 #     transport: HTTPS_VERIFY

@@ -332,7 +332,6 @@ def generate(config_path, header_path, write_header=True):
         if hasattr(provider, "transport"):
             transport_prefix = {
                 "open_meteo_forecast": "OPEN_METEO_FORECAST",
-                "noaa_forecast": "NOAA_FORECAST",
                 "open_meteo_air_quality": "OPEN_METEO_AIR_QUALITY",
                 "openweathermap_onecall_v3": "OPENWEATHERMAP_ONECALL_V3",
                 "openweathermap_air_quality": "OPENWEATHERMAP_AIR_QUALITY",

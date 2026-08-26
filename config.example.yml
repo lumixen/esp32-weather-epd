@@ -17,7 +17,6 @@ providers:
   # NOAA/NWS is an alternative forecast owner; do not enable it together
   # with Open-Meteo or OpenWeatherMap forecast providers.
   # - provider: noaa_forecast
-  #   transport: HTTPS_VERIFY
   - provider: open_meteo_air_quality
     transport: HTTPS_VERIFY
   - provider: meteoalarm_alert

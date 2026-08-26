@@ -255,7 +255,6 @@ class OpenMeteoForecastConfig(BaseModel):
 class NoaaForecastConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     provider: Literal["noaa_forecast"] = "noaa_forecast"
-    transport: Transport = Transport.HTTPS_VERIFY
 
 
 class OpenMeteoAirQualityConfig(BaseModel):

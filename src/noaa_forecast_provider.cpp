@@ -26,9 +26,7 @@
 #include <algorithm>
 #include <vector>
 #include "esp_http_client.h"
-#if defined(NOAA_FORECAST_TRANSPORT_HTTPS_VERIFY)
 #include "cert.h"
-#endif
 #include "_locale.h"
 #include "display_utils.h"
 #include "esp_http_client_utils.h"
@@ -122,8 +120,6 @@ int compassDegrees(const String &direction) {
   return 0;
 }
 
-String baseScheme(const String &url) { return url.startsWith("http://") ? "http" : "https"; }
-
 /* Stream adapter around esp_http_client. The response body is never copied;
  * parser reads are forwarded directly to the bounded IDF client buffer. */
 class HttpClientStream : public Stream {
@@ -178,9 +174,7 @@ ProviderResult requestNoaa(const String &url, std::function<ProviderResult(Strea
   esp_http_client_config_t config = {};
   config.timeout_ms = HTTP_CLIENT_TCP_TIMEOUT;
   config.user_agent = kUserAgent;
-#if defined(NOAA_FORECAST_TRANSPORT_HTTPS_VERIFY)
   config.cert_pem = cert_NOAA_API_WEATHER_GOV;
-#endif
 
   return espHttpGetWithRetry(url, url, config, [consume](esp_http_client_handle_t client) {
     HttpClientStream stream(client);
@@ -551,7 +545,7 @@ std::vector<std::unique_ptr<FetchOperation>> NoaaForecastProvider::createFetchOp
 bool NoaaForecastProvider::normalizeApiUrl(const String &url, String &normalized) {
   normalized = url;
   normalized.trim();
-  if (!(normalized.startsWith("https://") || normalized.startsWith("http://")))
+  if (!normalized.startsWith("https://"))
     return false;
   const int schemeEnd = normalized.indexOf("://");
   const int hostStart = schemeEnd + 3;
@@ -560,8 +554,8 @@ bool NoaaForecastProvider::normalizeApiUrl(const String &url, String &normalized
     hostEnd = normalized.length();
   String host = normalized.substring(hostStart, hostEnd);
   host.toLowerCase();
-  if (!(host == kEndpoint || host == String(kEndpoint) + ":80" || host == String(kEndpoint) + ":443") ||
-      normalized.indexOf('@', hostStart) >= 0 || normalized.indexOf('?', hostStart) == hostStart)
+  if (!(host == kEndpoint || host == String(kEndpoint) + ":443") || normalized.indexOf('@', hostStart) >= 0 ||
+      normalized.indexOf('?', hostStart) == hostStart)
     return false;
   return hostEnd < static_cast<int>(normalized.length());
 }
@@ -843,12 +837,7 @@ ProviderResult NoaaForecastProvider::deserializeObservation(Stream &json, curren
 
 ProviderResult NoaaForecastProvider::fetchPoints(forecast_t &forecast) {
   (void) forecast;
-#if defined(NOAA_FORECAST_TRANSPORT_HTTP)
-  const String scheme = "http";
-#else
-  const String scheme = "https";
-#endif
-  const String url = scheme + "://" + NOAA_ENDPOINT + "/points/" + LAT + "," + LON;
+  const String url = "https://" + String(NOAA_ENDPOINT) + "/points/" + LAT + "," + LON;
   ProviderResult result = requestNoaa(url, [this](Stream &json) { return deserializePoints(json); });
   if (result.isOk()) {
     forecast.timezone = timeZone_;
@@ -872,13 +861,12 @@ ProviderResult NoaaForecastProvider::fetchCurrent(current_t &current) {
                                       [this](Stream &json) { return deserializeObservationStations(json, stations_); });
   if (!result.isOk())
     return result;
-  const String scheme = baseScheme(observationStationsUrl_);
   int tried = 0;
   for (const NoaaStationCandidate &station : stations_) {
     if (tried++ >= kMaxStationCandidates)
       break;
     current_t candidate = {};
-    const String url = scheme + "://" + NOAA_ENDPOINT + "/stations/" + station.stationId + "/observations/latest";
+    const String url = "https://" + String(NOAA_ENDPOINT) + "/stations/" + station.stationId + "/observations/latest";
     result = requestNoaa(url, [&candidate](Stream &json) { return deserializeObservation(json, candidate); });
     if (result.isOk()) {
       current = candidate;

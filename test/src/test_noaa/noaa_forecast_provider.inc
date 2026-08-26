@@ -59,6 +59,8 @@ static void test_api_and_helpers() {
   TEST_ASSERT_EQUAL_INT64(1787688000LL, NoaaForecastProvider::parseIso8601("2026-08-25T20:00:00Z"));
   TEST_ASSERT_EQUAL_INT64(-1, NoaaForecastProvider::parseIso8601("not-a-date"));
   TEST_ASSERT_TRUE(NoaaForecastProvider::isValidApiUrl("https://api.weather.gov/gridpoints/BOX/1,2"));
+  // NWS redirects HTTP to HTTPS; NOAA URLs are intentionally HTTPS-only.
+  TEST_ASSERT_FALSE(NoaaForecastProvider::isValidApiUrl("http://api.weather.gov/gridpoints/BOX/1,2"));
   TEST_ASSERT_FALSE(NoaaForecastProvider::isValidApiUrl("https://example.com/weather"));
 }
 

@@ -7,7 +7,6 @@ locale: en_GB
 
 providers:
   - provider: noaa_forecast
-    transport: HTTPS_VERIFY
 
 ntp:
   server_1: pool.ntp.org
