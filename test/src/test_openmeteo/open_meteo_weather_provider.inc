@@ -330,7 +330,7 @@ static void test_exponent_form_numbers(void) {
 }
 
 /* Payloads with the required time keys but missing individual fields are
- * accepted; the absent fields must not crash and default to zero. */
+ * accepted; the absent optional fields remain unavailable. */
 static void test_missing_optional_fields(void) {
   forecast_t forecast = {};
   ProviderResult err = parseJson(
@@ -341,7 +341,8 @@ static void test_missing_optional_fields(void) {
   TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.current.temp);
   TEST_ASSERT_EQUAL(weather_condition::UNKNOWN, forecast.current.weather.condition);
   TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.current.soil_temperature_18cm);
-  TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.daily[0].temp.min.value());
+  TEST_ASSERT_FALSE(forecast.daily[0].temp.min.has_value());
+  TEST_ASSERT_FALSE(forecast.daily[0].temp.max.has_value());
 }
 
 /* Garbage and empty input are reported as deserialization errors. */
