@@ -55,7 +55,7 @@ static const char *localizedEspHttpPhrase(esp_err_t error) {
     case ESP_ERR_NO_MEM:
       return TXT_HTTPC_ERROR_TOO_LESS_RAM;
     case ESP_ERR_INVALID_ARG:
-      return TXT_HTTPC_ERROR_NOT_CONNECTED;
+      return TXT_DESERIALIZATION_ERROR_INVALID_INPUT;
     case ESP_ERR_HTTP_MAX_REDIRECT:
     case ESP_ERR_HTTP_REDIRECT_DOWNGRADE:
     case ESP_FAIL:
