@@ -33,6 +33,11 @@ using EspHttpResponseHandler = std::function<ProviderResult(esp_http_client_hand
  * end-of-read condition. */
 esp_err_t espHttpReadError(int result);
 
+/* Convert an ESP-IDF HTTP error to a localized ProviderResult. The raw
+ * esp_err_t name is logged for diagnostics but is not exposed in the
+ * user-facing detail string. */
+ProviderResult espHttpErrorResult(esp_err_t error);
+
 /* Perform an ESP-IDF HTTP GET request with the common WiFi/status/retry and
  * client lifecycle handling. `config` is copied for each attempt; its URL
  * and method are replaced with the supplied URL and HTTP_METHOD_GET. The

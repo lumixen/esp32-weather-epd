@@ -322,7 +322,7 @@ ProviderResult MeteoAlarmAlertProvider::fetch(std::vector<weather_alert_t> &aler
     }
 
     if (readFailed && !parser.isAlertCapReached()) {
-      return ProviderResult::error(esp_err_to_name(readErr));
+      return espHttpErrorResult(readErr);
     }
     return parser.finish();
   });

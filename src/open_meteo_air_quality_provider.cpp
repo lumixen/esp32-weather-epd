@@ -36,31 +36,6 @@
 
 static ProviderResult parseAirQualityResponse(esp_http_client_handle_t client, air_quality_t &airQuality);
 
-/* esp_http_client_read() returns negative ESP_ERR_HTTP_* values for some
- * failures, but read-style APIs may also use -1 for a generic failure. Only
- * convert values known to be encoded as negative ESP-IDF HTTP errors; map
- * every other negative return to the generic ESP_FAIL. */
-static esp_err_t mapHttpReadError(int result) {
-  switch (result) {
-    case -ESP_ERR_HTTP_MAX_REDIRECT:
-    case -ESP_ERR_HTTP_CONNECT:
-    case -ESP_ERR_HTTP_WRITE_DATA:
-    case -ESP_ERR_HTTP_FETCH_HEADER:
-    case -ESP_ERR_HTTP_INVALID_TRANSPORT:
-    case -ESP_ERR_HTTP_CONNECTING:
-    case -ESP_ERR_HTTP_EAGAIN:
-    case -ESP_ERR_HTTP_CONNECTION_CLOSED:
-    case -ESP_ERR_HTTP_NOT_MODIFIED:
-    case -ESP_ERR_HTTP_RANGE_NOT_SATISFIABLE:
-    case -ESP_ERR_HTTP_READ_TIMEOUT:
-    case -ESP_ERR_HTTP_INCOMPLETE_DATA:
-    case -ESP_ERR_HTTP_REDIRECT_DOWNGRADE:
-      return static_cast<esp_err_t>(-result);
-    default:
-      return ESP_FAIL;
-  }
-}
-
 /* Perform an HTTP GET request to Open-Meteo's air quality API and map the
  * response into the generic air quality model.
  */
@@ -311,7 +286,7 @@ static ProviderResult parseAirQualityResponse(esp_http_client_handle_t client, a
         break;
       }
       parser.discard();
-      return ProviderResult::error(esp_err_to_name(mapHttpReadError(n)));
+      return espHttpErrorResult(espHttpReadError(n));
     }
   }
 

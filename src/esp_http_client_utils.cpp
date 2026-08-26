@@ -30,6 +30,46 @@ constexpr uint32_t kRetryDelayMs = 100;
 
 }  // namespace
 
+static const char *localizedEspHttpPhrase(esp_err_t error) {
+  switch (error) {
+    case ESP_ERR_HTTP_CONNECT:
+      return TXT_HTTPC_ERROR_CONNECTION_REFUSED;
+    case ESP_ERR_HTTP_WRITE_DATA:
+      return TXT_HTTPC_ERROR_SEND_PAYLOAD_FAILED;
+    case ESP_ERR_HTTP_FETCH_HEADER:
+      return TXT_HTTPC_ERROR_NO_HTTP_SERVER;
+    case ESP_ERR_HTTP_INVALID_TRANSPORT:
+      return TXT_HTTPC_ERROR_ENCODING;
+    case ESP_ERR_HTTP_CONNECTING:
+    case ESP_ERR_HTTP_EAGAIN:
+    case ESP_ERR_HTTP_READ_TIMEOUT:
+      return TXT_HTTPC_ERROR_READ_TIMEOUT;
+    case ESP_ERR_HTTP_CONNECTION_CLOSED:
+      return TXT_HTTPC_ERROR_CONNECTION_LOST;
+    case ESP_ERR_HTTP_INCOMPLETE_DATA:
+      return TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT;
+    case ESP_ERR_HTTP_NOT_MODIFIED:
+      return TXT_HTTP_RESPONSE_304;
+    case ESP_ERR_HTTP_RANGE_NOT_SATISFIABLE:
+      return TXT_HTTP_RESPONSE_416;
+    case ESP_ERR_NO_MEM:
+      return TXT_HTTPC_ERROR_TOO_LESS_RAM;
+    case ESP_ERR_INVALID_ARG:
+      return TXT_HTTPC_ERROR_NOT_CONNECTED;
+    case ESP_ERR_HTTP_MAX_REDIRECT:
+    case ESP_ERR_HTTP_REDIRECT_DOWNGRADE:
+    case ESP_FAIL:
+    default:
+      return TXT_HTTPC_ERROR_CONNECTION_LOST;
+  }
+}
+
+ProviderResult espHttpErrorResult(esp_err_t error) {
+  const char *phrase = localizedEspHttpPhrase(error);
+  LOG_WARNING("ESP-IDF HTTP error: %s (%s)", phrase, esp_err_to_name(error));
+  return ProviderResult::error(phrase);
+}
+
 esp_err_t espHttpReadError(int result) {
   switch (result) {
     case -ESP_ERR_HTTP_MAX_REDIRECT:
@@ -77,12 +117,12 @@ ProviderResult espHttpGetWithRetry(const String &url, const String &sanitizedUrl
     bool opened = false;
     if (client == nullptr) {
       status = 0;
-      result = ProviderResult::error(esp_err_to_name(ESP_FAIL));
+      result = espHttpErrorResult(ESP_FAIL);
     } else {
       const esp_err_t openError = esp_http_client_open(client, 0);
       if (openError != ESP_OK) {
         status = 0;
-        result = ProviderResult::error(esp_err_to_name(openError));
+        result = espHttpErrorResult(openError);
       } else {
         opened = true;
         const int64_t headerResult = esp_http_client_fetch_headers(client);
@@ -92,13 +132,14 @@ ProviderResult espHttpGetWithRetry(const String &url, const String &sanitizedUrl
         // negative header result as a failure when no usable HTTP status was
         // parsed; otherwise the status remains authoritative.
         if (status <= 0 && headerResult < 0) {
-          const esp_err_t headerError = headerResult == -1 ? ESP_FAIL : static_cast<esp_err_t>(-headerResult);
-          result = ProviderResult::error(esp_err_to_name(headerError));
+          const esp_err_t headerError =
+              headerResult == -1 ? ESP_FAIL : espHttpReadError(static_cast<int>(headerResult));
+          result = espHttpErrorResult(headerError);
         } else if (status != kHttpStatusOk) {
           result = ProviderResult::error(status > 0 ? getHttpResponsePhrase(status)
-                                                    : esp_err_to_name(ESP_ERR_HTTP_FETCH_HEADER));
+                                                    : localizedEspHttpPhrase(ESP_ERR_HTTP_FETCH_HEADER));
         } else if (!handleResponse) {
-          result = ProviderResult::error(esp_err_to_name(ESP_ERR_INVALID_ARG));
+          result = espHttpErrorResult(ESP_ERR_INVALID_ARG);
         } else {
           result = handleResponse(client);
         }
