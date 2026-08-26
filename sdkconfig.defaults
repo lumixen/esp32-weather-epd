@@ -32,6 +32,12 @@ CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP=y
 CONFIG_MBEDTLS_PSK_MODES=y
 CONFIG_MBEDTLS_KEY_EXCHANGE_PSK=y
 
+# Allow the ESP-IDF HTTP client to provide the HTTPS_NO_VERIFY transport used
+# by provider configurations. Verification remains enabled whenever a CA
+# certificate is supplied through esp_http_client_config_t.cert_pem.
+CONFIG_ESP_TLS_INSECURE=y
+CONFIG_ESP_TLS_SKIP_SERVER_CERT_VERIFY=y
+
 # Only WARNING and above; drops ESP-IDF I (INFO) log noise at runtime and in
 # the bootloader. Arduino core logs are already limited separately.
 CONFIG_LOG_DEFAULT_LEVEL_WARN=y
