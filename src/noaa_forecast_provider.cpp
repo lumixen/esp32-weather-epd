@@ -25,13 +25,13 @@
 #include <cstring>
 #include <algorithm>
 #include <vector>
-#include <WiFi.h>
 #include "esp_http_client.h"
 #if defined(NOAA_FORECAST_TRANSPORT_HTTPS_VERIFY)
 #include "cert.h"
 #endif
 #include "_locale.h"
 #include "display_utils.h"
+#include "esp_http_client_utils.h"
 #include "noaa_forecast_provider.h"
 #include "provider_fetch_operations.h"
 
@@ -39,7 +39,6 @@ namespace {
 
 constexpr const char *kEndpoint = "api.weather.gov";
 constexpr const char *kUserAgent = "esp32-weather-epd";
-constexpr const char *kAccept = "application/geo+json";
 constexpr int kMaxStationCandidates = 3;
 
 int64_t daysFromCivil(int y, unsigned m, unsigned d) {
@@ -176,52 +175,20 @@ ProviderResult parseStreamingJson(Stream &json, JsonHandler &handler, Complete c
 }
 
 ProviderResult requestNoaa(const String &url, std::function<ProviderResult(Stream &)> consume) {
-  ProviderResult result;
-  for (int attempt = 0; attempt < 3 && !result.isOk(); ++attempt) {
-    if (WiFi.status() != WL_CONNECTED) {
-      result = ProviderResult::error(getHttpResponsePhrase(-512 - static_cast<int>(WiFi.status())));
-      break;
-    }
-
-    esp_http_client_config_t config = {};
-    config.url = url.c_str();
-    config.timeout_ms = HTTP_CLIENT_TCP_TIMEOUT;
-    config.method = HTTP_METHOD_GET;
+  esp_http_client_config_t config = {};
+  config.timeout_ms = HTTP_CLIENT_TCP_TIMEOUT;
+  config.user_agent = kUserAgent;
 #if defined(NOAA_FORECAST_TRANSPORT_HTTPS_VERIFY)
-    config.cert_pem = cert_NOAA_API_WEATHER_GOV;
+  config.cert_pem = cert_NOAA_API_WEATHER_GOV;
 #endif
-    esp_http_client_handle_t client = esp_http_client_init(&config);
-    int status = 0;
-    if (client == nullptr) {
-      result = ProviderResult::error(esp_err_to_name(ESP_FAIL));
-    } else {
-      esp_http_client_set_header(client, "User-Agent", kUserAgent);
-      esp_http_client_set_header(client, "Accept", kAccept);
-      const esp_err_t openError = esp_http_client_open(client, 0);
-      if (openError != ESP_OK) {
-        result = ProviderResult::error(esp_err_to_name(openError));
-      } else {
-        const int64_t contentLength = esp_http_client_fetch_headers(client);
-        status = esp_http_client_get_status_code(client);
-        if (contentLength < 0 || status != 200) {
-          result = ProviderResult::error(status > 0 ? getHttpResponsePhrase(status)
-                                                    : esp_err_to_name(ESP_ERR_HTTP_FETCH_HEADER));
-        } else {
-          HttpClientStream stream(client);
-          result = consume(stream);
-          if (stream.hadReadError())
-            result = ProviderResult::error(esp_err_to_name(ESP_FAIL));
-        }
-      }
-      esp_http_client_close(client);
-      esp_http_client_cleanup(client);
-    }
-    LOG_INFO("NOAA %d %s %s", status, result.isOk() ? getHttpResponsePhrase(status) : result.detail().c_str(),
-             url.c_str());
-    if (!result.isOk() && attempt < 2)
-      delay(100);
-  }
-  return result;
+
+  return espHttpGetWithRetry(url, url, config, [consume](esp_http_client_handle_t client) {
+    HttpClientStream stream(client);
+    ProviderResult result = consume(stream);
+    if (stream.hadReadError())
+      return ProviderResult::error(esp_err_to_name(ESP_FAIL));
+    return result;
+  });
 }
 
 struct PointsHandler : public JsonHandler {
