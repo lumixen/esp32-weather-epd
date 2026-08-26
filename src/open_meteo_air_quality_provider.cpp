@@ -21,10 +21,6 @@
 #if defined(REMOTE_PROVIDER_OPEN_METEO_AIR_QUALITY)
 
 #include <Arduino.h>
-#include <WiFiClient.h>
-#if !defined(OPEN_METEO_AIR_QUALITY_TRANSPORT_HTTP)
-#include <WiFiClientSecure.h>
-#endif
 #if defined(OPEN_METEO_AIR_QUALITY_TRANSPORT_HTTPS_VERIFY)
 #include "cert.h"
 #endif
@@ -32,34 +28,38 @@
 #include <cstdint>
 #include <cstring>
 #include <time.h>
+#include <vector>
 #include "_locale.h"
-#include "client_utils.h"
+#include "esp_http_client_utils.h"
 #include "open_meteo_air_quality_provider.h"
 #include "provider_fetch_operations.h"
+
+static ProviderResult parseAirQualityResponse(esp_http_client_handle_t client, air_quality_t &airQuality);
 
 /* Perform an HTTP GET request to Open-Meteo's air quality API and map the
  * response into the generic air quality model.
  */
 ProviderResult OpenMeteoAirQualityProvider::fetch(air_quality_t &airQuality) {
+  const String uri =
+      "/v1/air-quality?latitude=" + LAT + "&longitude=" + LON +
+      "&hourly=pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ammonia,nitrogen_monoxide,ozone,pm10&"
+      "past_days=1&forecast_days=1&timeformat=unixtime";
 #if defined(OPEN_METEO_AIR_QUALITY_TRANSPORT_HTTP)
-  WiFiClient client;
-  const uint16_t port = 80;
-#elif defined(OPEN_METEO_AIR_QUALITY_TRANSPORT_HTTPS_NO_VERIFY)
-  WiFiClientSecure client;
-  client.setInsecure();
-  const uint16_t port = 443;
-#else  // OPEN_METEO_AIR_QUALITY_TRANSPORT_HTTPS_VERIFY
-  WiFiClientSecure client;
-  client.setCACert(cert_ISRG_Root_X1);
-  const uint16_t port = 443;
+  const String url = "http://" + OM_AIR_QUALITY_ENDPOINT + uri;
+#else  // OPEN_METEO_AIR_QUALITY_TRANSPORT_HTTPS_*
+  const String url = "https://" + OM_AIR_QUALITY_ENDPOINT + uri;
 #endif
-  String uri = "/v1/air-quality?latitude=" + LAT + "&longitude=" + LON +
-               "&hourly=pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ammonia,nitrogen_monoxide,ozone,pm10&"
-               "past_days=1&forecast_days=1&timeformat=unixtime";
-  String sanitizedUri = OM_AIR_QUALITY_ENDPOINT + uri;
+  const String sanitizedUri = OM_AIR_QUALITY_ENDPOINT + uri;
 
-  return httpGetWithRetry(client, OM_AIR_QUALITY_ENDPOINT, port, uri, sanitizedUri, true, HTTP_CLIENT_TCP_TIMEOUT,
-                          [&airQuality](Stream &json, size_t) { return deserializeAirQuality(json, airQuality); });
+  esp_http_client_config_t config = {};
+  config.timeout_ms = HTTP_CLIENT_TCP_TIMEOUT;
+#if defined(OPEN_METEO_AIR_QUALITY_TRANSPORT_HTTPS_VERIFY)
+  config.cert_pem = cert_ISRG_Root_X1;
+#endif
+
+  return espHttpGetWithRetry(url, sanitizedUri, config, [&airQuality](esp_http_client_handle_t client) {
+    return parseAirQualityResponse(client, airQuality);
+  });
 }  // OpenMeteoAirQualityProvider::fetch
 
 std::vector<std::unique_ptr<FetchOperation>> OpenMeteoAirQualityProvider::createFetchOperations(weather_report_t &out) {
@@ -216,39 +216,92 @@ class AirQualityHandler : public JsonHandler {
   bool isTimeArray_ = false;
 };
 
+/* Adapter around the SAX parser that can be fed either from an Arduino
+ * Stream (the unit-test interface) or directly from esp_http_client_read().
+ * A new instance is created for every retry so a failed attempt can never
+ * contaminate the next response. */
+class AirQualityResponseParser {
+ public:
+  explicit AirQualityResponseParser(air_quality_t &airQuality) : airQuality_(airQuality), handler_(airQuality) {
+    memset(&airQuality_, 0, sizeof(air_quality_t));
+    parser_.setHandler(&handler_);
+  }
+
+  void feed(const char *data, size_t length) {
+    for (size_t i = 0; i < length && !hasParseError() && !finishedDocument(); ++i) {
+      uint8_t b = static_cast<uint8_t>(data[i]);
+      parser_.write(&b, 1);
+    }
+  }
+
+  bool hasParseError() const { return parser_.hasParseError(); }
+  bool finishedDocument() const { return handler_.finishedDocument(); }
+  void discard() { clearModel(); }
+
+  ProviderResult finish() {
+    if (hasParseError()) {
+      LOG_WARNING("Open-Meteo air quality JSON parse error: %s", parser_.getErrorMessage());
+      clearModel();
+      return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT);
+    }
+    if (finishedDocument()) {
+      // A syntactically valid response without hourly data is still accepted,
+      // matching the old DOM parser's behavior for API error payloads and {}.
+      return ProviderResult::ok();
+    }
+
+    clearModel();
+    if (!handler_.sawStart()) {
+      return ProviderResult::error(TXT_DESERIALIZATION_ERROR_EMPTY_INPUT);
+    }
+    return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT);
+  }
+
+ private:
+  void clearModel() { memset(&airQuality_, 0, sizeof(air_quality_t)); }
+
+  air_quality_t &airQuality_;
+  AirQualityHandler handler_;
+  ArduinoStreamParser parser_;
+};
+
+/* Read one response using bounded storage and feed the JSON parser directly.
+ * The HTTP client does not expose an Arduino Stream, so this is the network
+ * counterpart of deserializeAirQuality(). */
+static ProviderResult parseAirQualityResponse(esp_http_client_handle_t client, air_quality_t &airQuality) {
+  AirQualityResponseParser parser(airQuality);
+  std::vector<char> buffer(1024);
+
+  while (!parser.hasParseError() && !parser.finishedDocument()) {
+    const int n = esp_http_client_read(client, buffer.data(), buffer.size());
+    if (n > 0) {
+      parser.feed(buffer.data(), static_cast<size_t>(n));
+    } else if (n == 0) {
+      break;
+    } else {
+      if (n == -ESP_ERR_HTTP_EAGAIN) {
+        // A read timeout can leave a valid prefix in the parser. Let finish()
+        // classify it as empty or incomplete input using the existing
+        // localized deserialization errors.
+        break;
+      }
+      parser.discard();
+      const esp_err_t readError = espHttpReadError(n);
+      LOG_WARNING("Open-Meteo air quality HTTP read error: %s", esp_err_to_name(readError));
+      return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT);
+    }
+  }
+
+  return parser.finish();
+}
+
 ProviderResult OpenMeteoAirQualityProvider::deserializeAirQuality(Stream &json, air_quality_t &airQuality) {
-  // The model may be shared with the previous fetch. Clear it first so a
-  // short, malformed, or otherwise incomplete response cannot leave stale
-  // readings behind.
-  memset(&airQuality, 0, sizeof(air_quality_t));
-  AirQualityHandler handler(airQuality);
-  ArduinoStreamParser parser;
-  parser.setHandler(&handler);
-
-  // Read one byte at a time and stop as soon as the root document closes.
-  // This avoids waiting for a trailing read after a close-delimited HTTP/1.0
-  // response and matches the streaming pump used by the weather provider.
+  AirQualityResponseParser parser(airQuality);
   uint8_t b;
-  while (!parser.hasParseError() && !handler.finishedDocument() && json.readBytes(&b, 1) > 0) {
-    parser.write(&b, 1);
+  while (!parser.hasParseError() && !parser.finishedDocument() && json.readBytes(&b, 1) > 0) {
+    parser.feed(reinterpret_cast<const char *>(&b), 1);
   }
-
-  if (parser.hasParseError()) {
-    LOG_WARNING("Open-Meteo air quality JSON parse error: %s", parser.getErrorMessage());
-    memset(&airQuality, 0, sizeof(air_quality_t));
-    return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT);
-  }
-  if (handler.finishedDocument()) {
-    // A syntactically valid response without hourly data is still accepted,
-    // matching the old DOM parser's behavior for API error payloads and {}.
-    return ProviderResult::ok();
-  }
-
-  memset(&airQuality, 0, sizeof(air_quality_t));
-  if (!handler.sawStart()) {
-    return ProviderResult::error(TXT_DESERIALIZATION_ERROR_EMPTY_INPUT);
-  }
-  return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT);
+  return parser.finish();
 }  // OpenMeteoAirQualityProvider::deserializeAirQuality
 
 #endif  // REMOTE_PROVIDER_OPEN_METEO_AIR_QUALITY

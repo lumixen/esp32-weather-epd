@@ -22,11 +22,10 @@
 
 #include <Arduino.h>
 #include <cmath>
-#include <WiFi.h>
-#include "esp_http_client.h"
 #include "cert.h"
 #include "_locale.h"
 #include "display_utils.h"
+#include "esp_http_client_utils.h"
 #include "meteoalarm_alert_provider.h"
 #include "provider_fetch_operations.h"
 
@@ -47,7 +46,6 @@ static const char *METEOALARM_ENDPOINT = "feeds.meteoalarm.org";
 
 namespace {
 
-constexpr int kHttpStatusOk = 200;
 constexpr int kHttpStatusNotFound = 404;
 
 /* Severity rank of an alert event text, derived from its leading awareness
@@ -285,72 +283,14 @@ ProviderResult MeteoAlarmAlertProvider::fetch(std::vector<weather_alert_t> &aler
     lon = strtod(LON.c_str(), nullptr);
   }
 
-  LOG_INFO("%s: %s", TXT_ATTEMPTING_HTTP_REQ, url.c_str());
-
   const uint32_t t0 = millis();
-  int attempts = 0;
-  ProviderResult result;
-  while (!result.isOk() && attempts < 3) {
-    const wl_status_t connectionStatus = WiFi.status();
-    if (connectionStatus != WL_CONNECTED) {
-      // The -512 offset stays private here: it only feeds the phrase lookup.
-      result = ProviderResult::error(getHttpResponsePhrase(-512 - static_cast<int>(connectionStatus)));
-      break;
-    }
+  esp_http_client_config_t config = {};
+  config.cert_pem = cert_GEANT_TLS_RSA_1;
+  config.timeout_ms = 30000;
 
+  ProviderResult result = espHttpGetWithRetry(url, url, config, [&alerts, lat, lon](esp_http_client_handle_t client) {
     alerts.clear();
     FeedParser parser(alerts, time(nullptr), lat, lon);
-
-    esp_http_client_config_t config = {};
-    config.url = url.c_str();
-    config.cert_pem = cert_GEANT_TLS_RSA_1;
-    config.timeout_ms = 30000;
-    config.method = HTTP_METHOD_GET;
-
-    esp_http_client_handle_t client = esp_http_client_init(&config);
-    if (client == nullptr) {
-      result = ProviderResult::error(esp_err_to_name(ESP_FAIL));
-      LOG_INFO("%d %s", 0, result.detail().c_str());
-      ++attempts;
-      if (!result.isOk()) {
-        delay(100);
-      }
-      continue;
-    }
-
-    esp_err_t openErr = esp_http_client_open(client, 0);
-    int status = 0;
-    if (openErr != ESP_OK) {
-      result = ProviderResult::error(esp_err_to_name(openErr));
-      esp_http_client_cleanup(client);
-      LOG_INFO("%d %s", status, result.detail().c_str());
-      ++attempts;
-      if (!result.isOk()) {
-        delay(100);
-      }
-      continue;
-    }
-
-    // Fetch headers to obtain the status code; content length is ignored
-    // (the feed is chunked / close-delimited).
-    esp_http_client_fetch_headers(client);
-    status = esp_http_client_get_status_code(client);
-
-    if (status != kHttpStatusOk) {
-      if (status > 0) {
-        result = ProviderResult::error(getHttpResponsePhrase(status));
-      } else {
-        result = ProviderResult::error(esp_err_to_name(ESP_ERR_HTTP_FETCH_HEADER));
-      }
-      esp_http_client_close(client);
-      esp_http_client_cleanup(client);
-      LOG_INFO("%d %s", status, result.detail().c_str());
-      ++attempts;
-      if (!result.isOk()) {
-        delay(100);
-      }
-      continue;
-    }
 
     // Stream the body in bounded chunks directly into the parser.
     // Close early once the alert cap is reached. Buffer is heap-allocated
@@ -371,7 +311,7 @@ ProviderResult MeteoAlarmAlertProvider::fetch(std::vector<weather_alert_t> &aler
         if (n == -ESP_ERR_HTTP_EAGAIN) {
           readErr = ESP_ERR_HTTP_EAGAIN;
         } else {
-          readErr = ESP_FAIL;
+          readErr = espHttpReadError(n);
         }
         break;
       }
@@ -380,21 +320,12 @@ ProviderResult MeteoAlarmAlertProvider::fetch(std::vector<weather_alert_t> &aler
     if (parser.isAlertCapReached()) {
       LOG_INFO("MeteoAlarm: alert cap reached, closing connection early");
     }
-    esp_http_client_close(client);
-    esp_http_client_cleanup(client);
 
     if (readFailed && !parser.isAlertCapReached()) {
-      result = ProviderResult::error(esp_err_to_name(readErr));
-    } else {
-      result = parser.finish();
+      return espHttpErrorResult(readErr);
     }
-
-    LOG_INFO("%d %s", status, result.isOk() ? getHttpResponsePhrase(status) : result.detail().c_str());
-    ++attempts;
-    if (!result.isOk()) {
-      delay(100);
-    }
-  }
+    return parser.finish();
+  });
 
   if (!result.isOk()) {
     LOG_ERROR("Alerts API: %s", result.detail().c_str());
