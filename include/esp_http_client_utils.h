@@ -26,6 +26,13 @@
  * client; espHttpGetWithRetry() does that on every path. */
 using EspHttpResponseHandler = std::function<ProviderResult(esp_http_client_handle_t)>;
 
+/* Decode a negative esp_http_client_read() result. Known -ESP_ERR_HTTP_*
+ * values are converted to their esp_err_t, while the generic -1 return and
+ * unknown negative values become ESP_FAIL. Callers may handle
+ * -ESP_ERR_HTTP_EAGAIN separately when a timeout should be treated as an
+ * end-of-read condition. */
+esp_err_t espHttpReadError(int result);
+
 /* Perform an ESP-IDF HTTP GET request with the common WiFi/status/retry and
  * client lifecycle handling. `config` is copied for each attempt; its URL
  * and method are replaced with the supplied URL and HTTP_METHOD_GET. The

@@ -30,6 +30,28 @@ constexpr uint32_t kRetryDelayMs = 100;
 
 }  // namespace
 
+esp_err_t espHttpReadError(int result) {
+  switch (result) {
+    case -ESP_ERR_HTTP_MAX_REDIRECT:
+    case -ESP_ERR_HTTP_CONNECT:
+    case -ESP_ERR_HTTP_WRITE_DATA:
+    case -ESP_ERR_HTTP_FETCH_HEADER:
+    case -ESP_ERR_HTTP_INVALID_TRANSPORT:
+    case -ESP_ERR_HTTP_CONNECTING:
+    case -ESP_ERR_HTTP_EAGAIN:
+    case -ESP_ERR_HTTP_CONNECTION_CLOSED:
+    case -ESP_ERR_HTTP_NOT_MODIFIED:
+    case -ESP_ERR_HTTP_RANGE_NOT_SATISFIABLE:
+    case -ESP_ERR_HTTP_READ_TIMEOUT:
+    case -ESP_ERR_HTTP_INCOMPLETE_DATA:
+    case -ESP_ERR_HTTP_REDIRECT_DOWNGRADE:
+      return static_cast<esp_err_t>(-result);
+    case -1:
+    default:
+      return ESP_FAIL;
+  }
+}
+
 ProviderResult espHttpGetWithRetry(const String &url, const String &sanitizedUrl, esp_http_client_config_t config,
                                    EspHttpResponseHandler handleResponse) {
   LOG_INFO("%s: %s", TXT_ATTEMPTING_HTTP_REQ, sanitizedUrl.c_str());

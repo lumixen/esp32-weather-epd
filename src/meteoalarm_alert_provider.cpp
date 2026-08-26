@@ -311,7 +311,7 @@ ProviderResult MeteoAlarmAlertProvider::fetch(std::vector<weather_alert_t> &aler
         if (n == -ESP_ERR_HTTP_EAGAIN) {
           readErr = ESP_ERR_HTTP_EAGAIN;
         } else {
-          readErr = ESP_FAIL;
+          readErr = espHttpReadError(n);
         }
         break;
       }
