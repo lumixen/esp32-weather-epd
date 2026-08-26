@@ -1,32 +1,12 @@
-# Example configuration for the ESP32 weather e-paper display.
-#
-# Copy this file to config.yml and adjust the values to your setup.
-# The weather/air-quality providers (Open-Meteo) work without any API keys;
-# NOAA/NWS is also keyless but primarily covers the United States. The
-# MeteoAlarm alerts provider only needs the country slug below.
-#
-# NOTE: the Open-Meteo unit suite links MeteoAlarmAlertProvider::FeedParser;
-# the pinned test configuration includes the MeteoAlarm provider.
+# Pinned configuration for the QEMU unit test run with the NOAA/NWS
+# weather provider. Boston is within NWS coverage and is also the fixed point
+# used by the committed response fixtures. Tests never access the network.
 epdPanel: GENERIC_BW_V2
 epdDriver: Good Display DESPI-C02
 locale: en_GB
 
 providers:
-  - provider: open_meteo_forecast
-    transport: HTTPS_VERIFY
-  # NOAA/NWS is an alternative forecast owner; do not enable it together
-  # with Open-Meteo or OpenWeatherMap forecast providers.
-  # - provider: noaa_forecast
-  - provider: open_meteo_air_quality
-    transport: HTTPS_VERIFY
-  - provider: meteoalarm_alert
-    country: netherlands
-  # Add this entry to enable a local BME280 sensor. Omit it to disable it.
-  # - provider: bme280
-  #   pinPwr: 27
-  #   pinSDA: 21
-  #   pinSCL: 22
-  #   address: 0x76
+  - provider: noaa_forecast
 
 ntp:
   server_1: pool.ntp.org
@@ -51,7 +31,7 @@ unitsSpeed: km/h
 unitsPres: hPa
 unitsDistance: km
 unitsHourlyPrecip: probability of precipitation
-unitsDailyPrecip: mm
+unitsDailyPrecip: probability of precipitation
 windDirectionIndicator: arrow
 windArrowPrecision: secondary intercardinal
 font: FreeSans
@@ -68,10 +48,10 @@ wifi:
   timeout: 10000
   scan: false
 
-latitude: "51.5072"
-longitude: "-0.1276"
-city: London
-timezone: Europe/London
+latitude: "42.3601"
+longitude: "-71.0589"
+city: Boston
+timezone: America/New_York
 timeFormat: "%H:%M"
 hourFormat: "%H"
 dateFormat: "%x"
@@ -82,6 +62,7 @@ wakeTime: 6
 hourlyGraphMax: 24
 moonPhaseStyle: primary
 
+
 leftPanelLayout:
   SUNRISE: 0
   SUNSET: 1
@@ -91,8 +72,7 @@ leftPanelLayout:
   HUMIDITY: 5
   WIND: 6
   PRESSURE: 7
-  AIR_QUALITY: 8
-  VISIBILITY: 9
+  VISIBILITY: 8
 
 homeAssistantMqtt:
   enabled: false

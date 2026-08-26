@@ -44,19 +44,24 @@ inline void setLogLevel(LogLevel level) { g_logLevel = level; }
 #define LOG_FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 
 /* printf-style sink, guarded by the runtime level. Arguments are only
- * evaluated when the message is actually emitted. */
+ * evaluated when the message is actually emitted. Format the prefix and body
+ * before sending the complete line in one UART write; the ESP32 UART driver
+ * serializes individual writes from concurrent tasks. */
 inline void log_output(LogLevel level, const char *file, int line, const char *fmt, ...) {
   static const char *const LEVEL_NAMES[] = {"trc", "dbg", "inf", "wrn", "err", "crt"};
   if (level < g_logLevel) {
     return;
   }
-  Serial.printf("[%s] [%s:%d] ", LEVEL_NAMES[static_cast<uint8_t>(level)], file, line);
-  char buf[256];
+
+  char body[256];
   va_list args;
   va_start(args, fmt);
-  vsnprintf(buf, sizeof(buf), fmt, args);
+  vsnprintf(body, sizeof(body), fmt, args);
   va_end(args);
-  Serial.println(buf);
+
+  char output[384];
+  snprintf(output, sizeof(output), "[%s] [%s:%d] %s\n", LEVEL_NAMES[static_cast<uint8_t>(level)], file, line, body);
+  Serial.write(reinterpret_cast<const uint8_t *>(output), strlen(output));
   if (level >= LogLevel::CRITICAL) {
     Serial.flush();
   }

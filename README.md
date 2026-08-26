@@ -76,7 +76,8 @@ epdPanel: DKE_3C_86BF
 epdDriver: Waveshare
 locale: en_US
 # Remote data providers are a list. Each entry owns one or more data groups.
-# (transport: HTTP, HTTPS_NO_VERIFY or HTTPS_VERIFY)
+# Configurable providers may select transport: HTTP, HTTPS_NO_VERIFY or
+# HTTPS_VERIFY. NOAA/NWS always uses verified HTTPS.
 # The current/hourly/daily forecast owner is required. Air quality is required
 # when AIR_QUALITY is in leftPanelLayout; alerts are optional. A tag may have
 # only one owner; duplicate provider entries are rejected. Local providers use
@@ -95,8 +96,11 @@ providers:
   #   pinSDA: 21
   #   pinSCL: 22
   #   address: 0x76
-# Other provider IDs are openweathermap_onecall_v3 and
-# openweathermap_air_quality. OWM entries carry their own apiKey, for example:
+# Other provider IDs are noaa_forecast, openweathermap_onecall_v3 and
+# openweathermap_air_quality. NOAA/NWS is primarily a US service, uses the
+# fixed User-Agent `esp32-weather-epd`, and has no API key:
+#   - provider: noaa_forecast
+# OWM entries carry their own apiKey, for example:
 #   - provider: openweathermap_onecall_v3
 #     transport: HTTPS_VERIFY
 #     apiKey: your-owm-api-key
@@ -146,6 +150,11 @@ wifi:
   #   subnet: XXX.XXX.XXX.XXX
   #   dns1: XXX.XXX.XXX.XXX
 # apiKey belongs on each OpenWeatherMap providers entry.
+# NOAA current conditions come from the nearest usable NWS observation station.
+# Its initial implementation does not provide quantitative forecast rain/snow,
+# pressure, visibility, UV, or other unavailable textual-endpoint fields. NOAA
+# always uses HTTPS with certificate verification using the generated
+# api.weather.gov certificate.
 latitude: "64"
 longitude: "-22"
 city: ESPLand

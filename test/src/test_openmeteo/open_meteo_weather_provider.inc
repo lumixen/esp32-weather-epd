@@ -116,7 +116,7 @@ static void test_lima_current(void) {
   TEST_ASSERT_EQUAL_FLOAT(21.5f, forecast.current.temp);
   TEST_ASSERT_EQUAL_FLOAT(20.6f, forecast.current.feels_like);
   TEST_ASSERT_EQUAL_INT(1001, forecast.current.pressure);  // 1001.7 hPa
-  TEST_ASSERT_EQUAL_INT(60, forecast.current.humidity);
+  TEST_ASSERT_EQUAL_INT(60, forecast.current.humidity.value());
   TEST_ASSERT_EQUAL_FLOAT(13.4f, forecast.current.dew_point);
   TEST_ASSERT_EQUAL_INT(45, forecast.current.clouds);
   TEST_ASSERT_EQUAL_FLOAT(8.45f, forecast.current.uvi);      // daily[0] uv_index_max
@@ -183,8 +183,8 @@ static void test_lima_daily(void) {
   TEST_ASSERT_TRUE(err.isOk());
 
   TEST_ASSERT_EQUAL_INT64(1787029200LL, forecast.daily[0].dt);
-  TEST_ASSERT_EQUAL_FLOAT(17.5f, forecast.daily[0].temp.min);
-  TEST_ASSERT_EQUAL_FLOAT(21.5f, forecast.daily[0].temp.max);
+  TEST_ASSERT_EQUAL_FLOAT(17.5f, forecast.daily[0].temp.min.value());
+  TEST_ASSERT_EQUAL_FLOAT(21.5f, forecast.daily[0].temp.max.value());
   TEST_ASSERT_EQUAL_FLOAT(6.30f, forecast.daily[0].wind_speed);
   TEST_ASSERT_EQUAL_FLOAT(15.20f, forecast.daily[0].wind_gust);
   TEST_ASSERT_EQUAL_INT(0, forecast.daily[0].pop);
@@ -194,22 +194,22 @@ static void test_lima_daily(void) {
   TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.daily[0].shortwave_radiation_sum);
 
   TEST_ASSERT_EQUAL_INT64(1787202000LL, forecast.daily[2].dt);
-  TEST_ASSERT_EQUAL_FLOAT(17.0f, forecast.daily[2].temp.min);
-  TEST_ASSERT_EQUAL_FLOAT(21.8f, forecast.daily[2].temp.max);
+  TEST_ASSERT_EQUAL_FLOAT(17.0f, forecast.daily[2].temp.min.value());
+  TEST_ASSERT_EQUAL_FLOAT(21.8f, forecast.daily[2].temp.max.value());
   TEST_ASSERT_EQUAL(weather_condition::OVERCAST, forecast.daily[2].weather.condition);
 
   // The only day with any precipitation probability.
   TEST_ASSERT_EQUAL_INT64(1787288400LL, forecast.daily[3].dt);
-  TEST_ASSERT_EQUAL_FLOAT(17.0f, forecast.daily[3].temp.min);
-  TEST_ASSERT_EQUAL_FLOAT(21.9f, forecast.daily[3].temp.max);
+  TEST_ASSERT_EQUAL_FLOAT(17.0f, forecast.daily[3].temp.min.value());
+  TEST_ASSERT_EQUAL_FLOAT(21.9f, forecast.daily[3].temp.max.value());
   TEST_ASSERT_EQUAL_INT(2, forecast.daily[3].pop);
   TEST_ASSERT_EQUAL_FLOAT(3.37f, forecast.daily[3].wind_speed);
   TEST_ASSERT_EQUAL_FLOAT(10.00f, forecast.daily[3].wind_gust);
   TEST_ASSERT_EQUAL(weather_condition::CLOUDY, forecast.daily[3].weather.condition);
 
   TEST_ASSERT_EQUAL_INT64(1787374800LL, forecast.daily[4].dt);
-  TEST_ASSERT_EQUAL_FLOAT(17.8f, forecast.daily[4].temp.min);
-  TEST_ASSERT_EQUAL_FLOAT(22.5f, forecast.daily[4].temp.max);
+  TEST_ASSERT_EQUAL_FLOAT(17.8f, forecast.daily[4].temp.min.value());
+  TEST_ASSERT_EQUAL_FLOAT(22.5f, forecast.daily[4].temp.max.value());
   TEST_ASSERT_EQUAL(weather_condition::OVERCAST, forecast.daily[4].weather.condition);
 }
 
@@ -227,8 +227,8 @@ static void test_hourly_and_daily_cap(void) {
 
   // The last slot holds the 5th daily entry, not the 7th.
   TEST_ASSERT_EQUAL_INT64(4, forecast.daily[4].dt);
-  TEST_ASSERT_EQUAL_FLOAT(104.0f, forecast.daily[4].temp.min);
-  TEST_ASSERT_EQUAL_FLOAT(204.0f, forecast.daily[4].temp.max);
+  TEST_ASSERT_EQUAL_FLOAT(104.0f, forecast.daily[4].temp.min.value());
+  TEST_ASSERT_EQUAL_FLOAT(204.0f, forecast.daily[4].temp.max.value());
 }
 
 /* Fewer entries than the model holds: the remaining slots stay untouched. */
@@ -245,9 +245,9 @@ static void test_shorter_arrays(void) {
   TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.hourly[3].temp);
 
   TEST_ASSERT_EQUAL_INT64(1, forecast.daily[1].dt);
-  TEST_ASSERT_EQUAL_FLOAT(101.0f, forecast.daily[1].temp.min);
+  TEST_ASSERT_EQUAL_FLOAT(101.0f, forecast.daily[1].temp.min.value());
   TEST_ASSERT_EQUAL_INT64(0, forecast.daily[2].dt);  // past the end
-  TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.daily[2].temp.min);
+  TEST_ASSERT_FALSE(forecast.daily[2].temp.min.has_value());
 }
 
 /* Optional fields that the provider does not request but would parse if the
@@ -330,7 +330,7 @@ static void test_exponent_form_numbers(void) {
 }
 
 /* Payloads with the required time keys but missing individual fields are
- * accepted; the absent fields must not crash and default to zero. */
+ * accepted; the absent optional fields remain unavailable. */
 static void test_missing_optional_fields(void) {
   forecast_t forecast = {};
   ProviderResult err = parseJson(
@@ -341,7 +341,8 @@ static void test_missing_optional_fields(void) {
   TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.current.temp);
   TEST_ASSERT_EQUAL(weather_condition::UNKNOWN, forecast.current.weather.condition);
   TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.current.soil_temperature_18cm);
-  TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.daily[0].temp.min);
+  TEST_ASSERT_FALSE(forecast.daily[0].temp.min.has_value());
+  TEST_ASSERT_FALSE(forecast.daily[0].temp.max.has_value());
 }
 
 /* Garbage and empty input are reported as deserialization errors. */

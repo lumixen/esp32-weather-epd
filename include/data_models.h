@@ -82,12 +82,12 @@ typedef struct weather {
  * Units – default: kelvin, metric: Celsius, imperial: Fahrenheit.
  */
 typedef struct temperature {
-  float morn;   // Morning temperature.
-  float day;    // Day temperature.
-  float eve;    // Evening temperature.
-  float night;  // Night temperature.
-  float min;    // Min daily temperature.
-  float max;    // Max daily temperature.
+  float morn;                // Morning temperature.
+  float day;                 // Day temperature.
+  float eve;                 // Evening temperature.
+  float night;               // Night temperature.
+  std::optional<float> min;  // Min daily temperature, when available.
+  std::optional<float> max;  // Max daily temperature, when available.
 } temperature_t;
 
 /*
@@ -99,7 +99,7 @@ typedef struct current {
   float feels_like;  // Temperature. This temperature parameter accounts for the human perception of weather. Units –
                      // default: kelvin, metric: Celsius, imperial: Fahrenheit.
   int pressure;      // Atmospheric pressure on the sea level, hPa
-  int humidity;      // Humidity, %
+  std::optional<int> humidity;  // Humidity, %, when available
   float
       dew_point;  // Atmospheric temperature (varying according to pressure and humidity) below which water droplets
                   // begin to condense and dew can form. Units – default: kelvin, metric: Celsius, imperial: Fahrenheit.

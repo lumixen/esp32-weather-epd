@@ -3,7 +3,8 @@
 The test env (lolin_d32_qemu) must build against a committed test config
 (test/configs/openmeteo.yml) by default: test builds must never depend on
 the untracked local config.yml. test/run_tests.sh overrides ESP32_EPD_CONFIG
-per run for the other config variants (test/configs/owm.yml).
+per run for the other config variants: test/configs/owm.yml and
+test/configs/noaa.yml.
 
 For every other env the variable is left alone — except when it still holds
 a config planted by this script for a test env (extra_scripts run in the

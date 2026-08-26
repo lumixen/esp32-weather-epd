@@ -9,6 +9,7 @@
 #   1. openmeteo       - test/configs/openmeteo.yml (the env default, wired in
 #      by scripts/select_test_env_config.py when ESP32_EPD_CONFIG is unset).
 #   2. owm             - test/configs/owm.yml via ESP32_EPD_CONFIG.
+#   3. noaa            - test/configs/noaa.yml via ESP32_EPD_CONFIG.
 #
 # The root suite selected for each run contains only test modules compatible
 # with that configuration. All runs always execute (a failing run does not
@@ -35,7 +36,8 @@ FIRMWARE_ELF="$QEMU_BUILD_DIR/firmware.elf"
 rm -f "$QEMU_BUILD_DIR"/qemu_output*.log \
     "$QEMU_BUILD_DIR"/qemu_debug*.log \
     "$QEMU_BUILD_DIR"/firmware_openmeteo.elf \
-    "$QEMU_BUILD_DIR"/firmware_owm.elf
+    "$QEMU_BUILD_DIR"/firmware_owm.elf \
+    "$QEMU_BUILD_DIR"/firmware_noaa.elf
 
 echo "=================================================="
 echo "  test run: config openmeteo (test/configs/openmeteo.yml)"
@@ -70,6 +72,22 @@ if [[ -f "$FIRMWARE_ELF" ]]; then
     cp "$FIRMWARE_ELF" "$QEMU_BUILD_DIR/firmware_owm.elf"
 else
     echo "WARNING: no OWM firmware ELF was produced" >&2
+fi
+
+echo "=================================================="
+echo "  test run: config noaa (test/configs/noaa.yml)"
+echo "=================================================="
+rm -f "$FIRMWARE_ELF"
+ESP32_EPD_CONFIG=test/configs/noaa.yml \
+QEMU_LOG_FILE="$QEMU_BUILD_DIR/qemu_output_noaa.log" \
+QEMU_DEBUG_FILE="$QEMU_BUILD_DIR/qemu_debug_noaa.log" \
+    "$PIO" test -e lolin_d32_qemu --without-uploading \
+    -f test_noaa \
+    "${EXTRA_ARGS[@]}" || status=1
+if [[ -f "$FIRMWARE_ELF" ]]; then
+    cp "$FIRMWARE_ELF" "$QEMU_BUILD_DIR/firmware_noaa.elf"
+else
+    echo "WARNING: no NOAA firmware ELF was produced" >&2
 fi
 
 exit "$status"

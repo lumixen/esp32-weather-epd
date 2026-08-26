@@ -252,6 +252,11 @@ class OpenMeteoForecastConfig(BaseModel):
     transport: Transport = Transport.HTTPS_VERIFY
 
 
+class NoaaForecastConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    provider: Literal["noaa_forecast"] = "noaa_forecast"
+
+
 class OpenMeteoAirQualityConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     provider: Literal["open_meteo_air_quality"] = "open_meteo_air_quality"
@@ -290,6 +295,7 @@ class BME280ProviderConfig(BaseModel):
 ProviderConfig = Annotated[
     Union[
         OpenMeteoForecastConfig,
+        NoaaForecastConfig,
         OpenMeteoAirQualityConfig,
         OpenWeatherMapOneCallV3Config,
         OpenWeatherMapAirQualityConfig,

@@ -1,2 +1,6 @@
 cert.h is generated with the following command,
-python cert.py -s api.openweathermap.org -p 443 -n openweathermap > cert.h
+python cert.py -s api.openweathermap.org,api.open-meteo.com,api.weather.gov -p 443 -n providers > cert.h
+
+The NOAA provider uses the `api.weather.gov` chain when `HTTPS_VERIFY` is
+selected. Keep the existing certificate symbols when regenerating the file;
+all verified providers include their own trusted chain.

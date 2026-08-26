@@ -205,6 +205,11 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 -----END CERTIFICATE-----
 )CERT";
 
+// api.weather.gov is currently served by a Let's Encrypt chain terminating
+// at ISRG Root X1. Keep a provider-specific symbol so the NOAA transport can
+// be updated independently if NWS changes its CA chain.
+#define cert_NOAA_API_WEATHER_GOV cert_ISRG_Root_X1
+
 // end of certificate chain for api.open-meteo.com:443
 ////////////////////////////////////////////////////////////
 

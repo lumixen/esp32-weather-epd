@@ -1,0 +1,1 @@
+{"type":"Feature","id":"https://api.weather.gov/points/42.3601,-71.0589","properties":{"forecast":"https://api.weather.gov/gridpoints/BOX/70,91/forecast","forecastHourly":"https://api.weather.gov/gridpoints/BOX/70,91/forecast/hourly","observationStations":"https://api.weather.gov/gridpoints/BOX/70,91/stations","timeZone":["America/New_York"],"radarStation":"KBOX"}}
