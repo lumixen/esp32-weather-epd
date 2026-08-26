@@ -279,8 +279,14 @@ static ProviderResult parseAirQualityResponse(esp_http_client_handle_t client, a
     } else if (n == 0) {
       break;
     } else {
-      const esp_err_t readError = n == -ESP_ERR_HTTP_EAGAIN ? ESP_ERR_HTTP_EAGAIN : ESP_FAIL;
+      if (n == -ESP_ERR_HTTP_EAGAIN) {
+        // A read timeout can leave a valid prefix in the parser. Let finish()
+        // classify it as empty or incomplete input using the existing
+        // localized deserialization errors.
+        break;
+      }
       parser.discard();
+      const esp_err_t readError = static_cast<esp_err_t>(-n);
       return ProviderResult::error(esp_err_to_name(readError));
     }
   }
