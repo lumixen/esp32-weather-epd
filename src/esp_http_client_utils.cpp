@@ -63,11 +63,13 @@ ProviderResult espHttpGetWithRetry(const String &url, const String &sanitizedUrl
         result = ProviderResult::error(esp_err_to_name(openError));
       } else {
         opened = true;
-        const int64_t headerResult = esp_http_client_fetch_headers(client);
+        // A negative/no-content-length result is valid for some
+        // close-delimited or chunked responses. The status code is the
+        // authoritative response validation; a non-positive status still
+        // indicates that the headers could not be read.
+        (void) esp_http_client_fetch_headers(client);
         status = esp_http_client_get_status_code(client);
-        if (headerResult < 0) {
-          result = ProviderResult::error(esp_err_to_name(ESP_ERR_HTTP_FETCH_HEADER));
-        } else if (status != kHttpStatusOk) {
+        if (status != kHttpStatusOk) {
           result = ProviderResult::error(status > 0 ? getHttpResponsePhrase(status)
                                                     : esp_err_to_name(ESP_ERR_HTTP_FETCH_HEADER));
         } else if (!handleResponse) {
