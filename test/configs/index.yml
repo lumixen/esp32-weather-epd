@@ -8,9 +8,12 @@ configs:
   - id: openmeteo
     file: openmeteo.yml
     suite: test_openmeteo
-  - id: owm
-    file: owm.yml
-    suite: test_owm
+  - id: owm3
+    file: owm3.yml
+    suite: test_owm3
+  - id: owm4
+    file: owm4.yml
+    suite: test_owm4
   - id: noaa
     file: noaa.yml
     suite: test_noaa

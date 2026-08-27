@@ -17,6 +17,12 @@ providers:
   # NOAA/NWS is an alternative forecast owner; do not enable it together
   # with Open-Meteo or OpenWeatherMap forecast providers.
   # - provider: noaa_forecast
+  # OpenWeatherMap One Call 4.0 uses separate current/hourly/daily timeline
+  # requests. It does not provide embedded alert details; add an alert
+  # provider separately if needed.
+  # - provider: openweathermap_onecall_v4
+  #   transport: HTTPS_VERIFY
+  #   apiKey: your-owm-api-key
   # MeteoSwiss uses a six-digit local forecast point_id and an explicit
   # SwissMetNet station for measured current conditions. It is an alternative
   # forecast owner; do not enable it with another forecast provider.

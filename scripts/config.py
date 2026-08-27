@@ -338,12 +338,14 @@ def generate(config_path, header_path, write_header=True):
                 "open_meteo_forecast": "OPEN_METEO_FORECAST",
                 "open_meteo_air_quality": "OPEN_METEO_AIR_QUALITY",
                 "openweathermap_onecall_v3": "OPENWEATHERMAP_ONECALL_V3",
+                "openweathermap_onecall_v4": "OPENWEATHERMAP_ONECALL_V4",
                 "openweathermap_air_quality": "OPENWEATHERMAP_AIR_QUALITY",
             }[provider_id]
             emit_define(header_lines, transport_prefix + "_TRANSPORT_" + provider.transport.name)
         if hasattr(provider, "apiKey"):
             constant = {
                 "openweathermap_onecall_v3": "OPENWEATHERMAP_ONECALL_V3_API_KEY",
+                "openweathermap_onecall_v4": "OPENWEATHERMAP_ONECALL_V4_API_KEY",
                 "openweathermap_air_quality": "OPENWEATHERMAP_AIR_QUALITY_API_KEY",
             }[provider_id]
             emit_typed(header_lines, constant, provider.apiKey)

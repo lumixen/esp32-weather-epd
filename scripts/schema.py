@@ -279,6 +279,13 @@ class OpenWeatherMapOneCallV3Config(BaseModel):
     apiKey: str
 
 
+class OpenWeatherMapOneCallV4Config(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    provider: Literal["openweathermap_onecall_v4"] = "openweathermap_onecall_v4"
+    transport: Transport = Transport.HTTPS_VERIFY
+    apiKey: str
+
+
 class OpenWeatherMapAirQualityConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     provider: Literal["openweathermap_air_quality"] = "openweathermap_air_quality"
@@ -308,6 +315,7 @@ ProviderConfig = Annotated[
         MeteoSwissForecastConfig,
         OpenMeteoAirQualityConfig,
         OpenWeatherMapOneCallV3Config,
+        OpenWeatherMapOneCallV4Config,
         OpenWeatherMapAirQualityConfig,
         MeteoAlarmAlertConfig,
         BME280ProviderConfig,

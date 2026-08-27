@@ -12,6 +12,7 @@ CAPABILITIES = {
     "meteoswiss_forecast": {"current_forecast", "hourly_forecast", "daily_forecast"},
     "open_meteo_air_quality": {"air_quality"},
     "openweathermap_onecall_v3": {"current_forecast", "hourly_forecast", "daily_forecast", "alerts"},
+    "openweathermap_onecall_v4": {"current_forecast", "hourly_forecast", "daily_forecast"},
     "openweathermap_air_quality": {"air_quality"},
     "meteoalarm_alert": {"alerts"},
     "bme280": {"in_temperature", "in_humidity", "in_pressure"},
@@ -36,6 +37,10 @@ PRECIPITATION_SUPPORT = {
         "daily": {"amount"},
     },
     "openweathermap_onecall_v3": {
+        "hourly": {"probability", "amount"},
+        "daily": {"probability", "amount"},
+    },
+    "openweathermap_onecall_v4": {
         "hourly": {"probability", "amount"},
         "daily": {"probability", "amount"},
     },

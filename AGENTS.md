@@ -27,7 +27,7 @@ Unit tests run on the ESP32 QEMU emulator inside Docker — no hardware needed:
 
 ```sh
 bash test/run_tests_docker.sh
-bash test/run_tests_docker.sh --config owm -v
+bash test/run_tests_docker.sh --config owm3 -v
 bash test/run_tests_docker.sh --config openmeteo --config noaa
 ```
 
