@@ -28,7 +28,6 @@ class NoaaForecastProvider : public RemoteDataProvider {
   std::vector<std::unique_ptr<FetchOperation>> createFetchOperations(weather_report_t &out) override;
 
   static weather_condition mapDescription(const String &description);
-  static int64_t parseIso8601(const String &value);
 
   /* Validate an absolute URL returned by NWS and copy it to normalized. The
    * endpoint is deliberately restricted to api.weather.gov so a compromised
