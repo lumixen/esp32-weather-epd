@@ -1,0 +1,19 @@
+# Registry for the committed QEMU test configurations.
+#
+# Keep entries in the order used by the default all-config test run. The
+# actual pinned configuration files remain separate files in this directory.
+default: openmeteo
+
+configs:
+  - id: openmeteo
+    file: openmeteo.yml
+    suite: test_openmeteo
+  - id: owm
+    file: owm.yml
+    suite: test_owm
+  - id: noaa
+    file: noaa.yml
+    suite: test_noaa
+  - id: meteoswiss
+    file: meteoswiss.yml
+    suite: test_meteoswiss

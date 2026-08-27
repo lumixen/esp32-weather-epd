@@ -4,9 +4,28 @@ on:
   push:
 
 jobs:
+  discover-test-configs:
+    runs-on: ubuntu-latest
+    outputs:
+      configs: ${{ steps.registry.outputs.configs }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read test configuration registry
+        id: registry
+        run: |
+          python3 -m pip install --disable-pip-version-check --quiet pyyaml
+          echo "configs=$(python3 scripts/test_configs.py --json)" >> "$GITHUB_OUTPUT"
+
   unit-tests:
+    needs: discover-test-configs
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        config: ${{ fromJSON(needs.discover-test-configs.outputs.configs) }}
 
     steps:
       - uses: actions/checkout@v4
@@ -45,16 +64,15 @@ jobs:
           PIO_HOST_DIR: ${{ github.workspace }}/.ci/pio
         # Keep raw QEMU/firmware diagnostics visible when the native
         # PlatformIO test reader encounters a crash before Unity's summary.
-        run: bash test/run_tests_docker.sh -v
+        run: bash test/run_tests_docker.sh --config "${{ matrix.config }}" -v
 
       - name: Upload QEMU diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: qemu-diagnostics
+          name: qemu-diagnostics-${{ matrix.config }}
           if-no-files-found: warn
           path: |
             .pio/build/lolin_d32_qemu/qemu_output*.log
             .pio/build/lolin_d32_qemu/qemu_debug*.log
-            .pio/build/lolin_d32_qemu/firmware_openmeteo.elf
-            .pio/build/lolin_d32_qemu/firmware_owm.elf
+            .pio/build/lolin_d32_qemu/firmware_*.elf

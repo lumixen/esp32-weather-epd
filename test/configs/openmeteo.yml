@@ -1,6 +1,6 @@
 # Pinned configuration for the QEMU unit test run with the Open-Meteo
-# weather provider (the `lolin_d32_qemu` env default, wired in by
-# scripts/select_test_env_config.py when ESP32_EPD_CONFIG is unset).
+# weather provider (the `lolin_d32_qemu` default entry in
+# test/configs/index.yml when ESP32_EPD_CONFIG is unset).
 #
 # This is a fixed copy of the canonical Open-Meteo setup and is committed on
 # purpose: test builds must never depend on the untracked local config.yml
