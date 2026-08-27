@@ -248,10 +248,7 @@ The main configuration groups are:
 | `colors` | Display colors and threshold colors |
 
 The complete list of valid values and validation rules is defined in
-[`scripts/schema.py`](scripts/schema.py). OpenWeatherMap One Call 4.0 users
-must configure a separate alert provider, such as `meteoalarm_alert`, if
-weather alerts are desired; v4 forecast responses do not include the embedded
-alert details supported by the v3 provider.
+[`scripts/schema.py`](scripts/schema.py).
 
 ## Multiple devices
 
