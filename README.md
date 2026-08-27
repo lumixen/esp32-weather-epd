@@ -156,28 +156,6 @@ wifi:
   #   gateway: XXX.XXX.XXX.XXX
   #   subnet: XXX.XXX.XXX.XXX
   #   dns1: XXX.XXX.XXX.XXX
-# apiKey belongs on each OpenWeatherMap providers entry.
-# NOAA current conditions come from the nearest usable NWS observation station.
-# Its initial implementation does not provide quantitative forecast rain/snow,
-# pressure, visibility, UV, or other unavailable textual-endpoint fields. NOAA
-# always uses HTTPS with certificate verification using the generated
-# api.weather.gov certificate.
-# MeteoSwiss forecastPointId is the local forecast point_id from the official
-# point metadata (postal-code centers have point_type_id=2); see the official
-# MeteoSwiss open-data documentation at:
-#   https://www.meteoswiss.admin.ch/services-and-publications/service/open-data.html
-# The station map is at:
-#   https://www.meteoswiss.admin.ch/services-and-publications/applications/measurement-values.html
-# The App backend currently supplies current conditions, five daily entries and
-# hourly graph data, but is not a documented public API. Measured current
-# values are read separately from the official SwissMetNet VQHA80.csv feed.
-# Visibility and UV are not provided by these sources; missing visibility is
-# rendered as "--". `stationId` is required and must be selected explicitly;
-# automatic nearest station resolution is not implemented. The forecast point and physical
-# observation station may therefore be geographically different. The build
-# prints a direct station-map link for the configured station. MeteoSwiss
-# always uses verified HTTPS on port 443 and has no provider-level transport
-# setting. Alerts and air quality remain separate providers.
 latitude: "64"
 longitude: "-22"
 city: ESPLand
