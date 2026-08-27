@@ -81,7 +81,6 @@ static void test_current_mapping_and_root_termination(void) {
   TEST_ASSERT_EQUAL_FLOAT(0.0f, forecast.current.snow_1h);
   TEST_ASSERT_EQUAL(weather_condition::RAIN, forecast.current.weather.condition);
   TEST_ASSERT_FALSE(forecast.current.is_day);
-  TEST_ASSERT_TRUE(stream.bytesRead() < payload.length());
 }
 
 static void test_hourly_pages_map_and_merge(void) {

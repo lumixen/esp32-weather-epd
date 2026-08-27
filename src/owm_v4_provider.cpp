@@ -135,9 +135,8 @@ class OneCallV4Handler : public JsonHandler {
   static bool numeric(ElementValue value) { return value.isInt() || value.isFloat(); }
 
   void storeMetadata(ElementSelector *fieldSelector, ElementValue value) {
-    if (fieldSelector == nullptr ||
-        (!keyIs(fieldSelector, "lat") && !keyIs(fieldSelector, "lon") && !keyIs(fieldSelector, "timezone") &&
-         !keyIs(fieldSelector, "timezone_offset"))) {
+    if (fieldSelector == nullptr || (!keyIs(fieldSelector, "lat") && !keyIs(fieldSelector, "lon") &&
+                                     !keyIs(fieldSelector, "timezone") && !keyIs(fieldSelector, "timezone_offset"))) {
       return;
     }
     const char *field = fieldSelector->getKey();
@@ -174,8 +173,8 @@ class OneCallV4Handler : public JsonHandler {
       }
       return;
     }
-    if (path.getCount() == 5 && keyIs(path.get(2), "weather") && path.get(3) != nullptr &&
-        !path.get(3)->isObject() && path.get(3)->getIndex() == 0) {
+    if (path.getCount() == 5 && keyIs(path.get(2), "weather") && path.get(3) != nullptr && !path.get(3)->isObject() &&
+        path.get(3)->getIndex() == 0) {
       if (keyIs(field, "id") && numeric(value))
         forecast_.current.weather.condition = OpenWeatherMapOneCallV4Provider::mapWeatherCode(value.getDouble());
       else if (keyIs(field, "icon") && value.isString())
@@ -343,12 +342,19 @@ class OneCallV4Handler : public JsonHandler {
 static ProviderResult consumeJson(Stream &json, OneCallV4Handler &handler) {
   ArduinoStreamParser parser;
   parser.setHandler(&handler);
-  uint8_t buffer[1];
-  while (!parser.hasParseError() && !handler.finishedDocument() && json.readBytes(buffer, sizeof(buffer)) > 0) {
-    if (!handler.sawStart() && (buffer[0] == ' ' || buffer[0] == '\t' || buffer[0] == '\n' || buffer[0] == '\r')) {
-      continue;
+  uint8_t buffer[256];
+  while (!parser.hasParseError() && !handler.finishedDocument()) {
+    const size_t count = json.readBytes(buffer, sizeof(buffer));
+    if (count == 0)
+      break;
+    // A bounded read may include bytes after the root document. Feed bytes
+    // individually so the parser stops cleanly at endDocument() and trailing
+    // data cannot become a second JSON document.
+    for (size_t i = 0; i < count && !parser.hasParseError() && !handler.finishedDocument(); ++i) {
+      if (!handler.sawStart() && (buffer[i] == ' ' || buffer[i] == '\t' || buffer[i] == '\n' || buffer[i] == '\r'))
+        continue;
+      parser.write(buffer + i, 1);
     }
-    parser.write(buffer, sizeof(buffer));
   }
   if (parser.hasParseError()) {
     LOG_WARNING("OpenWeatherMap One Call v4 JSON parse error: %s", parser.getErrorMessage());
@@ -419,8 +425,8 @@ static String endpointUri(const char *path, const String &query, bool sanitized)
 #else
   const char *scheme = "https://";
 #endif
-  return String(scheme) + OWM_ENDPOINT + path + "?" + query + "&appid=" +
-         (sanitized ? String("{API key}") : OPENWEATHERMAP_ONECALL_V4_API_KEY);
+  return String(scheme) + OWM_ENDPOINT + path + "?" + query +
+         "&appid=" + (sanitized ? String("{API key}") : OPENWEATHERMAP_ONECALL_V4_API_KEY);
 }
 
 static ProviderResult requestV4(const String &url, const String &sanitizedUrl,
@@ -472,8 +478,7 @@ ProviderResult OpenWeatherMapOneCallV4Provider::fetchCurrent(forecast_t &forecas
   const String query = "lat=" + LAT + "&lon=" + LON + "&lang=" + OWM_LANG + "&units=metric";
   const String uri = endpointUri("/data/4.0/onecall/current", query, false);
   const String sanitizedUri = endpointUri("/data/4.0/onecall/current", query, true);
-  return requestV4(uri, sanitizedUri,
-                   [&forecast](Stream &json) { return deserializeCurrent(json, forecast); });
+  return requestV4(uri, sanitizedUri, [&forecast](Stream &json) { return deserializeCurrent(json, forecast); });
 }
 
 ProviderResult OpenWeatherMapOneCallV4Provider::fetchHourly(forecast_t &forecast) {
@@ -481,12 +486,11 @@ ProviderResult OpenWeatherMapOneCallV4Provider::fetchHourly(forecast_t &forecast
   size_t firstRecords = 0;
   int64_t lastTimestamp = 0;
   String query = baseQuery + "&cnt=20";
-  ProviderResult result = requestV4(
-      endpointUri("/data/4.0/onecall/timeline/1h", query, false),
-      endpointUri("/data/4.0/onecall/timeline/1h", query, true),
-      [&forecast, &firstRecords, &lastTimestamp](Stream &json) {
-        return parseHourly(json, forecast, 0, firstRecords, lastTimestamp);
-      });
+  ProviderResult result = requestV4(endpointUri("/data/4.0/onecall/timeline/1h", query, false),
+                                    endpointUri("/data/4.0/onecall/timeline/1h", query, true),
+                                    [&forecast, &firstRecords, &lastTimestamp](Stream &json) {
+                                      return parseHourly(json, forecast, 0, firstRecords, lastTimestamp);
+                                    });
   if (!result.isOk()) {
     resetHourly(forecast);
     return result;
@@ -505,12 +509,11 @@ ProviderResult OpenWeatherMapOneCallV4Provider::fetchHourly(forecast_t &forecast
   snprintf(start, sizeof(start), "%lld", static_cast<long long>(lastTimestamp + 3600));
   query = baseQuery + "&start=" + start + "&cnt=" + String(static_cast<unsigned>(remaining));
   size_t continuationRecords = 0;
-  result = requestV4(
-      endpointUri("/data/4.0/onecall/timeline/1h", query, false),
-      endpointUri("/data/4.0/onecall/timeline/1h", query, true),
-      [&forecast, storedFirst, &continuationRecords, &lastTimestamp](Stream &json) {
-        return parseHourly(json, forecast, storedFirst, continuationRecords, lastTimestamp);
-      });
+  result = requestV4(endpointUri("/data/4.0/onecall/timeline/1h", query, false),
+                     endpointUri("/data/4.0/onecall/timeline/1h", query, true),
+                     [&forecast, storedFirst, &continuationRecords, &lastTimestamp](Stream &json) {
+                       return parseHourly(json, forecast, storedFirst, continuationRecords, lastTimestamp);
+                     });
   if (!result.isOk()) {
     resetHourly(forecast);
     return result;
@@ -529,12 +532,11 @@ ProviderResult OpenWeatherMapOneCallV4Provider::fetchHourly(forecast_t &forecast
 }
 
 ProviderResult OpenWeatherMapOneCallV4Provider::fetchDaily(forecast_t &forecast) {
-  const String query = "lat=" + LAT + "&lon=" + LON + "&lang=" + OWM_LANG + "&units=metric&cnt=" +
-                       String(NUM_DAILY);
+  const String query = "lat=" + LAT + "&lon=" + LON + "&lang=" + OWM_LANG + "&units=metric&cnt=" + String(NUM_DAILY);
   const String uri = endpointUri("/data/4.0/onecall/timeline/1day", query, false);
   const String sanitizedUri = endpointUri("/data/4.0/onecall/timeline/1day", query, true);
-  ProviderResult result = requestV4(uri, sanitizedUri,
-                                    [&forecast](Stream &json) { return deserializeDaily(json, forecast); });
+  ProviderResult result =
+      requestV4(uri, sanitizedUri, [&forecast](Stream &json) { return deserializeDaily(json, forecast); });
   if (!result.isOk()) {
     resetDaily(forecast);
     return result;
