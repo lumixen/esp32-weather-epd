@@ -89,6 +89,7 @@ static void test_forecast_mapping_and_alignment() {
   TEST_ASSERT_EQUAL_INT64(1787818200, forecast.current.dt);
   TEST_ASSERT_EQUAL_FLOAT(22.7f, forecast.current.temp);
   TEST_ASSERT_EQUAL_FLOAT(22.7f, forecast.current.feels_like);
+  TEST_ASSERT_FALSE(forecast.current.visibility.has_value());
   TEST_ASSERT_EQUAL(weather_condition::CLEAR, forecast.current.weather.condition);
   TEST_ASSERT_FALSE(forecast.current.is_day);
   TEST_ASSERT_EQUAL_INT64(1787821200, forecast.hourly[0].dt);

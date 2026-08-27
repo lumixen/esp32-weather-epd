@@ -574,28 +574,36 @@ void drawCurrentVisibility(const current_t &current) {
 
   // visibility
   display.setFont(&FONT_12pt8b);
+  dataStr = "--";
+  float vis = 0.0f;
 #ifdef UNITS_DISTANCE_KILOMETERS
-  float vis = meters_to_kilometers(current.visibility);
   unitStr = String(" ") + TXT_UNITS_DIST_KILOMETERS;
 #endif
 #ifdef UNITS_DISTANCE_MILES
-  float vis = meters_to_miles(current.visibility);
   unitStr = String(" ") + TXT_UNITS_DIST_MILES;
 #endif
-  // if visibility is less than 1.95, round to 1 decimal place
-  // else round to int
-  if (vis < 1.95) {
-    dataStr = String(std::round(10 * vis) / 10.0, 1);
-  } else {
-    dataStr = String(static_cast<int>(std::round(vis)));
-  }
+  if (current.visibility.has_value()) {
 #ifdef UNITS_DISTANCE_KILOMETERS
-  if (vis >= 10) {
+    vis = meters_to_kilometers(current.visibility.value());
 #endif
 #ifdef UNITS_DISTANCE_MILES
-    if (vis >= 6) {
+    vis = meters_to_miles(current.visibility.value());
 #endif
-      dataStr = "> " + dataStr;
+    // If visibility is less than 1.95, round to 1 decimal place; otherwise
+    // round to an integer.
+    if (vis < 1.95) {
+      dataStr = String(std::round(10 * vis) / 10.0, 1);
+    } else {
+      dataStr = String(static_cast<int>(std::round(vis)));
+    }
+#ifdef UNITS_DISTANCE_KILOMETERS
+    if (vis >= 10) {
+#endif
+#ifdef UNITS_DISTANCE_MILES
+      if (vis >= 6) {
+#endif
+        dataStr = "> " + dataStr;
+      }
     }
     drawString(48 + (162 * PosX), 204 + 17 / 2 + (48 + 8) * PosY + 48 / 2, dataStr, LEFT);
     display.setFont(&FONT_8pt8b);

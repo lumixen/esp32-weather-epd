@@ -171,8 +171,9 @@ wifi:
 # The App backend currently supplies current conditions, five daily entries and
 # hourly graph data, but is not a documented public API. Measured current
 # values are read separately from the official SwissMetNet VQHA80.csv feed.
-# `stationId` is required and must be selected explicitly; automatic nearest
-# station resolution is not implemented. The forecast point and physical
+# Visibility and UV are not provided by these sources; missing visibility is
+# rendered as "--". `stationId` is required and must be selected explicitly;
+# automatic nearest station resolution is not implemented. The forecast point and physical
 # observation station may therefore be geographically different. The build
 # prints a direct station-map link for the configured station. MeteoSwiss
 # always uses verified HTTPS on port 443 and has no provider-level transport

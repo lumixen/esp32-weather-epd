@@ -126,7 +126,7 @@ static void test_zaragoza_forecast_fixture(void) {
   TEST_ASSERT_EQUAL_FLOAT(16.65f, forecast.current.dew_point);
   TEST_ASSERT_EQUAL_INT(14, forecast.current.clouds);
   TEST_ASSERT_EQUAL_FLOAT(6.82f, forecast.current.uvi);
-  TEST_ASSERT_EQUAL_INT(10000, forecast.current.visibility);
+  TEST_ASSERT_EQUAL_INT(10000, forecast.current.visibility.value());
   TEST_ASSERT_EQUAL_FLOAT(4.12f, forecast.current.wind_speed);
   TEST_ASSERT_EQUAL_INT(90, forecast.current.wind_deg);
   TEST_ASSERT_EQUAL(weather_condition::PARTLY_CLOUDY, forecast.current.weather.condition);
