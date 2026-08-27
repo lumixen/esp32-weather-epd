@@ -96,10 +96,17 @@ providers:
   #   pinSDA: 21
   #   pinSCL: 22
   #   address: 0x76
-# Other provider IDs are noaa_forecast, openweathermap_onecall_v3 and
-# openweathermap_air_quality. NOAA/NWS is primarily a US service, uses the
-# fixed User-Agent `esp32-weather-epd`, and has no API key:
+# Other provider IDs are noaa_forecast, meteoswiss_forecast,
+# openweathermap_onecall_v3 and openweathermap_air_quality. NOAA/NWS is
+# primarily a US service, uses the fixed User-Agent `esp32-weather-epd`, and
+# has no API key:
 #   - provider: noaa_forecast
+# MeteoSwiss is an alternative forecast owner. It uses the six-digit local
+# forecast point_id (not a postal code string) and a separately selected
+# SwissMetNet observation station:
+#   - provider: meteoswiss_forecast
+#     forecastPointId: "800100"
+#     stationId: KLO
 # OWM entries carry their own apiKey, for example:
 #   - provider: openweathermap_onecall_v3
 #     transport: HTTPS_VERIFY
@@ -149,12 +156,6 @@ wifi:
   #   gateway: XXX.XXX.XXX.XXX
   #   subnet: XXX.XXX.XXX.XXX
   #   dns1: XXX.XXX.XXX.XXX
-# apiKey belongs on each OpenWeatherMap providers entry.
-# NOAA current conditions come from the nearest usable NWS observation station.
-# Its initial implementation does not provide quantitative forecast rain/snow,
-# pressure, visibility, UV, or other unavailable textual-endpoint fields. NOAA
-# always uses HTTPS with certificate verification using the generated
-# api.weather.gov certificate.
 latitude: "64"
 longitude: "-22"
 city: ESPLand
@@ -205,6 +206,11 @@ colors:
 ```
 
 The full list of actual available options can be found in [schema.py](scripts/schema.py).
+
+MeteoSwiss data is provided by the Swiss Federal Office of Meteorology and
+Climatology (MeteoSwiss). **Source: MeteoSwiss.** The App forecast endpoint is
+used as an implementation detail and may change; the official current
+observations come from the SwissMetNet CSV feed.
 
 ### Multiple devices
 

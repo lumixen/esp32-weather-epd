@@ -10,6 +10,7 @@
 #      by scripts/select_test_env_config.py when ESP32_EPD_CONFIG is unset).
 #   2. owm             - test/configs/owm.yml via ESP32_EPD_CONFIG.
 #   3. noaa            - test/configs/noaa.yml via ESP32_EPD_CONFIG.
+#   4. meteoswiss      - test/configs/meteoswiss.yml via ESP32_EPD_CONFIG.
 #
 # The root suite selected for each run contains only test modules compatible
 # with that configuration. All runs always execute (a failing run does not
@@ -37,7 +38,8 @@ rm -f "$QEMU_BUILD_DIR"/qemu_output*.log \
     "$QEMU_BUILD_DIR"/qemu_debug*.log \
     "$QEMU_BUILD_DIR"/firmware_openmeteo.elf \
     "$QEMU_BUILD_DIR"/firmware_owm.elf \
-    "$QEMU_BUILD_DIR"/firmware_noaa.elf
+    "$QEMU_BUILD_DIR"/firmware_noaa.elf \
+    "$QEMU_BUILD_DIR"/firmware_meteoswiss.elf
 
 echo "=================================================="
 echo "  test run: config openmeteo (test/configs/openmeteo.yml)"
@@ -88,6 +90,22 @@ if [[ -f "$FIRMWARE_ELF" ]]; then
     cp "$FIRMWARE_ELF" "$QEMU_BUILD_DIR/firmware_noaa.elf"
 else
     echo "WARNING: no NOAA firmware ELF was produced" >&2
+fi
+
+echo "=================================================="
+echo "  test run: config meteoswiss (test/configs/meteoswiss.yml)"
+echo "=================================================="
+rm -f "$FIRMWARE_ELF"
+ESP32_EPD_CONFIG=test/configs/meteoswiss.yml \
+QEMU_LOG_FILE="$QEMU_BUILD_DIR/qemu_output_meteoswiss.log" \
+QEMU_DEBUG_FILE="$QEMU_BUILD_DIR/qemu_debug_meteoswiss.log" \
+    "$PIO" test -e lolin_d32_qemu --without-uploading \
+    -f test_meteoswiss \
+    "${EXTRA_ARGS[@]}" || status=1
+if [[ -f "$FIRMWARE_ELF" ]]; then
+    cp "$FIRMWARE_ELF" "$QEMU_BUILD_DIR/firmware_meteoswiss.elf"
+else
+    echo "WARNING: no MeteoSwiss firmware ELF was produced" >&2
 fi
 
 exit "$status"

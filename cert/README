@@ -4,3 +4,9 @@ python cert.py -s api.openweathermap.org,api.open-meteo.com,api.weather.gov -p 4
 The NOAA provider uses the `api.weather.gov` chain when `HTTPS_VERIFY` is
 selected. Keep the existing certificate symbols when regenerating the file;
 all verified providers include their own trusted chain.
+
+MeteoSwiss uses the ESP-IDF full certificate bundle instead of pinning its
+rotating `*.meteoswiss-app.ch` leaf certificate. The current App endpoint is
+served by Amazon RSA 2048 M01; the bundled Amazon Root CA 1 validates that
+chain. Keep `CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y` enabled for
+verified MeteoSwiss builds.

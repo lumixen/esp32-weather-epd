@@ -119,8 +119,8 @@ static void test_lima_current(void) {
   TEST_ASSERT_EQUAL_INT(60, forecast.current.humidity.value());
   TEST_ASSERT_EQUAL_FLOAT(13.4f, forecast.current.dew_point);
   TEST_ASSERT_EQUAL_INT(45, forecast.current.clouds);
-  TEST_ASSERT_EQUAL_FLOAT(8.45f, forecast.current.uvi);      // daily[0] uv_index_max
-  TEST_ASSERT_EQUAL_INT(2460, forecast.current.visibility);  // 2460.00 m
+  TEST_ASSERT_EQUAL_FLOAT(8.45f, forecast.current.uvi);              // daily[0] uv_index_max
+  TEST_ASSERT_EQUAL_INT(2460, forecast.current.visibility.value());  // 2460.00 m
   TEST_ASSERT_EQUAL_FLOAT(5.81f, forecast.current.wind_speed);
   TEST_ASSERT_EQUAL_FLOAT(14.50f, forecast.current.wind_gust);
   TEST_ASSERT_EQUAL_INT(153, forecast.current.wind_deg);

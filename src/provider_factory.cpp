@@ -16,6 +16,9 @@
 #if defined(REMOTE_PROVIDER_NOAA_FORECAST)
 #include "noaa_forecast_provider.h"
 #endif
+#if defined(REMOTE_PROVIDER_METEOSWISS_FORECAST)
+#include "meteo_swiss_forecast_provider.h"
+#endif
 #if defined(REMOTE_PROVIDER_OPEN_METEO_AIR_QUALITY)
 #include "open_meteo_air_quality_provider.h"
 #endif
@@ -39,6 +42,9 @@ ProviderBundle createProviders() {
 #endif
 #if defined(REMOTE_PROVIDER_NOAA_FORECAST)
   bundle.providers.push_back(std::make_shared<NoaaForecastProvider>());
+#endif
+#if defined(REMOTE_PROVIDER_METEOSWISS_FORECAST)
+  bundle.providers.push_back(std::make_shared<MeteoSwissForecastProvider>());
 #endif
 #if defined(REMOTE_PROVIDER_OPEN_METEO_AIR_QUALITY)
   bundle.providers.push_back(std::make_shared<OpenMeteoAirQualityProvider>());

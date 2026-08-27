@@ -155,6 +155,8 @@ TYPED_TYPES = {
     # provider-local credentials
     "OPENWEATHERMAP_ONECALL_V3_API_KEY": "String",
     "OPENWEATHERMAP_AIR_QUALITY_API_KEY": "String",
+    "METEOSWISS_FORECAST_POINT_ID": STRING,
+    "METEOSWISS_STATION_ID": STRING,
     # alerts
     "METEOALARM_COUNTRY": "String",
     # location
@@ -190,6 +192,8 @@ INTERNAL_CONSTANTS = [
     ("OM_ENDPOINT", "String", "api.open-meteo.com"),
     ("OM_AIR_QUALITY_ENDPOINT", "String", "air-quality-api.open-meteo.com"),
     ("NOAA_ENDPOINT", "String", "api.weather.gov"),
+    ("METEOSWISS_FORECAST_ENDPOINT", "String", "app-prod-ws.meteoswiss-app.ch"),
+    ("METEOSWISS_OBSERVATION_ENDPOINT", "String", "data.geo.admin.ch"),
     ("WARN_BATTERY_VOLTAGE", "uint32_t", 3535),          # (millivolts) ~20%
     ("LOW_BATTERY_VOLTAGE", "uint32_t", 3462),           # (millivolts) ~10%
     ("VERY_LOW_BATTERY_VOLTAGE", "uint32_t", 3442),      # (millivolts)  ~8%
@@ -345,6 +349,14 @@ def generate(config_path, header_path, write_header=True):
             emit_typed(header_lines, constant, provider.apiKey)
         if provider_id == "meteoalarm_alert":
             emit_typed(header_lines, "METEOALARM_COUNTRY", provider.country.value)
+        if provider_id == "meteoswiss_forecast":
+            emit_typed(header_lines, "METEOSWISS_FORECAST_POINT_ID", provider.forecastPointId)
+            emit_typed(header_lines, "METEOSWISS_STATION_ID", provider.stationId)
+            print(
+                "MeteoSwiss station map: "
+                "https://www.meteoswiss.admin.ch/services-and-publications/applications/"
+                f"measurement-values.html#param=messnetz-automatisch&station={provider.stationId}"
+            )
 
     # ntp configuration
     header_lines.append("// ntp configuration")
