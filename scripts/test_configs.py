@@ -25,7 +25,13 @@ from pathlib import Path
 import re
 from typing import Any
 
-import yaml
+try:
+    import yaml
+except ImportError as exc:
+    raise SystemExit(
+        "PyYAML is required to read the test configuration registry. "
+        "Install it with 'python3 -m pip install pyyaml' or run the Docker test wrapper."
+    ) from exc
 
 
 REGISTRY_PATH = Path("test") / "configs" / "index.yml"

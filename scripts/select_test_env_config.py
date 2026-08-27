@@ -36,6 +36,14 @@ import sys
 
 Import("env")  # noqa: F401 - provided by the PlatformIO build system
 
+try:
+    import yaml
+except ImportError:
+    yaml = None
+if yaml is None:
+    env.Execute("$PYTHONEXE -m pip install pyyaml")
+    import yaml
+
 project_root = Path(env.subst("$PROJECT_DIR"))
 sys.path.insert(0, str(project_root / "scripts"))
 from test_configs import TestConfigError, load_registry  # noqa: E402
