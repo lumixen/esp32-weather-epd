@@ -1,38 +1,13 @@
-# Example configuration for the ESP32 weather e-paper display.
-#
-# Copy this file to config.yml and adjust the values to your setup.
-# The weather/air-quality providers (Open-Meteo) work without any API keys;
-# NOAA/NWS is also keyless but primarily covers the United States. The
-# MeteoAlarm alerts provider only needs the country slug below.
-#
-# NOTE: the Open-Meteo unit suite links MeteoAlarmAlertProvider::FeedParser;
-# the pinned test configuration includes the MeteoAlarm provider.
+# Pinned configuration for the MeteoSwiss forecast-provider tests.
+# The network is never used by the fixture tests.
 epdPanel: GENERIC_BW_V2
 epdDriver: Good Display DESPI-C02
 locale: en_GB
 
 providers:
-  - provider: open_meteo_forecast
-    transport: HTTPS_VERIFY
-  # NOAA/NWS is an alternative forecast owner; do not enable it together
-  # with Open-Meteo or OpenWeatherMap forecast providers.
-  # - provider: noaa_forecast
-  # MeteoSwiss uses a six-digit local forecast point_id and an explicit
-  # SwissMetNet station for measured current conditions. It is an alternative
-  # forecast owner; do not enable it with another forecast provider.
-  # - provider: meteoswiss_forecast
-  #   forecastPointId: "800100"
-  #   stationId: KLO
-  - provider: open_meteo_air_quality
-    transport: HTTPS_VERIFY
-  - provider: meteoalarm_alert
-    country: netherlands
-  # Add this entry to enable a local BME280 sensor. Omit it to disable it.
-  # - provider: bme280
-  #   pinPwr: 27
-  #   pinSDA: 21
-  #   pinSCL: 22
-  #   address: 0x76
+  - provider: meteoswiss_forecast
+    forecastPointId: "800100"
+    stationId: KLO
 
 ntp:
   server_1: pool.ntp.org
@@ -74,10 +49,10 @@ wifi:
   timeout: 10000
   scan: false
 
-latitude: "51.5072"
-longitude: "-0.1276"
-city: London
-timezone: Europe/London
+latitude: "47.3769"
+longitude: "8.5417"
+city: Zurich
+timezone: Europe/Zurich
 timeFormat: "%H:%M"
 hourFormat: "%H"
 dateFormat: "%x"
@@ -97,8 +72,7 @@ leftPanelLayout:
   HUMIDITY: 5
   WIND: 6
   PRESSURE: 7
-  AIR_QUALITY: 8
-  VISIBILITY: 9
+  VISIBILITY: 8
 
 homeAssistantMqtt:
   enabled: false

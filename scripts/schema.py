@@ -257,6 +257,15 @@ class NoaaForecastConfig(BaseModel):
     provider: Literal["noaa_forecast"] = "noaa_forecast"
 
 
+class MeteoSwissForecastConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    provider: Literal["meteoswiss_forecast"] = "meteoswiss_forecast"
+    # MeteoSwiss local forecast point_id (postal-code centers use point_type_id=2).
+    forecastPointId: str = Field(pattern=r"^\d{6}$")
+    # SwissMetNet station abbreviation used for measured current conditions.
+    stationId: str = Field(pattern=r"^[A-Z0-9]+$")
+
+
 class OpenMeteoAirQualityConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     provider: Literal["open_meteo_air_quality"] = "open_meteo_air_quality"
@@ -296,6 +305,7 @@ ProviderConfig = Annotated[
     Union[
         OpenMeteoForecastConfig,
         NoaaForecastConfig,
+        MeteoSwissForecastConfig,
         OpenMeteoAirQualityConfig,
         OpenWeatherMapOneCallV3Config,
         OpenWeatherMapAirQualityConfig,
@@ -558,6 +568,20 @@ class ConfigSchema(BaseModel):
     )
     moonPhaseStyle: MoonPhaseStyle = MoonPhaseStyle.PRIMARY
     colors: Colors = Field(default_factory=Colors)
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_meteoswiss_station_presence(cls, values):
+        if isinstance(values, dict):
+            for provider in values.get("providers", []) or []:
+                if (isinstance(provider, dict) and provider.get("provider") == "meteoswiss_forecast" and
+                        "stationId" not in provider):
+                    raise ValueError(
+                        "meteoswiss_forecast requires stationId for current observations; "
+                        "choose a SwissMetNet station from "
+                        "https://www.meteoswiss.admin.ch/services-and-publications/applications/measurement-values.html"
+                    )
+        return values
 
     @model_validator(mode="after")
     def validate_left_panel_layout(self):

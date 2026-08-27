@@ -93,7 +93,7 @@ esp_err_t espHttpReadError(int result) {
 }
 
 ProviderResult espHttpGetWithRetry(const String &url, const String &sanitizedUrl, esp_http_client_config_t config,
-                                   EspHttpResponseHandler handleResponse) {
+                                   EspHttpResponseHandler handleResponse, EspHttpRequestConfigurator configureRequest) {
   LOG_INFO("%s: %s", TXT_ATTEMPTING_HTTP_REQ, sanitizedUrl.c_str());
 
   ProviderResult result;
@@ -125,6 +125,8 @@ ProviderResult espHttpGetWithRetry(const String &url, const String &sanitizedUrl
         result = espHttpErrorResult(openError);
       } else {
         opened = true;
+        if (configureRequest)
+          configureRequest(client);
         const int64_t headerResult = esp_http_client_fetch_headers(client);
         status = esp_http_client_get_status_code(client);
         // Some ESP-IDF versions report -1 for a valid chunked or

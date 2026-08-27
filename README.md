@@ -96,10 +96,17 @@ providers:
   #   pinSDA: 21
   #   pinSCL: 22
   #   address: 0x76
-# Other provider IDs are noaa_forecast, openweathermap_onecall_v3 and
-# openweathermap_air_quality. NOAA/NWS is primarily a US service, uses the
-# fixed User-Agent `esp32-weather-epd`, and has no API key:
+# Other provider IDs are noaa_forecast, meteoswiss_forecast,
+# openweathermap_onecall_v3 and openweathermap_air_quality. NOAA/NWS is
+# primarily a US service, uses the fixed User-Agent `esp32-weather-epd`, and
+# has no API key:
 #   - provider: noaa_forecast
+# MeteoSwiss is an alternative forecast owner. It uses the six-digit local
+# forecast point_id (not a postal code string) and a separately selected
+# SwissMetNet observation station:
+#   - provider: meteoswiss_forecast
+#     forecastPointId: "800100"
+#     stationId: KLO
 # OWM entries carry their own apiKey, for example:
 #   - provider: openweathermap_onecall_v3
 #     transport: HTTPS_VERIFY
@@ -155,6 +162,21 @@ wifi:
 # pressure, visibility, UV, or other unavailable textual-endpoint fields. NOAA
 # always uses HTTPS with certificate verification using the generated
 # api.weather.gov certificate.
+# MeteoSwiss forecastPointId is the local forecast point_id from the official
+# point metadata (postal-code centers have point_type_id=2); see the official
+# MeteoSwiss open-data documentation at:
+#   https://www.meteoswiss.admin.ch/services-and-publications/service/open-data.html
+# The station map is at:
+#   https://www.meteoswiss.admin.ch/services-and-publications/applications/measurement-values.html
+# The App backend currently supplies current conditions, five daily entries and
+# hourly graph data, but is not a documented public API. Measured current
+# values are read separately from the official SwissMetNet VQHA80.csv feed.
+# `stationId` is required and must be selected explicitly; automatic nearest
+# station resolution is not implemented. The forecast point and physical
+# observation station may therefore be geographically different. The build
+# prints a direct station-map link for the configured station. MeteoSwiss
+# always uses verified HTTPS on port 443 and has no provider-level transport
+# setting. Alerts and air quality remain separate providers.
 latitude: "64"
 longitude: "-22"
 city: ESPLand
@@ -205,6 +227,11 @@ colors:
 ```
 
 The full list of actual available options can be found in [schema.py](scripts/schema.py).
+
+MeteoSwiss data is provided by the Swiss Federal Office of Meteorology and
+Climatology (MeteoSwiss). **Source: MeteoSwiss.** The App forecast endpoint is
+used as an implementation detail and may change; the official current
+observations come from the SwissMetNet CSV feed.
 
 ### Multiple devices
 

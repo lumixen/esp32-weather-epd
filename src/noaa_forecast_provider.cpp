@@ -24,6 +24,7 @@
 #include "_locale.h"
 #include "display_utils.h"
 #include "esp_http_client_utils.h"
+#include "esp_http_client_stream.h"
 #include "iso8601.h"
 #include "noaa_forecast_provider.h"
 #include "provider_fetch_operations.h"
@@ -93,35 +94,6 @@ int compassDegrees(const String &direction) {
   return 0;
 }
 
-/* Stream adapter around esp_http_client. The response body is never copied;
- * parser reads are forwarded directly to the bounded IDF client buffer. */
-class HttpClientStream : public Stream {
- public:
-  explicit HttpClientStream(esp_http_client_handle_t client) : client_(client) {}
-  int available() override { return 1; }
-  int read() override {
-    uint8_t byte = 0;
-    return readBytes(&byte, 1) == 1 ? byte : -1;
-  }
-  int peek() override { return -1; }
-  size_t write(uint8_t) override { return 0; }
-  size_t readBytes(char *buffer, size_t length) override {
-    if (length == 0)
-      return 0;
-    const int n = esp_http_client_read(client_, buffer, static_cast<int>(length));
-    if (n < 0)
-      readError_ = espHttpReadError(n);
-    return n > 0 ? static_cast<size_t>(n) : 0;
-  }
-  bool hadReadError() const { return readError_ != ESP_OK; }
-  esp_err_t readError() const { return readError_; }
-  size_t readBytes(uint8_t *buffer, size_t length) { return readBytes(reinterpret_cast<char *>(buffer), length); }
-
- private:
-  esp_http_client_handle_t client_;
-  esp_err_t readError_ = ESP_OK;
-};
-
 template<typename Complete, typename Started>
 ProviderResult parseStreamingJson(Stream &json, JsonHandler &handler, Complete complete, Started started,
                                   const char *label) {
@@ -151,7 +123,7 @@ ProviderResult requestNoaa(const String &url, std::function<ProviderResult(Strea
   config.cert_pem = cert_NOAA_API_WEATHER_GOV;
 
   return espHttpGetWithRetry(url, url, config, [consume](esp_http_client_handle_t client) {
-    HttpClientStream stream(client);
+    EspHttpClientStream stream(client);
     ProviderResult result = consume(stream);
     if (stream.hadReadError())
       return espHttpErrorResult(stream.readError());

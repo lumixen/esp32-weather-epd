@@ -25,6 +25,7 @@
  * response-body consumption and parsing, but must not close or clean up the
  * client; espHttpGetWithRetry() does that on every path. */
 using EspHttpResponseHandler = std::function<ProviderResult(esp_http_client_handle_t)>;
+using EspHttpRequestConfigurator = std::function<void(esp_http_client_handle_t)>;
 
 /* Decode a negative esp_http_client_read() result. Known -ESP_ERR_HTTP_*
  * values are converted to their esp_err_t, while the generic -1 return and
@@ -42,10 +43,13 @@ ProviderResult espHttpErrorResult(esp_err_t error);
  * client lifecycle handling. `config` is copied for each attempt; its URL
  * and method are replaced with the supplied URL and HTTP_METHOD_GET. The
  * caller may configure TLS, timeout, buffers, redirects, and other
- * esp_http_client options before passing it here.
+ * esp_http_client options before passing it here. `configureRequest`, when
+ * supplied, is called after opening the connection and before request headers
+ * are sent, allowing providers to add request headers.
  *
  * The response handler is called only for HTTP 200 responses. It may read
  * the body with esp_http_client_read(), stop early, or return a parse/read
  * error. Failed attempts are retried up to three times. */
 ProviderResult espHttpGetWithRetry(const String &url, const String &sanitizedUrl, esp_http_client_config_t config,
-                                   EspHttpResponseHandler handleResponse);
+                                   EspHttpResponseHandler handleResponse,
+                                   EspHttpRequestConfigurator configureRequest = nullptr);
