@@ -551,32 +551,35 @@ ProviderResult MeteoSwissForecastProvider::deserializeObservationCsv(Stream &csv
     current.dt = timestamp;
 
     float parsed = 0.0f;
-    if (columns[0] >= 0 && csvField(value, columns[0], ignored, line) && parseCsvNumber(line, parsed)) {
+    String field;
+    if (columns[0] >= 0 && csvField(value, columns[0], ignored, field) && parseCsvNumber(field, parsed)) {
       current.temp = parsed;
       current.feels_like = parsed;
     }
-    if (columns[1] >= 0 && csvField(value, columns[1], ignored, line) && parseCsvNumber(line, parsed))
+    if (columns[1] >= 0 && csvField(value, columns[1], ignored, field) && parseCsvNumber(field, parsed))
       current.humidity = static_cast<int>(parsed);
-    if (columns[2] >= 0 && csvField(value, columns[2], ignored, line) && parseCsvNumber(line, parsed))
+    if (columns[2] >= 0 && csvField(value, columns[2], ignored, field) && parseCsvNumber(field, parsed))
       current.dew_point = parsed;
-    if (columns[3] >= 0 && csvField(value, columns[3], ignored, line) && parseCsvNumber(line, parsed))
+    if (columns[3] >= 0 && csvField(value, columns[3], ignored, field) && parseCsvNumber(field, parsed))
       current.wind_deg = static_cast<int>(parsed);
-    if (columns[4] >= 0 && csvField(value, columns[4], ignored, line) && parseCsvNumber(line, parsed))
+    if (columns[4] >= 0 && csvField(value, columns[4], ignored, field) && parseCsvNumber(field, parsed))
       current.wind_speed = parsed / 3.6f;
-    if (columns[5] >= 0 && csvField(value, columns[5], ignored, line) && parseCsvNumber(line, parsed))
+    if (columns[5] >= 0 && csvField(value, columns[5], ignored, field) && parseCsvNumber(field, parsed))
       current.wind_gust = parsed / 3.6f;
 
     float pressure = 0.0f;
     bool hasPressure = false;
-    if (columns[6] >= 0 && csvField(value, columns[6], ignored, line) && parseCsvNumber(line, parsed)) {
+    if (columns[6] >= 0 && csvField(value, columns[6], ignored, field) && parseCsvNumber(field, parsed)) {
       pressure = parsed;
       hasPressure = true;
     }
-    if (!hasPressure && columns[7] >= 0 && csvField(value, columns[7], ignored, line) && parseCsvNumber(line, parsed)) {
+    if (!hasPressure && columns[7] >= 0 && csvField(value, columns[7], ignored, field) &&
+        parseCsvNumber(field, parsed)) {
       pressure = parsed;
       hasPressure = true;
     }
-    if (!hasPressure && columns[8] >= 0 && csvField(value, columns[8], ignored, line) && parseCsvNumber(line, parsed)) {
+    if (!hasPressure && columns[8] >= 0 && csvField(value, columns[8], ignored, field) &&
+        parseCsvNumber(field, parsed)) {
       pressure = parsed;
       hasPressure = true;
     }

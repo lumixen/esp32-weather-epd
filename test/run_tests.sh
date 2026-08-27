@@ -39,9 +39,7 @@ rm -f "$QEMU_BUILD_DIR"/qemu_output*.log \
     "$QEMU_BUILD_DIR"/firmware_openmeteo.elf \
     "$QEMU_BUILD_DIR"/firmware_owm.elf \
     "$QEMU_BUILD_DIR"/firmware_noaa.elf \
-    "$QEMU_BUILD_DIR"/firmware_meteoswiss.elf \
-    "$QEMU_BUILD_DIR"/qemu_output_meteoswiss.log \
-    "$QEMU_BUILD_DIR"/qemu_debug_meteoswiss.log
+    "$QEMU_BUILD_DIR"/firmware_meteoswiss.elf
 
 echo "=================================================="
 echo "  test run: config openmeteo (test/configs/openmeteo.yml)"
