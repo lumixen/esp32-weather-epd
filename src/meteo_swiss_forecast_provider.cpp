@@ -201,8 +201,8 @@ class ForecastHandler : public JsonHandler {
   bool started() const { return started_; }
   bool finished() const { return finished_; }
   bool complete() const {
-    if (!hasCurrentTime_ || !hasCurrentTemperature_ || !(hasCurrentIconV2_ || hasCurrentIcon_) ||
-        !hasGraphStart_ || !hasGraphStartLow_) {
+    if (!hasCurrentTime_ || !hasCurrentTemperature_ || !(hasCurrentIconV2_ || hasCurrentIcon_) || !hasGraphStart_ ||
+        !hasGraphStartLow_) {
       return false;
     }
     for (int i = 0; i < NUM_DAILY; ++i) {
@@ -494,7 +494,7 @@ ProviderResult MeteoSwissForecastProvider::deserializeForecast(Stream &json, for
 }
 
 ProviderResult MeteoSwissForecastProvider::deserializeObservationCsv(Stream &csv, const String &stationId,
-                                                                      current_t &current) {
+                                                                     current_t &current) {
   int stationColumn = -1;
   int dateColumn = -1;
   int columns[9] = {-1, -1, -1, -1, -1, -1, -1, -1, -1};
@@ -644,8 +644,8 @@ std::vector<std::unique_ptr<FetchOperation>> MeteoSwissForecastProvider::createF
 }
 
 ProviderResult MeteoSwissForecastProvider::fetchForecast(forecast_t &forecast) {
-  const String url = "https://" + String(METEOSWISS_FORECAST_ENDPOINT) + "/v1/plzDetail?plz=" +
-                     String(METEOSWISS_FORECAST_POINT_ID);
+  const String url =
+      "https://" + String(METEOSWISS_FORECAST_ENDPOINT) + "/v1/plzDetail?plz=" + String(METEOSWISS_FORECAST_POINT_ID);
   esp_http_client_config_t config = {};
   config.timeout_ms = HTTP_CLIENT_TCP_TIMEOUT;
   config.port = 443;
@@ -674,7 +674,8 @@ ProviderResult MeteoSwissForecastProvider::fetchForecast(forecast_t &forecast) {
 }
 
 ProviderResult MeteoSwissForecastProvider::fetchObservation(current_t &current) {
-  const String url = "https://" + String(METEOSWISS_OBSERVATION_ENDPOINT) + "/ch.meteoschweiz.messwerte-aktuell/VQHA80.csv";
+  const String url =
+      "https://" + String(METEOSWISS_OBSERVATION_ENDPOINT) + "/ch.meteoschweiz.messwerte-aktuell/VQHA80.csv";
   esp_http_client_config_t config = {};
   config.timeout_ms = HTTP_CLIENT_TCP_TIMEOUT;
   config.port = 443;
@@ -684,8 +685,8 @@ ProviderResult MeteoSwissForecastProvider::fetchObservation(current_t &current) 
       url, url, config,
       [&current](esp_http_client_handle_t client) {
         EspHttpClientStream stream(client);
-        ProviderResult result = MeteoSwissForecastProvider::deserializeObservationCsv(stream, METEOSWISS_STATION_ID,
-                                                                                        current);
+        ProviderResult result =
+            MeteoSwissForecastProvider::deserializeObservationCsv(stream, METEOSWISS_STATION_ID, current);
         if (stream.hadReadError())
           return espHttpErrorResult(stream.readError());
         return result;

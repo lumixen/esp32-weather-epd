@@ -36,9 +36,7 @@ class EspHttpClientStream : public Stream {
 
   bool hadReadError() const { return readError_ != ESP_OK; }
   esp_err_t readError() const { return readError_; }
-  size_t readBytes(uint8_t *buffer, size_t length) {
-    return readBytes(reinterpret_cast<char *>(buffer), length);
-  }
+  size_t readBytes(uint8_t *buffer, size_t length) { return readBytes(reinterpret_cast<char *>(buffer), length); }
 
  private:
   esp_http_client_handle_t client_;

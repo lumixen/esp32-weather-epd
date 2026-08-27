@@ -22,9 +22,9 @@ static String forecastJson(bool complete = true) {
   for (int i = 0; i < 5; ++i) {
     if (i)
       json += ",";
-    json += "{\"dayDate\":\"2026-08-" + String(27 + i) + "\",\"iconDay\":1,\"iconDayV2\":" +
-            String(i == 1 ? 13 : 1) + ",\"temperatureMax\":" + String(25 + i) +
-            ",\"temperatureMin\":" + String(15 + i) + ",\"precipitation\":" + String(i * 0.5f) + "}";
+    json += "{\"dayDate\":\"2026-08-" + String(27 + i) + "\",\"iconDay\":1,\"iconDayV2\":" + String(i == 1 ? 13 : 1) +
+            ",\"temperatureMax\":" + String(25 + i) + ",\"temperatureMin\":" + String(15 + i) +
+            ",\"precipitation\":" + String(i * 0.5f) + "}";
   }
   json += "],\"graph\":{\"start\":1787781600000,\"startLowResolution\":1787835600000,";
   const char *fields[] = {"temperatureMean1h", "windSpeed1h", "gustSpeed1h"};
@@ -119,7 +119,8 @@ static void test_captured_fixtures() {
 }
 
 static void test_station_csv_mapping() {
-  String csv = "Station/Location;Date;tre200s0;ure200s0;tde200s0;dkl010z0;fu3010z0;fu3010z1;prestas0;pp0qffs0;pp0qnhs0\n";
+  String csv =
+      "Station/Location;Date;tre200s0;ure200s0;tde200s0;dkl010z0;fu3010z0;fu3010z1;prestas0;pp0qffs0;pp0qnhs0\n";
   csv += "OTHER;202608270810;1;2;3;4;5;6;1000;1001;1002\n";
   csv += "KLO;202608270810;22.20;73.90;17.30;360.00;2.50;6.80;964.80;1013.20;1015.20\n";
   StringStream stream(csv);
