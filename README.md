@@ -1,279 +1,420 @@
-## Highlights
+# ESP32 E-Paper Weather Display
 
-- [Open-Meteo](https://open-meteo.com/) as the primary weather API.
-- Set up for Lolin D32 board.
-- Improved support for multi-color e-paper displays.
-- Configuration is managed via non-versioned YAML files (`config.yml` for the default device, `devices/<name>.yml` per device).
-- Supports the DKE DEPG0750RWF86BF 3-color e-paper display.
-- Home Assistant integration through MQTT with auto-discovery.
+[![Build](https://github.com/lumixen/esp32-weather-epd/actions/workflows/build.yaml/badge.svg)](https://github.com/lumixen/esp32-weather-epd/actions/workflows/build.yaml)
+[![Tests](https://github.com/lumixen/esp32-weather-epd/actions/workflows/test.yaml/badge.svg)](https://github.com/lumixen/esp32-weather-epd/actions/workflows/test.yaml)
 
-### ESP32 E-Paper Weather Display
+Weather display firmware for the Lolin D32 and supported 7-inch e-paper
+panels. It combines weather forecasts, air quality, alerts, optional local
+sensor measurements, and Home Assistant MQTT discovery in a low-power display
+that periodically wakes, refreshes, and sleeps.
+
+## Contents
+
+- [Features](#features)
+- [Supported panels](#supported-panels)
+- [Quick start](#quick-start)
+- [Hardware and wiring](#hardware-and-wiring)
+- [Everything is a provider](#everything-is-a-provider)
+- [Configuration](#configuration)
+- [Multiple devices](#multiple-devices)
+- [Home Assistant integration](#home-assistant-integration)
+- [QEMU unit tests](#qemu-unit-tests)
+- [Troubleshooting](#troubleshooting)
+- [Contributing and license](#contributing-and-license)
+
+## Features
+
+- Forecasts, air-quality data, and weather alerts from multiple providers.
+- Optional local sensor measurements.
+- Support for black-and-white, red/black/white, and 7-color e-paper panels.
+- Home Assistant integration through MQTT auto-discovery.
+- Independent configuration for multiple displays.
 
 <p float="left">
   <img src="https://github.com/user-attachments/assets/15d49106-3b07-4fbe-b252-1a642cb1251c" width="49%" />
   <img src="https://github.com/user-attachments/assets/d7e9c4d2-8885-43cd-aa22-df5e04820dd2" width="49%" />
 </p>
 
-Enclosure files and assembly instructions are available at [printables](https://www.printables.com/model/1469770-75-e-paper-frame-for-lolin-d32-waveshare-driver).
+Enclosure files and assembly instructions are available on
+[Printables](https://www.printables.com/model/1469770-75-e-paper-frame-for-lolin-d32-waveshare-driver).
 
-### Panel Support
+## Supported panels
 
-  | Panel                                   | Resolution | Colors          | Notes                                                                                                                 |
-  |-----------------------------------------|------------|-----------------|-----------------------------------------------------------------------------------------------------------------------|
-  | DKE DEPG0750RWF86BF 7.5in e-paper (86BF)  | 800x480px  | Red/Black/White     | Available [here](https://www.aliexpress.com/item/1005006254055758.html)                 |
-  | Waveshare 7.5in e-paper (v2)            | 800x480px  | Black/White     | Available [here](https://www.waveshare.com/product/7.5inch-e-paper.htm)                                |
-  | Good Display 7.5in e-paper (GDEY075T7)  | 800x480px  | Black/White     | Available [here](https://www.aliexpress.com/item/3256802683908868.html)             |
-  | Waveshare 7.5in e-Paper (B)             | 800x480px  | Red/Black/White | Available [here](https://www.waveshare.com/product/7.5inch-e-paper-b.htm).                                            |
-  | Good Display 7.5in e-paper (GDEY075Z08) | 800x480px  | Red/Black/White | Available [here](https://www.aliexpress.com/item/3256803540460035.html).                                              |
-  | Waveshare 7.3in ACeP e-Paper (F)        | 800x480px  | 7-Color         | Available [here](https://www.waveshare.com/product/displays/e-paper/epaper-1/7.3inch-e-paper-f.htm).                  |
-  | Good Display 7.3in e-paper (GDEY073D46) | 800x480px  | 7-Color         | Available [here](https://www.aliexpress.com/item/3256805485098421.html).                                              |
-  | Waveshare 7.5in e-paper (v1)            | 640x384px  | Black/White     | Limited support. Some information not displayed.                 |
-  | Good Display 7.5in e-paper (GDEW075T8)  | 640x384px  | Black/White     | Limited support. Some information not displayed.                 |
+The firmware is set up for a Lolin D32 connected to an e-paper driver board.
+Select the panel and driver that match your hardware in the configuration.
 
+| Panel | Resolution | Colors | Status |
+|---|---:|---|---|
+| Waveshare 7.5-inch e-paper (v2) | 800x480 | Black/White | Supported |
+| Good Display GDEY075T7, 7.5-inch | 800x480 | Black/White | Supported |
+| Waveshare 7.5-inch e-Paper (B) | 800x480 | Red/Black/White | Supported |
+| Good Display GDEY075Z08, 7.5-inch | 800x480 | Red/Black/White | Supported |
+| Waveshare 7.3-inch ACeP e-Paper (F) | 800x480 | 7-color | Supported |
+| Good Display GDEY073D46, 7.3-inch | 800x480 | 7-color | Supported |
+| Waveshare 7.5-inch e-paper (v1) | 640x384 | Black/White | Limited support; some information is not displayed |
+| Good Display GDEW075T8, 7.5-inch | 640x384 | Black/White | Limited support; some information is not displayed |
+| DKE DEPG0750RWF86BF (86BF), 7.5-inch | 800x480 | Red/Black/White | Supported |
 
-### Setup Guide
+## Quick start
 
-1. **Connect the Hardware**
-   - Wire your Lolin D32 board to the e-paper HAT driver according to the wiring schematic provided below.
+### Prerequisites
 
-2. **Install Dependencies**
-   - Make sure you have [PlatformIO](https://platformio.org/) installed in VS Code.
+- A Lolin D32 ESP32 board.
+- A supported e-paper panel and compatible driver board.
+- A USB cable suitable for programming the board.
+- [PlatformIO](https://platformio.org/), either through the PlatformIO IDE
+  extension for VS Code or the PlatformIO CLI.
+- Network access for the configured weather providers and, optionally, an MQTT
+  broker.
 
-3. **Configure the Software**
-   - Copy and edit the [example configuration](#configuration) to match your hardware and preferences (WiFi credentials, location, panel type, etc.).
-   - Single device: create a `config.yml` file in the project root.
-   - Multiple devices: copy `devices/kitchen.example.yml` to `devices/<name>.yml` for each device (see [Multiple devices](#multiple-devices)).
+Docker is additionally required only for the QEMU unit tests.
 
-4. **Compile and Upload**
-   - Open the project in VS Code.
-   - Click the PlatformIO "Build" button to compile the firmware (uses `config.yml`).
-   - Connect your ESP32 board via USB and click "Upload" to flash the firmware.
-   - Per-device builds instead: `./scripts/devices.sh flash <name>` (see below).
+### Configure, build, and upload
 
-### Wiring Schematic (Lolin D32 Board)
+1. Clone this repository and open it in VS Code, or change into the repository
+   directory in a terminal.
+2. Create the local configuration from the tracked example:
 
-Wiring is specific for Lolin D32 board:
+   ```sh
+   cp config.example.yml config.yml
+   ```
 
-<img width="459" src="https://github.com/user-attachments/assets/278b804c-fa89-4595-b60a-8fa0e6571931" />
+3. Edit `config.yml` for your panel, driver, WiFi network, location, timezone,
+   providers, and display preferences. The file is ignored by Git because it
+   can contain credentials.
+4. Validate the configuration before building:
 
-| E-Paper Pin    | Lolin D32 Pin |
-|----------------|--------------|
-| PWR            | GPIO2        |
-| BUSY           | GPIO4        |
-| RST            | GPIO16       |
-| DC             | GPIO17       |
-| CS             | GPIO5        |
-| CLK            | GPIO18       |
-| DIN            | GPIO23       |
-| VCC            | 3v3          |
+   ```sh
+   ~/.platformio/penv/bin/python scripts/config.py --validate ./config.yml
+   ```
 
+5. Build the default PlatformIO environment:
 
-### Configuration
+   ```sh
+   ~/.platformio/penv/bin/pio run -e lolin_d32
+   ```
 
-To configure the build, create a `config.yml` file in the project root with the configuration variables. For example:
+6. Connect the board over USB and upload the firmware:
+
+   ```sh
+   ~/.platformio/penv/bin/pio run -e lolin_d32 -t upload
+   ```
+
+   If `pio` is on your `PATH`, the `~/.platformio/penv/bin/` prefix is not
+   needed. The same build and upload operations are available from the
+   PlatformIO buttons in VS Code.
+
+7. View serial output at 115200 baud when troubleshooting:
+
+   ```sh
+   ~/.platformio/penv/bin/pio device monitor -b 115200
+   ```
+
+The default environment is `lolin_d32`. The generated
+`include/config.h` is a build artifact; do not edit it manually. Change
+`config.yml` and build again instead.
+
+## Hardware and wiring
+
+The following wiring is specific to the Lolin D32 board. Verify the pinout and
+voltage requirements of the selected driver board before connecting it.
+
+<table>
+  <tr>
+    <td valign="middle">
+      <img width="459" alt="Lolin D32 wiring schematic" src="https://github.com/user-attachments/assets/278b804c-fa89-4595-b60a-8fa0e6571931" />
+    </td>
+    <td valign="top">
+      <table>
+        <thead>
+          <tr>
+            <th>E-paper pin</th>
+            <th>Lolin D32 pin</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>PWR</td><td>GPIO2</td></tr>
+          <tr><td>BUSY</td><td>GPIO4</td></tr>
+          <tr><td>RST</td><td>GPIO16</td></tr>
+          <tr><td>DC</td><td>GPIO17</td></tr>
+          <tr><td>CS</td><td>GPIO5</td></tr>
+          <tr><td>CLK</td><td>GPIO18</td></tr>
+          <tr><td>DIN</td><td>GPIO23</td></tr>
+          <tr><td>VCC</td><td>3V3</td></tr>
+        </tbody>
+      </table>
+    </td>
+  </tr>
+</table>
+
+The pin assignments are configurable where supported by the hardware. The
+full example includes the `pin` section and is the reference for optional
+pins such as the battery ADC and BME280 connections.
+
+## Everything is a provider
+
+The `providers` list is the central data-integration model. A provider is not
+limited to a remote weather API: it is any component that supplies one or more
+named data groups to the display's provider-agnostic weather report.
+
+Each configured provider owns one or more capabilities:
+
+| Capability | Meaning |
+|---|---|
+| `current_forecast` | Current weather conditions |
+| `hourly_forecast` | Hourly forecast data |
+| `daily_forecast` | Daily forecast data |
+| `air_quality` | Air-quality measurements and index data |
+| `alerts` | Weather alerts |
+| `in_temperature` | Local indoor temperature |
+| `in_humidity` | Local indoor humidity |
+| `in_pressure` | Local indoor pressure |
+
+Remote providers fetch and normalize data from an external service. Local
+providers, such as `bme280`, use the same model even though they read a sensor
+instead of making an HTTP request. The renderer consumes the normalized report
+and does not need to know which API or sensor produced the data.
+
+A provider may own multiple capabilities. For example, OpenWeatherMap One
+Call provides forecast data and alerts. Providers may also create more than
+one fetch operation when a service uses separate endpoints internally.
+
+Each capability can have at most one owner. The current, hourly, and daily
+forecast capabilities are required. Air quality is required when `AIR_QUALITY`
+is present in `leftPanelLayout`. Alerts and local sensor capabilities are
+optional. The configuration validator rejects unknown providers, duplicate
+capability ownership, missing required capabilities, and unsupported
+precipitation settings.
+
+Provider-specific settings stay on the provider entry. Depending on the
+provider, these can include `transport`, `apiKey`, `country`,
+`forecastPointId`, `stationId`, and BME280 pin and address settings.
+
+For example, these entries combine into one report:
+
 ```yaml
-epdPanel: DKE_3C_86BF
-epdDriver: Waveshare
-locale: en_US
-# Remote data providers are a list. Each entry owns one or more data groups.
-# Configurable providers may select transport: HTTP, HTTPS_NO_VERIFY or
-# HTTPS_VERIFY. NOAA/NWS always uses verified HTTPS.
-# The current/hourly/daily forecast owner is required. Air quality is required
-# when AIR_QUALITY is in leftPanelLayout; alerts are optional. A tag may have
-# only one owner; duplicate provider entries are rejected. Local providers use
-# the same list and own the in_temperature/in_humidity/in_pressure tags.
 providers:
-  - provider: open_meteo_forecast
-    transport: HTTP
-  - provider: open_meteo_air_quality
-    transport: HTTP
-  # MeteoAlarm warnings are filtered by the configured location (lat/lon).
-  - provider: meteoalarm_alert
+  - provider: open_meteo_forecast       # current/hourly/daily forecast
+    transport: HTTPS_VERIFY
+  - provider: open_meteo_air_quality    # air quality
+    transport: HTTPS_VERIFY
+  - provider: meteoalarm_alert           # alerts
     country: netherlands
-  # Add this entry to enable a local BME280 sensor. Omit it to disable it.
-  # - provider: bme280
-  #   pinPwr: 27
-  #   pinSDA: 21
-  #   pinSCL: 22
-  #   address: 0x76
-# Other provider IDs are noaa_forecast, meteoswiss_forecast,
-# openweathermap_onecall_v3 and openweathermap_air_quality. NOAA/NWS is
-# primarily a US service, uses the fixed User-Agent `esp32-weather-epd`, and
-# has no API key:
-#   - provider: noaa_forecast
-# MeteoSwiss is an alternative forecast owner. It uses the six-digit local
-# forecast point_id (not a postal code string) and a separately selected
-# SwissMetNet observation station:
-#   - provider: meteoswiss_forecast
-#     forecastPointId: "800100"
-#     stationId: KLO
-# OWM entries carry their own apiKey, for example:
-#   - provider: openweathermap_onecall_v3
-#     transport: HTTPS_VERIFY
-#     apiKey: your-owm-api-key
-pin:
-  batAdc: 35
-  epdBusy: 4
-  epdCS: 5
-  epdRst: 16
-  epdDC: 17
-  epdSCK: 18
-  epdMISO: 19
-  epdMOSI: 23
-  epdPwr: 2
-useImperialUnitsAsDefault: false
-ntp:
-  server_1: pool.ntp.org
-  server_2: time.nist.gov
-  # How many wake cycles between NTP syncs. Between syncs, the internal RTC is used.
-  syncIntervalWakeups: 6
-  # NTP sync timeout in milliseconds. Increase if you get 'Failed To Fetch The Time'.
-  timeout: 20000
-unitsTemp: Celsius
-unitsSpeed: km/h
-unitsPres: mbar
-unitsDistance: km
-unitsHourlyPrecip: probability of precipitation
-unitsDailyPrecip: mm
-windDirectionIndicator: arrow
-windArrowPrecision: secondary intercardinal
-font: FreeSans
-displayDailyPrecip: smart
-displayHourlyIcons: true
-batteryMonitoring: true
-statusBarExtrasBatVoltage: true
-statusBarExtrasWifiRSSI: false
-logLevel: debug
-wifi:
-  ssid: SSID
-  password: PASSWORD
-  # Optional
-  # timeout: 10000
-  # scan: false
-  # bssid: "XX:XX:XX:XX:XX:XX"
-  # staticIp:
-  #   ip: XXX.XXX.XXX.XXX
-  #   gateway: XXX.XXX.XXX.XXX
-  #   subnet: XXX.XXX.XXX.XXX
-  #   dns1: XXX.XXX.XXX.XXX
-latitude: "64"
-longitude: "-22"
-city: ESPLand
-timezone: UTC0
-timeFormat: "%H:%M"
-hourFormat: "%H"
-dateFormat: "%d/%m/%Y"
-refreshTimeFormat: "%x %H:%M"
-sleepDuration: 30
-bedTime: 0
-wakeTime: 6
-hourlyGraphMax: 24
-moonPhaseStyle: alternative
-leftPanelLayout:
-  SUNRISE: 0
-  SUNSET: 1
-  MOONRISE: 2
-  MOONSET: 3
-  MOONPHASE: 4
-  HUMIDITY: 5
-  WIND: 6
-  PRESSURE: 7
-  AIR_QUALITY: 8
-  VISIBILITY: 9
-homeAssistantMqtt:
-  enabled: true
-  server: XXX.XXX.XXX.XXX
-  port: 1883
-  username: USERNAME
-  password: PASSWORD
-  deviceName: Device Name
-  discoveryPrefix: homeassistant
-colors:
-  outlookLowThresholdTemperature: 0
-  outlookHighThresholdTemperature: 35
-  outlookTemperatureLowColor: red
-  outlookTemperatureNormalColor: black
-  outlookTemperatureHighColor: red
-  outlookConditionsIconAccent: red
-  city: black
-  date: red
-  alert: red
-  errorIcon: red
-  statusBarBatteryWarning: red
-  statusBarWeakWifi: red
-  statusBarMessage: red
-  forecastPrecipitation: red
+  - provider: bme280                     # indoor temperature/humidity/pressure
+    pinPwr: 27
+    pinSDA: 21
+    pinSCL: 22
+    address: 0x76
 ```
 
-The full list of actual available options can be found in [schema.py](scripts/schema.py).
+Normally, combine complementary providers rather than configuring two
+providers for the same capability. The authoritative capability declarations
+are in [`scripts/provider_capabilities.py`](scripts/provider_capabilities.py).
 
-MeteoSwiss data is provided by the Swiss Federal Office of Meteorology and
-Climatology (MeteoSwiss). **Source: MeteoSwiss.** The App forecast endpoint is
-used as an implementation detail and may change; the official current
-observations come from the SwissMetNet CSV feed.
+### Available providers
 
-### Multiple devices
+| Provider | Data |
+|---|---|
+| [Open-Meteo](https://open-meteo.com/)<br>`open_meteo_forecast` | `current_forecast`, `hourly_forecast`, `daily_forecast` |
+| [Open-Meteo Air Quality](https://open-meteo.com/en/docs/air-quality-api)<br>`open_meteo_air_quality` | `air_quality` |
+| [NOAA/NWS](https://www.weather.gov/documentation/services-web-api)<br>`noaa_forecast` | `current_forecast`, `hourly_forecast`, `daily_forecast` |
+| [MeteoSwiss](https://www.meteoswiss.admin.ch/)<br>`meteoswiss_forecast` | `current_forecast`, `hourly_forecast`, `daily_forecast` |
+| [OpenWeatherMap One Call](https://openweathermap.org/api/one-call-3)<br>`openweathermap_onecall_v3` | `current_forecast`, `hourly_forecast`, `daily_forecast`, `alerts` |
+| [OpenWeatherMap Air Pollution](https://openweathermap.org/api/air-pollution)<br>`openweathermap_air_quality` | `air_quality` |
+| [MeteoAlarm](https://www.meteoalarm.org/)<br>`meteoalarm_alert` | `alerts` |
+| [BME280](https://www.bosch-sensortec.com/products/environmental-sensors/humidity-sensors-bme280/)<br>`bme280` | `in_temperature`, `in_humidity`, `in_pressure` |
 
-The firmware is compiled per device — one fully independent config per device lives in `devices/<name>.yml`. These files are gitignored (they contain credentials); only the `devices/*.example.yml` templates are tracked, so start from `devices/kitchen.example.yml`:
+## Configuration
+
+[`config.example.yml`](config.example.yml) is the canonical full configuration
+example. Copy it to `config.yml` and edit it rather than copying a large YAML
+snippet from this README. Per-device installations use the separate
+[`devices/kitchen.example.yml`](devices/kitchen.example.yml) template.
+
+The main configuration groups are:
+
+| Group | Purpose |
+|---|---|
+| `epdPanel`, `epdDriver`, `pin` | Select and connect the display hardware |
+| `providers` | Select forecast, air-quality, alert, and local sensor sources |
+| `wifi` | WiFi credentials and optional network settings |
+| `latitude`, `longitude`, `city`, `timezone` | Location and time settings |
+| `ntp` | NTP servers, synchronization interval, and timeout |
+| `units*` | Temperature, speed, pressure, distance, and precipitation units |
+| `leftPanelLayout` | Selects which left-panel items are rendered and their order |
+| `sleepDuration`, `bedTime`, `wakeTime` | Refresh and sleep behavior |
+| `homeAssistantMqtt` | Optional Home Assistant MQTT integration |
+| `colors` | Display colors and threshold colors |
+
+The complete list of valid values and validation rules is defined in
+[`scripts/schema.py`](scripts/schema.py).
+
+## Multiple devices
+
+The firmware is compiled separately for each device. Every device can have an
+independent panel, pinout, WiFi network, location, provider list, MQTT setup,
+and display layout.
+
+Device configurations live in `devices/<name>.yml`. They are ignored by Git
+because they contain credentials; only `*.example.yml` templates are tracked.
+Start with the template:
 
 ```sh
-cp devices/kitchen.example.yml devices/kitchen.yml   # edit to match the device
+cp devices/kitchen.example.yml devices/kitchen.yml
+./scripts/devices.sh validate kitchen
+./scripts/devices.sh build kitchen
+./scripts/devices.sh flash kitchen
 ```
 
-`scripts/devices.sh` wraps PlatformIO and picks the device config for you (it finds the `pio` executable via `PIO_BIN`, `PATH`, or `~/.platformio/penv/bin/pio`):
+The wrapper locates PlatformIO through `PIO_BIN`, `PATH`, or
+`~/.platformio/penv/bin/pio` and supports these commands:
 
 ```sh
-./scripts/devices.sh list                          # devices/*.yml
-./scripts/devices.sh validate kitchen              # schema check, no build
-./scripts/devices.sh build kitchen                 # compile
-./scripts/devices.sh flash kitchen                 # compile + upload
-./scripts/devices.sh flash kitchen /dev/ttyUSB0    # explicit upload port
-./scripts/devices.sh monitor kitchen               # serial monitor
-./scripts/devices.sh build kitchen --env lolin_d32_qemu   # pick a platformio.ini env (default lolin_d32)
-./scripts/devices.sh list-envs                     # envs defined in platformio.ini
+./scripts/devices.sh list
+./scripts/devices.sh validate kitchen
+./scripts/devices.sh build kitchen
+./scripts/devices.sh flash kitchen
+./scripts/devices.sh flash kitchen /dev/ttyUSB0
+./scripts/devices.sh monitor kitchen
+./scripts/devices.sh flash-monitor kitchen
+./scripts/devices.sh build kitchen --env lolin_d32_qemu
+./scripts/devices.sh list-envs
 ```
 
-Without the wrapper, select the config with the `ESP32_EPD_CONFIG` environment variable — a bare name maps to `devices/<name>.yml`, anything with a path separator is used as a path:
+Without the wrapper, select a configuration with `ESP32_EPD_CONFIG`. A bare
+name is resolved as `devices/<name>.yml`; a path containing a separator is used
+as a path directly:
 
 ```sh
 ESP32_EPD_CONFIG=kitchen ~/.platformio/penv/bin/pio run -e lolin_d32 -t upload
 ```
 
-When `ESP32_EPD_CONFIG` is unset, `config.yml` is used — that is what the VS Code PlatformIO buttons build against. The `lolin_d32_qemu` test environment instead defaults to the committed configuration marked `default` in `test/configs/index.yml`.
+When `ESP32_EPD_CONFIG` is unset, the regular environment uses the root
+`config.yml`. The `lolin_d32_qemu` environment instead uses the committed
+configuration marked `default` in [`test/configs/index.yml`](test/configs/index.yml).
 
-### QEMU unit tests
+## Home Assistant integration
 
-The QEMU tests run inside Docker and need no hardware. The registry in
-`test/configs/index.yml` is the source of truth for available configurations
-and their compatible PlatformIO suites:
+The optional MQTT integration publishes device information and sensor values
+using Home Assistant's MQTT discovery protocol. Enable it in the selected
+configuration:
+
+```yaml
+homeAssistantMqtt:
+  enabled: true
+  server: 192.168.1.10
+  port: 1883
+  username: esp32_weather
+  password: your-mqtt-password
+  deviceName: Kitchen weather display
+  discoveryPrefix: homeassistant
+```
+
+The integration can publish:
+
+- Battery level
+- Battery voltage
+- API activity duration
+- WiFi signal strength
+- Temperature
+- Humidity
+- Pressure
+
+Battery values require battery monitoring. Temperature, humidity, and pressure
+are published when the corresponding data is available from the configured
+providers or local sensor. The default state-topic prefix is
+`esp32_weather_epd/<clientId>/`; discovery topics use the configured
+`discoveryPrefix`.
+
+## QEMU unit tests
+
+The unit tests run inside Docker using an ESP32 QEMU emulator and do not
+require physical hardware. Test configurations are committed and pinned under
+[`test/configs/`](test/configs/); they do not use the untracked local
+`config.yml`.
+
+List available configurations:
 
 ```sh
-# Run every registered configuration.
-bash test/run_tests_docker.sh
-
-# Run one configuration while developing.
-bash test/run_tests_docker.sh --config owm -v
-
-# Run a selected subset.
-bash test/run_tests_docker.sh --config openmeteo --config noaa
-
-# List available configuration IDs.
 bash test/run_tests_docker.sh --list
 ```
 
-Each configuration gets its own build and QEMU boot. A new test configuration
-needs a committed `test/configs/<id>.yml`, a matching `test/src/test_<id>/`
-suite, and one entry in the registry; the runner and CI matrix discover it
-automatically.
+Run all registered configurations:
 
-### Home Assistant integration through MQTT
+```sh
+bash test/run_tests_docker.sh
+```
 
-The device supports Home Assistant integration via MQTT for monitoring. When enabled, the device publishes sensor data and device information using Home Assistant's MQTT discovery protocol.
-Available sensors:
- - Battery Level (%)
- - Battery Voltage
- - API Activity Duration
- - WIFI Signal Strength
- - Temperature
- - Humidity
- - Pressure
+Run one configuration while developing, or select a subset:
+
+```sh
+bash test/run_tests_docker.sh --config owm -v
+bash test/run_tests_docker.sh --config openmeteo --config noaa
+```
+
+Each selected configuration gets its own compatible build and QEMU boot. A
+new test configuration requires a pinned YAML file under `test/configs/`, a
+matching `test/src/test_<id>/` suite, and an entry in the registry. The runner
+and CI matrix discover registered configurations automatically.
+
+## Troubleshooting
+
+### Configuration validation fails
+
+Run the validator directly and read the reported field or capability error:
+
+```sh
+~/.platformio/penv/bin/python scripts/config.py --validate ./config.yml
+```
+
+Check that exactly one provider owns the forecast capabilities and that a
+provider for `air_quality` is configured when `AIR_QUALITY` is used in the
+layout.
+
+### PlatformIO is not found
+
+Install PlatformIO through VS Code or the CLI. If it is installed in the
+standard PlatformIO virtual environment, use
+`~/.platformio/penv/bin/pio`, or set `PIO_BIN` when using `scripts/devices.sh`.
+
+### Upload fails or the port is not detected
+
+Confirm that the board is connected, select the correct USB serial port, and
+pass it explicitly:
+
+```sh
+~/.platformio/penv/bin/pio run -e lolin_d32 -t upload --upload-port /dev/ttyUSB0
+./scripts/devices.sh flash kitchen /dev/ttyUSB0
+```
+
+The device wrapper also accepts the corresponding port for `monitor` and
+`flash-monitor`.
+
+### WiFi, NTP, or API data is unavailable
+
+Verify the WiFi credentials, location, timezone, provider configuration, and
+serial logs. Increase the NTP timeout if synchronization fails on a slow
+network. For HTTPS failures, check the selected transport and the device time.
+
+### MQTT is not discovered by Home Assistant
+
+Confirm that the broker address, port, username, password, and
+`discoveryPrefix` are correct. Check serial output for MQTT connection errors
+and ensure the broker is reachable from the device's network.
+
+### QEMU tests fail
+
+Ensure Docker is running and retry the selected configuration with verbose
+output:
+
+```sh
+bash test/run_tests_docker.sh --config openmeteo -v
+```
+
+The test runner saves QEMU diagnostics under `.pio/build/lolin_d32_qemu/`.
+
+## Contributing and license
+
+See [`AGENTS.md`](AGENTS.md) for repository build, testing, formatting, and
+configuration conventions. The project is licensed under the
+[GNU General Public License v3.0](LICENSE).
