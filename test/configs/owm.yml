@@ -1,5 +1,5 @@
 # Pinned configuration for the QEMU unit test run with the OpenWeatherMap
-# weather provider (test/run_tests.sh sets ESP32_EPD_CONFIG to this file).
+# weather provider (the test runner sets ESP32_EPD_CONFIG to this file).
 #
 # Uses the combined OpenWeatherMap One Call v3 provider for forecast and
 # alerts, plus the standalone OpenWeatherMap air-quality provider. Committed on purpose: test builds must never depend on

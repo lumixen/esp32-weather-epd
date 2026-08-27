@@ -5,14 +5,22 @@
 # in .pio/ on the host and the built image is cached across runs.
 #
 # The actual test orchestration lives in test/run_tests.sh (executed in the
-# container): it loops over the pinned test configs in test/configs/. Each run
-# selects the matching configuration-rooted PlatformIO suite, so its feature
-# modules share one build and one QEMU boot.
+# container): it reads the registry in test/configs/index.yml and runs all or
+# the selected configuration-rooted PlatformIO suites. Each run selects one
+# compatible suite, so its feature modules share one build and one QEMU boot.
+# Use --config <id> to focus on one configuration; repeat it for a subset.
 set -euo pipefail
 
 # Root of the git repo: the container mounts it read-write at /project, so
 # build artifacts land in .pio/ on the host.
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# Listing and help do not need Docker or PlatformIO. Keep these fast paths in
+# the wrapper so developers can inspect the registry before pulling/building
+# the test image.
+if [[ $# -eq 1 && ( "$1" == "--list" || "$1" == "--help" || "$1" == "-h" ) ]]; then
+    exec bash "$ROOT/test/run_tests.sh" "$1"
+fi
 
 IMAGE="${IMAGE:-esp32-weather-epd-test}"
 

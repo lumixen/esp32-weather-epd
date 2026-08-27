@@ -1,15 +1,14 @@
 """Pin the configuration file used by the QEMU test build environments.
 
-The test env (lolin_d32_qemu) must build against a committed test config
-(test/configs/openmeteo.yml) by default: test builds must never depend on
-the untracked local config.yml. test/run_tests.sh overrides ESP32_EPD_CONFIG
-per run for the other config variants: test/configs/owm.yml and
-test/configs/noaa.yml.
+The QEMU test environment must build against a committed test config by
+default: test builds must never depend on the untracked local config.yml.
+The registry in test/configs/index.yml provides the default and the list of
+paths that this script may inject or later remove.
 
-For every other env the variable is left alone — except when it still holds
-a config planted by this script for a test env (extra_scripts run in the
-same process for every env of an invocation), in which case it is removed so
-a regular build cannot accidentally pick up a test config.
+For every other env the variable is left alone — except when it still holds a
+config planted by this script for a test env (extra_scripts run in the same
+process for every env of an invocation), in which case it is removed so a
+regular build cannot accidentally pick up a test config.
 
 Run before scripts/config.py in the same process, hence the os.environ
 hand-off.
@@ -30,18 +29,33 @@ hand-off.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+from pathlib import Path
 import os
+import sys
 
 Import("env")  # noqa: F401 - provided by the PlatformIO build system
 
-TEST_ENV_CONFIGS = {
-    "lolin_d32_qemu": os.path.join("test", "configs", "openmeteo.yml"),
-}
+project_root = Path(env.subst("$PROJECT_DIR"))
+sys.path.insert(0, str(project_root / "scripts"))
+from test_configs import TestConfigError, load_registry  # noqa: E402
+
+
+try:
+    registry = load_registry(project_root)
+except TestConfigError as exc:
+    raise SystemExit(f"Invalid QEMU test configuration registry: {exc}") from exc
+
+TEST_ENV_NAMES = {"lolin_d32_qemu"}
+TEST_CONFIG_PATHS = {config.absolute_config_path.resolve() for config in registry.configs}
 
 env_name = env.subst("$PIOENV")
-test_config = TEST_ENV_CONFIGS.get(env_name)
-if test_config is not None:
+if env_name in TEST_ENV_NAMES:
     if "ESP32_EPD_CONFIG" not in os.environ:
-        os.environ["ESP32_EPD_CONFIG"] = test_config
-elif os.environ.get("ESP32_EPD_CONFIG") in TEST_ENV_CONFIGS.values():
-    os.environ.pop("ESP32_EPD_CONFIG", None)
+        os.environ["ESP32_EPD_CONFIG"] = registry.default_config.config_path
+elif "ESP32_EPD_CONFIG" in os.environ:
+    configured_path = Path(os.environ["ESP32_EPD_CONFIG"])
+    if not configured_path.is_absolute():
+        configured_path = project_root / configured_path
+    if configured_path.resolve() in TEST_CONFIG_PATHS:
+        os.environ.pop("ESP32_EPD_CONFIG", None)

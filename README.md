@@ -239,7 +239,32 @@ Without the wrapper, select the config with the `ESP32_EPD_CONFIG` environment v
 ESP32_EPD_CONFIG=kitchen ~/.platformio/penv/bin/pio run -e lolin_d32 -t upload
 ```
 
-When `ESP32_EPD_CONFIG` is unset, `config.yml` is used — that is what the VS Code PlatformIO buttons build against. (The `lolin_d32_qemu` test environment instead defaults to the committed test config `test/configs/openmeteo.yml`; see `test/run_tests.sh`.)
+When `ESP32_EPD_CONFIG` is unset, `config.yml` is used — that is what the VS Code PlatformIO buttons build against. The `lolin_d32_qemu` test environment instead defaults to the committed configuration marked `default` in `test/configs/index.yml`.
+
+### QEMU unit tests
+
+The QEMU tests run inside Docker and need no hardware. The registry in
+`test/configs/index.yml` is the source of truth for available configurations
+and their compatible PlatformIO suites:
+
+```sh
+# Run every registered configuration.
+bash test/run_tests_docker.sh
+
+# Run one configuration while developing.
+bash test/run_tests_docker.sh --config owm -v
+
+# Run a selected subset.
+bash test/run_tests_docker.sh --config openmeteo --config noaa
+
+# List available configuration IDs.
+bash test/run_tests_docker.sh --list
+```
+
+Each configuration gets its own build and QEMU boot. A new test configuration
+needs a committed `test/configs/<id>.yml`, a matching `test/src/test_<id>/`
+suite, and one entry in the registry; the runner and CI matrix discover it
+automatically.
 
 ### Home Assistant integration through MQTT
 
