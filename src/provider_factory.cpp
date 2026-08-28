@@ -25,6 +25,9 @@
 #if defined(REMOTE_PROVIDER_OPENWEATHERMAP_ONECALL_V3)
 #include "owm_provider.h"
 #endif
+#if defined(REMOTE_PROVIDER_OPENWEATHERMAP_ONECALL_V4)
+#include "owm_v4_provider.h"
+#endif
 #if defined(REMOTE_PROVIDER_OPENWEATHERMAP_AIR_QUALITY)
 #include "owm_air_quality_provider.h"
 #endif
@@ -51,6 +54,9 @@ ProviderBundle createProviders() {
 #endif
 #if defined(REMOTE_PROVIDER_OPENWEATHERMAP_ONECALL_V3)
   bundle.providers.push_back(std::make_shared<OpenWeatherMapOneCallV3Provider>());
+#endif
+#if defined(REMOTE_PROVIDER_OPENWEATHERMAP_ONECALL_V4)
+  bundle.providers.push_back(std::make_shared<OpenWeatherMapOneCallV4Provider>());
 #endif
 #if defined(REMOTE_PROVIDER_OPENWEATHERMAP_AIR_QUALITY)
   bundle.providers.push_back(std::make_shared<OpenWeatherMapAirQualityProvider>());

@@ -36,6 +36,11 @@ providers:
 #   - provider: openweathermap_onecall_v3
 #     transport: HTTPS_VERIFY
 #     apiKey: your-owm-api-key
+#   - provider: openweathermap_onecall_v4
+#     transport: HTTPS_VERIFY
+#     apiKey: your-owm-api-key
+# v4 supplies current/hourly/daily timelines; configure a separate alert
+# provider when alerts are required.
 
 ntp:
   server_1: 192.168.41.1

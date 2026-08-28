@@ -219,7 +219,8 @@ are in [`scripts/provider_capabilities.py`](scripts/provider_capabilities.py).
 | [Open-Meteo Air Quality](https://open-meteo.com/en/docs/air-quality-api)<br>`open_meteo_air_quality` | `air_quality` |
 | [NOAA/NWS](https://www.weather.gov/documentation/services-web-api)<br>`noaa_forecast` | `current_forecast`, `hourly_forecast`, `daily_forecast` |
 | [MeteoSwiss](https://www.meteoswiss.admin.ch/)<br>`meteoswiss_forecast` | `current_forecast`, `hourly_forecast`, `daily_forecast` |
-| [OpenWeatherMap One Call](https://openweathermap.org/api/one-call-3)<br>`openweathermap_onecall_v3` | `current_forecast`, `hourly_forecast`, `daily_forecast`, `alerts` |
+| [OpenWeatherMap One Call 3.0](https://openweathermap.org/api/one-call-3)<br>`openweathermap_onecall_v3` | `current_forecast`, `hourly_forecast`, `daily_forecast`, `alerts` (embedded alerts) |
+| [OpenWeatherMap One Call 4.0](https://openweathermap.org/api/one-call-4)<br>`openweathermap_onecall_v4` | `current_forecast`, `hourly_forecast`, `daily_forecast` (current, hourly, and daily timelines) |
 | [OpenWeatherMap Air Pollution](https://openweathermap.org/api/air-pollution)<br>`openweathermap_air_quality` | `air_quality` |
 | [MeteoAlarm](https://www.meteoalarm.org/)<br>`meteoalarm_alert` | `alerts` |
 | [BME280](https://www.bosch-sensortec.com/products/environmental-sensors/humidity-sensors-bme280/)<br>`bme280` | `in_temperature`, `in_humidity`, `in_pressure` |
@@ -348,7 +349,7 @@ bash test/run_tests_docker.sh
 Run one configuration while developing, or select a subset:
 
 ```sh
-bash test/run_tests_docker.sh --config owm -v
+bash test/run_tests_docker.sh --config owm3 -v
 bash test/run_tests_docker.sh --config openmeteo --config noaa
 ```
 
