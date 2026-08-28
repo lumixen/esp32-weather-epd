@@ -262,9 +262,7 @@ rendering:
 ```
 
 The complete list of valid values and validation rules is defined in
-[`scripts/schema.py`](scripts/schema.py). The grouped configuration format is
-required; existing flat configuration files must be updated to match the
-examples.
+[`scripts/schema.py`](scripts/schema.py).
 
 ## Multiple devices
 
