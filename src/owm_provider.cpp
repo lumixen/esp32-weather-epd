@@ -11,14 +11,15 @@
 #include "logger.h"
 
 #include <Arduino.h>
-#include <ArduinoJson.h>
+#include <ArduinoStreamParser.h>
+#include <cstdint>
+#include <cstring>
 #include "cert.h"
 #include "_locale.h"
 #include "esp_http_client_stream.h"
 #include "esp_http_client_utils.h"
 #include "owm_provider.h"
 #include "provider_fetch_operations.h"
-#include "provider_result_utils.h"
 
 #define OWM_NUM_ALERTS 8
 
@@ -167,140 +168,345 @@ weather_condition OpenWeatherMapOneCallV3Provider::mapWeatherCode(int id) {
   }
 }
 
-ProviderResult OpenWeatherMapOneCallV3Provider::deserializeOneCall(Stream &json, weather_report_t &report) {
-  int i;
-  // The destination is long-lived in the application. Clear it before every
-  // parse so omitted fields cannot retain values from an earlier response.
-  report.resetForecast();
-  report.resetAlerts();
+namespace {
 
-  JsonDocument filter;
-  filter["lat"] = true;
-  filter["lon"] = true;
-  filter["timezone"] = true;
-  filter["timezone_offset"] = true;
-  filter["current"] = true;
-  filter["minutely"] = false;
-  filter["hourly"] = true;
-  filter["daily"] = true;
-  for (int i = 0; i < OWM_NUM_ALERTS; ++i) {
-    filter["alerts"][i]["sender_name"] = false;
-    filter["alerts"][i]["event"] = true;
-    filter["alerts"][i]["start"] = true;
-    filter["alerts"][i]["end"] = true;
-    filter["alerts"][i]["description"] = false;
-    filter["alerts"][i]["tags"] = true;
-  }
-  JsonDocument doc;
-  DeserializationError error = deserializeJson(doc, json, DeserializationOption::Filter(filter));
-  LOG_DEBUG("doc.overflowed() : %s", doc.overflowed() ? "true" : "false");
-  if (LogLevel::TRACE >= g_logLevel) {
-    LOG_TRACE("pretty JSON dump:");
-    serializeJsonPretty(doc, Serial);
-    Serial.println();
-  }
-  if (error) {
-    report.resetForecast();
-    report.resetAlerts();
-    return mapDeserializationError(error);
-  }
-  report.forecast.lat = doc["lat"].as<float>();
-  report.forecast.lon = doc["lon"].as<float>();
-  report.forecast.timezone = doc["timezone"].as<const char *>();
-  report.forecast.timezone_offset = doc["timezone_offset"].as<int>();
+static bool keyIs(ElementSelector *selector, const char *key) {
+  return selector != nullptr && selector->isObject() && selector->getKey() != nullptr &&
+         strcmp(selector->getKey(), key) == 0;
+}
 
-  JsonObject current = doc["current"];
-  report.forecast.current.dt = current["dt"].as<int64_t>();
-  report.forecast.current.temp = current["temp"].as<float>();
-  report.forecast.current.feels_like = current["feels_like"].as<float>();
-  report.forecast.current.pressure = current["pressure"].as<int>();
-  report.forecast.current.humidity = current["humidity"].as<int>();
-  report.forecast.current.dew_point = current["dew_point"].as<float>();
-  report.forecast.current.clouds = current["clouds"].as<int>();
-  report.forecast.current.uvi = current["uvi"].as<float>();
-  report.forecast.current.visibility = current["visibility"].as<int>();
-  report.forecast.current.wind_speed = current["wind_speed"].as<float>();
-  report.forecast.current.wind_gust = current["wind_gust"].as<float>();
-  report.forecast.current.wind_deg = current["wind_deg"].as<int>();
-  report.forecast.current.rain_1h = current["rain"]["1h"].as<float>();
-  report.forecast.current.snow_1h = current["snow"]["1h"].as<float>();
-  JsonObject current_weather = current["weather"][0];
-  report.forecast.current.weather.condition = mapWeatherCode(current_weather["id"].as<int>());
-  report.forecast.current.is_day = current_weather["icon"].as<String>().endsWith("d");
+static bool numeric(ElementValue value) { return value.isInt() || value.isFloat(); }
 
-  i = 0;
-  for (JsonObject hourly : doc["hourly"].as<JsonArray>()) {
-    report.forecast.hourly[i].dt = hourly["dt"].as<int64_t>();
-    report.forecast.hourly[i].temp = hourly["temp"].as<float>();
-    report.forecast.hourly[i].feels_like = hourly["feels_like"].as<float>();
-    report.forecast.hourly[i].pressure = hourly["pressure"].as<int>();
-    report.forecast.hourly[i].humidity = hourly["humidity"].as<int>();
-    report.forecast.hourly[i].dew_point = hourly["dew_point"].as<float>();
-    report.forecast.hourly[i].clouds = hourly["clouds"].as<int>();
-    report.forecast.hourly[i].uvi = hourly["uvi"].as<float>();
-    report.forecast.hourly[i].visibility = hourly["visibility"].as<int>();
-    report.forecast.hourly[i].wind_speed = hourly["wind_speed"].as<float>();
-    report.forecast.hourly[i].wind_gust = hourly["wind_gust"].as<float>();
-    report.forecast.hourly[i].wind_deg = hourly["wind_deg"].as<int>();
-    report.forecast.hourly[i].pop = hourly["pop"].as<float>() * 100;
-    report.forecast.hourly[i].rain_1h = hourly["rain"]["1h"].as<float>();
-    report.forecast.hourly[i].snow_1h = hourly["snow"]["1h"].as<float>();
-    JsonObject hourly_weather = hourly["weather"][0];
-    report.forecast.hourly[i].weather.condition = mapWeatherCode(hourly_weather["id"].as<int>());
-    report.forecast.hourly[i].is_day = hourly_weather["icon"].as<String>().endsWith("d");
-    if (i == NUM_HOURLY - 1)
-      break;
-    ++i;
+static double numberOrZero(ElementValue value) { return numeric(value) ? value.getDouble() : 0.0; }
+
+static bool arrayIndex(ElementSelector *selector, int &index) {
+  if (selector == nullptr || selector->isObject())
+    return false;
+  index = selector->getIndex();
+  return index >= 0;
+}
+
+/* Maps the One Call v3 response directly into the application model. The
+ * parser deliberately consumes the complete JSON document, while fields
+ * outside the model are ignored without allocating a DOM. */
+class OneCallV3Handler : public JsonHandler {
+ public:
+  OneCallV3Handler(weather_report_t &report, std::vector<weather_alert_t> &alerts)
+      : forecast_(report.forecast), alerts_(alerts) {}
+
+  void startDocument() override { sawStart_ = true; }
+  void endDocument() override { documentDone_ = true; }
+  void startObject(ElementPath path) override {
+    if (path.getCount() != 2 || !keyIs(path.get(0), "alerts"))
+      return;
+    int index;
+    if (!arrayIndex(path.get(1), index) || index >= OWM_NUM_ALERTS)
+      return;
+    activeAlertIndex_ = index;
+    activeAlertData_ = {};
+    activeAlert_ = true;
+  }
+  void endObject(ElementPath path) override {
+    if (!activeAlert_ || path.getCount() != 2 || !keyIs(path.get(0), "alerts"))
+      return;
+    int index;
+    if (!arrayIndex(path.get(1), index) || index != activeAlertIndex_)
+      return;
+    alerts_.push_back(activeAlertData_);
+    activeAlert_ = false;
+  }
+  void startArray(ElementPath) override {}
+  void endArray(ElementPath) override {}
+  void whitespace(char) override {}
+
+  void value(ElementPath path, ElementValue value) override {
+    if (path.getCount() == 1) {
+      storeMetadata(path.getCurrent(), value);
+      return;
+    }
+    if (path.getCount() >= 3 && keyIs(path.get(0), "alerts")) {
+      storeAlert(path, value);
+      return;
+    }
+    if (keyIs(path.get(0), "current")) {
+      storeCurrent(path, value);
+      return;
+    }
+
+    int index;
+    if (path.getCount() < 3 || !arrayIndex(path.get(1), index))
+      return;
+    if (keyIs(path.get(0), "hourly"))
+      storeHourly(path, index, value);
+    else if (keyIs(path.get(0), "daily"))
+      storeDaily(path, index, value);
   }
 
-  i = 0;
-  for (JsonObject daily : doc["daily"].as<JsonArray>()) {
-    report.forecast.daily[i].dt = daily["dt"].as<int64_t>();
-    JsonObject daily_temp = daily["temp"];
-    report.forecast.daily[i].temp.morn = daily_temp["morn"].as<float>();
-    report.forecast.daily[i].temp.day = daily_temp["day"].as<float>();
-    report.forecast.daily[i].temp.eve = daily_temp["eve"].as<float>();
-    report.forecast.daily[i].temp.night = daily_temp["night"].as<float>();
-    if (!daily_temp["min"].isNull())
-      report.forecast.daily[i].temp.min = daily_temp["min"].as<float>();
-    if (!daily_temp["max"].isNull())
-      report.forecast.daily[i].temp.max = daily_temp["max"].as<float>();
-    report.forecast.daily[i].pressure = daily["pressure"].as<int>();
-    report.forecast.daily[i].humidity = daily["humidity"].as<int>();
-    report.forecast.daily[i].dew_point = daily["dew_point"].as<float>();
-    report.forecast.daily[i].clouds = daily["clouds"].as<int>();
-    report.forecast.daily[i].uvi = daily["uvi"].as<float>();
-    report.forecast.daily[i].visibility = daily["visibility"].as<int>();
-    report.forecast.daily[i].wind_speed = daily["wind_speed"].as<float>();
-    report.forecast.daily[i].wind_gust = daily["wind_gust"].as<float>();
-    report.forecast.daily[i].wind_deg = daily["wind_deg"].as<int>();
-    report.forecast.daily[i].pop = daily["pop"].as<float>() * 100;
-    report.forecast.daily[i].rain = daily["rain"].as<float>();
-    report.forecast.daily[i].snow = daily["snow"].as<float>();
-    JsonObject daily_weather = daily["weather"][0];
-    report.forecast.daily[i].weather.condition = mapWeatherCode(daily_weather["id"].as<int>());
-    if (i == NUM_DAILY - 1)
-      break;
-    ++i;
+  bool sawStart() const { return sawStart_; }
+  bool finishedDocument() const { return documentDone_; }
+
+ private:
+  void storeMetadata(ElementSelector *field, ElementValue value) {
+    if (field == nullptr)
+      return;
+    if (keyIs(field, "lat"))
+      forecast_.lat = static_cast<float>(numberOrZero(value));
+    else if (keyIs(field, "lon"))
+      forecast_.lon = static_cast<float>(numberOrZero(value));
+    else if (keyIs(field, "timezone") && value.isString())
+      forecast_.timezone = value.getString();
+    else if (keyIs(field, "timezone_offset"))
+      forecast_.timezone_offset = static_cast<int>(numberOrZero(value));
   }
 
-  std::vector<weather_alert_t> &alerts = report.engageAlerts();
-  if (doc["alerts"].is<JsonArray>()) {
-    i = 0;
-    for (JsonObject alert : doc["alerts"].as<JsonArray>()) {
-      weather_alert_t new_alert = {};
-      new_alert.event = alert["event"].as<const char *>();
-      new_alert.start = alert["start"].as<int64_t>();
-      new_alert.end = alert["end"].as<int64_t>();
-      new_alert.tags = alert["tags"][0].as<const char *>();
-      alerts.push_back(new_alert);
-      if (i == OWM_NUM_ALERTS - 1)
-        break;
-      ++i;
+  void storeCurrent(ElementPath path, ElementValue value) {
+    if (path.getCount() == 2) {
+      ElementSelector *field = path.getCurrent();
+      if (keyIs(field, "dt"))
+        forecast_.current.dt = static_cast<int64_t>(numberOrZero(value));
+      else if (numeric(value) || value.isNull())
+        storeCurrentNumber(field, numberOrZero(value));
+      return;
+    }
+    if (path.getCount() == 3 && (keyIs(path.get(1), "rain") || keyIs(path.get(1), "snow"))) {
+      if (!keyIs(path.getCurrent(), "1h"))
+        return;
+      if (keyIs(path.get(1), "rain"))
+        forecast_.current.rain_1h = static_cast<float>(numberOrZero(value));
+      else
+        forecast_.current.snow_1h = static_cast<float>(numberOrZero(value));
+      return;
+    }
+    if (path.getCount() == 4 && keyIs(path.get(1), "weather")) {
+      int index;
+      if (!arrayIndex(path.get(2), index) || index != 0)
+        return;
+      if (keyIs(path.getCurrent(), "id"))
+        forecast_.current.weather.condition = OpenWeatherMapOneCallV3Provider::mapWeatherCode(numberOrZero(value));
+      else if (keyIs(path.getCurrent(), "icon") && value.isString())
+        forecast_.current.is_day = String(value.getString()).endsWith("d");
     }
   }
 
-  return mapDeserializationError(error);
+  static void storeCurrentNumber(ElementSelector *field, double value, current_t &current) {
+    if (keyIs(field, "temp"))
+      current.temp = static_cast<float>(value);
+    else if (keyIs(field, "feels_like"))
+      current.feels_like = static_cast<float>(value);
+    else if (keyIs(field, "pressure"))
+      current.pressure = static_cast<int>(value);
+    else if (keyIs(field, "humidity"))
+      current.humidity = static_cast<int>(value);
+    else if (keyIs(field, "dew_point"))
+      current.dew_point = static_cast<float>(value);
+    else if (keyIs(field, "clouds"))
+      current.clouds = static_cast<int>(value);
+    else if (keyIs(field, "uvi"))
+      current.uvi = static_cast<float>(value);
+    else if (keyIs(field, "visibility"))
+      current.visibility = static_cast<int>(value);
+    else if (keyIs(field, "wind_speed"))
+      current.wind_speed = static_cast<float>(value);
+    else if (keyIs(field, "wind_gust"))
+      current.wind_gust = static_cast<float>(value);
+    else if (keyIs(field, "wind_deg"))
+      current.wind_deg = static_cast<int>(value);
+  }
+
+  void storeCurrentNumber(ElementSelector *field, double value) { storeCurrentNumber(field, value, forecast_.current); }
+
+  void storeHourly(ElementPath path, int index, ElementValue value) {
+    if (index >= NUM_HOURLY)
+      return;
+    hourly_t &hourly = forecast_.hourly[index];
+    if (path.getCount() == 3) {
+      ElementSelector *field = path.getCurrent();
+      if (keyIs(field, "dt"))
+        hourly.dt = static_cast<int64_t>(numberOrZero(value));
+      else if (numeric(value) || value.isNull())
+        storeHourlyNumber(field, numberOrZero(value), hourly);
+      return;
+    }
+    if (path.getCount() == 4 && (keyIs(path.get(2), "rain") || keyIs(path.get(2), "snow"))) {
+      if (!keyIs(path.getCurrent(), "1h"))
+        return;
+      if (keyIs(path.get(2), "rain"))
+        hourly.rain_1h = static_cast<float>(numberOrZero(value));
+      else
+        hourly.snow_1h = static_cast<float>(numberOrZero(value));
+      return;
+    }
+    if (path.getCount() == 5 && keyIs(path.get(2), "weather")) {
+      int weatherIndex;
+      if (!arrayIndex(path.get(3), weatherIndex) || weatherIndex != 0)
+        return;
+      if (keyIs(path.getCurrent(), "id"))
+        hourly.weather.condition = OpenWeatherMapOneCallV3Provider::mapWeatherCode(numberOrZero(value));
+      else if (keyIs(path.getCurrent(), "icon") && value.isString())
+        hourly.is_day = String(value.getString()).endsWith("d");
+    }
+  }
+
+  static void storeHourlyNumber(ElementSelector *field, double value, hourly_t &hourly) {
+    if (keyIs(field, "temp"))
+      hourly.temp = static_cast<float>(value);
+    else if (keyIs(field, "feels_like"))
+      hourly.feels_like = static_cast<float>(value);
+    else if (keyIs(field, "pressure"))
+      hourly.pressure = static_cast<int>(value);
+    else if (keyIs(field, "humidity"))
+      hourly.humidity = static_cast<int>(value);
+    else if (keyIs(field, "dew_point"))
+      hourly.dew_point = static_cast<float>(value);
+    else if (keyIs(field, "clouds"))
+      hourly.clouds = static_cast<int>(value);
+    else if (keyIs(field, "uvi"))
+      hourly.uvi = static_cast<float>(value);
+    else if (keyIs(field, "visibility"))
+      hourly.visibility = static_cast<int>(value);
+    else if (keyIs(field, "wind_speed"))
+      hourly.wind_speed = static_cast<float>(value);
+    else if (keyIs(field, "wind_gust"))
+      hourly.wind_gust = static_cast<float>(value);
+    else if (keyIs(field, "wind_deg"))
+      hourly.wind_deg = static_cast<int>(value);
+    else if (keyIs(field, "pop"))
+      hourly.pop = static_cast<int>(value * 100.0);
+  }
+
+  void storeDaily(ElementPath path, int index, ElementValue value) {
+    if (index >= NUM_DAILY)
+      return;
+    daily_t &daily = forecast_.daily[index];
+    if (path.getCount() == 3) {
+      ElementSelector *field = path.getCurrent();
+      if (keyIs(field, "dt"))
+        daily.dt = static_cast<int64_t>(numberOrZero(value));
+      else if (numeric(value) || value.isNull())
+        storeDailyNumber(field, numberOrZero(value), daily);
+      return;
+    }
+    if (path.getCount() == 4 && keyIs(path.get(2), "temp")) {
+      if (!numeric(value))
+        return;
+      ElementSelector *field = path.getCurrent();
+      if (keyIs(field, "morn"))
+        daily.temp.morn = static_cast<float>(value.getDouble());
+      else if (keyIs(field, "day"))
+        daily.temp.day = static_cast<float>(value.getDouble());
+      else if (keyIs(field, "eve"))
+        daily.temp.eve = static_cast<float>(value.getDouble());
+      else if (keyIs(field, "night"))
+        daily.temp.night = static_cast<float>(value.getDouble());
+      else if (keyIs(field, "min"))
+        daily.temp.min = static_cast<float>(value.getDouble());
+      else if (keyIs(field, "max"))
+        daily.temp.max = static_cast<float>(value.getDouble());
+      return;
+    }
+    if (path.getCount() == 5 && keyIs(path.get(2), "weather")) {
+      int weatherIndex;
+      if (!arrayIndex(path.get(3), weatherIndex) || weatherIndex != 0)
+        return;
+      if (keyIs(path.getCurrent(), "id"))
+        daily.weather.condition = OpenWeatherMapOneCallV3Provider::mapWeatherCode(numberOrZero(value));
+    }
+  }
+
+  static void storeDailyNumber(ElementSelector *field, double value, daily_t &daily) {
+    if (keyIs(field, "pressure"))
+      daily.pressure = static_cast<int>(value);
+    else if (keyIs(field, "humidity"))
+      daily.humidity = static_cast<int>(value);
+    else if (keyIs(field, "dew_point"))
+      daily.dew_point = static_cast<float>(value);
+    else if (keyIs(field, "clouds"))
+      daily.clouds = static_cast<int>(value);
+    else if (keyIs(field, "uvi"))
+      daily.uvi = static_cast<float>(value);
+    else if (keyIs(field, "visibility"))
+      daily.visibility = static_cast<int>(value);
+    else if (keyIs(field, "wind_speed"))
+      daily.wind_speed = static_cast<float>(value);
+    else if (keyIs(field, "wind_gust"))
+      daily.wind_gust = static_cast<float>(value);
+    else if (keyIs(field, "wind_deg"))
+      daily.wind_deg = static_cast<int>(value);
+    else if (keyIs(field, "pop"))
+      daily.pop = static_cast<int>(value * 100.0);
+    else if (keyIs(field, "rain"))
+      daily.rain = static_cast<float>(value);
+    else if (keyIs(field, "snow"))
+      daily.snow = static_cast<float>(value);
+  }
+
+  void storeAlert(ElementPath path, ElementValue value) {
+    if (!activeAlert_ || path.getCount() < 3)
+      return;
+    if (path.getCount() == 3) {
+      ElementSelector *field = path.getCurrent();
+      if (keyIs(field, "event") && value.isString())
+        activeAlertData_.event = value.getString();
+      else if (keyIs(field, "start"))
+        activeAlertData_.start = static_cast<int64_t>(numberOrZero(value));
+      else if (keyIs(field, "end"))
+        activeAlertData_.end = static_cast<int64_t>(numberOrZero(value));
+      return;
+    }
+    if (path.getCount() == 4 && keyIs(path.get(2), "tags")) {
+      int index;
+      if (arrayIndex(path.get(3), index) && index == 0 && value.isString())
+        activeAlertData_.tags = value.getString();
+    }
+  }
+
+  forecast_t &forecast_;
+  std::vector<weather_alert_t> &alerts_;
+  weather_alert_t activeAlertData_{};
+  int activeAlertIndex_ = -1;
+  bool activeAlert_ = false;
+  bool sawStart_ = false;
+  bool documentDone_ = false;
+};
+
+static ProviderResult consumeOneCallJson(Stream &json, OneCallV3Handler &handler) {
+  ArduinoStreamParser parser;
+  parser.setHandler(&handler);
+  uint8_t buffer[256];
+  while (!parser.hasParseError() && !handler.finishedDocument()) {
+    const size_t count = json.readBytes(buffer, sizeof(buffer));
+    if (count == 0)
+      break;
+    for (size_t i = 0; i < count && !parser.hasParseError() && !handler.finishedDocument(); ++i) {
+      if (!handler.sawStart() && (buffer[i] == ' ' || buffer[i] == '\t' || buffer[i] == '\n' || buffer[i] == '\r'))
+        continue;
+      parser.write(buffer + i, 1);
+    }
+  }
+  if (parser.hasParseError()) {
+    LOG_WARNING("OpenWeatherMap One Call v3 JSON parse error: %s", parser.getErrorMessage());
+    return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT);
+  }
+  if (handler.finishedDocument())
+    return ProviderResult::ok();
+  if (!handler.sawStart())
+    return ProviderResult::error(TXT_DESERIALIZATION_ERROR_EMPTY_INPUT);
+  return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT);
+}
+
+}  // namespace
+
+ProviderResult OpenWeatherMapOneCallV3Provider::deserializeOneCall(Stream &json, weather_report_t &report) {
+  report.resetForecast();
+  report.resetAlerts();
+  std::vector<weather_alert_t> &alerts = report.engageAlerts();
+  OneCallV3Handler handler(report, alerts);
+  ProviderResult result = consumeOneCallJson(json, handler);
+  if (!result.isOk()) {
+    report.resetForecast();
+    report.resetAlerts();
+  }
+  return result;
 }
 
 #endif  // REMOTE_PROVIDER_OPENWEATHERMAP_ONECALL_V3
