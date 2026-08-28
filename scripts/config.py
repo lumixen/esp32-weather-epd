@@ -53,7 +53,7 @@ if yaml is None:
     raise SystemExit("pyyaml is required: pip install pyyaml")
 
 from pydantic import ValidationError
-from schema import ConfigSchema, Color
+from schema import ConfigSchema, Color, Colors
 from provider_capabilities import validate_capabilities
 from re import sub
 from datetime import datetime
@@ -319,10 +319,10 @@ def generate(config_path, header_path, write_header=True):
 
     # E-Paper display and locale
     header_lines.append("// Configuration")
-    emit_define(header_lines, f"EPD_PANEL_{config.epdPanel.name}")
-    emit_define(header_lines, f"EPD_DRIVER_{config.epdDriver.name}")
+    emit_define(header_lines, f"EPD_PANEL_{config.display.panel.name}")
+    emit_define(header_lines, f"EPD_DRIVER_{config.display.driverBoard.name}")
     # LOCALE is a token-pasting target in locale.cpp (no quotes)
-    emit_define(header_lines, "LOCALE", config.locale.value)
+    emit_define(header_lines, "LOCALE", config.rendering.locale.value)
 
     # providers configuration. Remote macros select compiled HTTP provider
     # implementations; local providers select their hardware implementations.
@@ -365,10 +365,10 @@ def generate(config_path, header_path, write_header=True):
 
     # ntp configuration
     header_lines.append("// ntp configuration")
-    emit_typed(header_lines, "NTP_SERVER_1", config.ntp.server_1)
-    emit_typed(header_lines, "NTP_SERVER_2", config.ntp.server_2)
+    emit_typed(header_lines, "NTP_SERVER_1", config.ntp.servers[0])
+    emit_typed(header_lines, "NTP_SERVER_2", config.ntp.servers[min(1, len(config.ntp.servers) - 1)])
     emit_typed(header_lines, "NTP_SYNC_INTERVAL_WAKEUPS", config.ntp.syncIntervalWakeups)
-    emit_typed(header_lines, "NTP_TIMEOUT", config.ntp.timeout)
+    emit_typed(header_lines, "NTP_TIMEOUT", config.ntp.timeoutMs)
     emit_define(header_lines, "RTC_DRIFT_CORRECTION", 1 if config.ntp.rtcCorrection else 0)
 
     # local environment-sensor configuration. Preserve the established BME
@@ -380,33 +380,35 @@ def generate(config_path, header_path, write_header=True):
         emit_define(header_lines, "BME_TYPE_NONE")
     else:
         emit_define(header_lines, "BME_TYPE_BME280")
-        for key in ("pinPwr", "pinSDA", "pinSCL"):
-            emit_typed(header_lines, f"BME_{upper_snake(key)}", getattr(bme_provider, key))
+        for key, constant in (("power", "BME_PIN_PWR"), ("sda", "BME_PIN_SDA"), ("scl", "BME_PIN_SCL")):
+            emit_typed(header_lines, constant, getattr(bme_provider.pins, key))
         emit_typed(header_lines, "BME_ADDRESS", bme_provider.address)
     header_lines.append("")
 
-    # units and display configuration
+    # rendering configuration
+    rendering = config.rendering
+    units = rendering.units
     header_lines.append("// units configuration")
-    emit_define(header_lines, f"UNITS_TEMP_{config.unitsTemp.name}")
-    emit_define(header_lines, f"UNITS_SPEED_{config.unitsSpeed.name}")
-    emit_define(header_lines, f"UNITS_PRES_{config.unitsPres.name}")
-    emit_define(header_lines, f"UNITS_DISTANCE_{config.unitsDistance.name}")
-    emit_define(header_lines, f"UNITS_HOURLY_PRECIP_{config.unitsHourlyPrecip.name}")
-    emit_define(header_lines, f"UNITS_DAILY_PRECIP_{config.unitsDailyPrecip.name}")
-    emit_define(header_lines, f"WIND_DIRECTION_INDICATOR_{config.windDirectionIndicator.name}")
-    emit_define(header_lines, f"WIND_ARROW_PRECISION_{config.windArrowPrecision.name}")
+    emit_define(header_lines, f"UNITS_TEMP_{units.temperature.name}")
+    emit_define(header_lines, f"UNITS_SPEED_{units.speed.name}")
+    emit_define(header_lines, f"UNITS_PRES_{units.pressure.name}")
+    emit_define(header_lines, f"UNITS_DISTANCE_{units.distance.name}")
+    emit_define(header_lines, f"UNITS_HOURLY_PRECIP_{units.hourlyPrecipitation.name}")
+    emit_define(header_lines, f"UNITS_DAILY_PRECIP_{units.dailyPrecipitation.name}")
+    emit_define(header_lines, f"WIND_DIRECTION_INDICATOR_{rendering.windDirectionIndicator.name}")
+    emit_define(header_lines, f"WIND_ARROW_PRECISION_{rendering.windArrowPrecision.name}")
 
     # font and display configuration
     header_lines.append("// font and display configuration")
-    emit_define(header_lines, "FONT_HEADER", f'"{FONT_FILES[config.font]}"')
-    emit_define(header_lines, f"DISPLAY_DAILY_PRECIP_{config.displayDailyPrecip.name}")
-    emit_define(header_lines, "DISPLAY_HOURLY_ICONS", 1 if config.displayHourlyIcons else 0)
+    emit_define(header_lines, "FONT_HEADER", f'"{FONT_FILES[rendering.font]}"')
+    emit_define(header_lines, f"DISPLAY_DAILY_PRECIP_{rendering.displayDailyPrecip.name}")
+    emit_define(header_lines, "DISPLAY_HOURLY_ICONS", 1 if rendering.displayHourlyIcons else 0)
 
-    # status bar and debug configuration
+    # status bar and battery configuration
     header_lines.append("// status bar configuration")
-    emit_define(header_lines, "STATUS_BAR_EXTRAS_BAT_VOLTAGE", 1 if config.statusBarExtrasBatVoltage else 0)
-    emit_define(header_lines, "STATUS_BAR_EXTRAS_WIFI_RSSI", 1 if config.statusBarExtrasWifiRSSI else 0)
-    emit_define(header_lines, "BATTERY_MONITORING", 1 if config.batteryMonitoring else 0)
+    emit_define(header_lines, "STATUS_BAR_EXTRAS_BAT_VOLTAGE", 1 if rendering.statusBar.showBatteryVoltage else 0)
+    emit_define(header_lines, "STATUS_BAR_EXTRAS_WIFI_RSSI", 1 if rendering.statusBar.showWifiRssi else 0)
+    emit_define(header_lines, "BATTERY_MONITORING", 1 if config.battery.monitoring else 0)
 
     # log configuration
     header_lines.append("// log configuration")
@@ -415,15 +417,25 @@ def generate(config_path, header_path, write_header=True):
 
     # pin configuration
     header_lines.append("// pin configuration")
-    for key in ("batAdc", "epdBusy", "epdCS", "epdRst", "epdDC", "epdSCK", "epdMISO", "epdMOSI", "epdPwr"):
-        emit_typed(header_lines, f"PIN_{upper_snake(key)}", getattr(config.pin, key))
+    emit_typed(header_lines, "PIN_BAT_ADC", config.battery.adcPin)
+    for key, constant in (
+        ("busy", "PIN_EPD_BUSY"),
+        ("chipSelect", "PIN_EPD_CS"),
+        ("reset", "PIN_EPD_RST"),
+        ("dataCommand", "PIN_EPD_DC"),
+        ("clock", "PIN_EPD_SCK"),
+        ("miso", "PIN_EPD_MISO"),
+        ("mosi", "PIN_EPD_MOSI"),
+        ("power", "PIN_EPD_PWR"),
+    ):
+        emit_typed(header_lines, constant, getattr(config.display.pins, key))
     header_lines.append("")
 
     # wifi configuration
     header_lines.append("// wifi configuration")
     emit_typed(header_lines, "WIFI_SSID", config.wifi.ssid)
     emit_typed(header_lines, "WIFI_PASSWORD", config.wifi.password)
-    emit_typed(header_lines, "WIFI_TIMEOUT", config.wifi.timeout)
+    emit_typed(header_lines, "WIFI_TIMEOUT", config.wifi.timeoutMs)
     emit_define(header_lines, "WIFI_SCAN", 1 if config.wifi.scan else 0)
     if config.wifi.bssid is not None:
         emit_define(header_lines, "WIFI_HAS_BSSID")
@@ -440,24 +452,24 @@ def generate(config_path, header_path, write_header=True):
 
     # location configuration
     header_lines.append("// location configuration")
-    emit_typed(header_lines, "LAT", config.latitude)
-    emit_typed(header_lines, "LON", config.longitude)
-    emit_typed(header_lines, "CITY_STRING", config.city)
+    emit_typed(header_lines, "LAT", config.location.latitude)
+    emit_typed(header_lines, "LON", config.location.longitude)
+    emit_typed(header_lines, "CITY_STRING", config.location.city)
 
     # time configuration
     header_lines.append("// time configuration")
-    emit_typed(header_lines, "TIMEZONE", config.timezone)
-    emit_typed(header_lines, "TIME_FORMAT", config.timeFormat)
-    emit_typed(header_lines, "HOUR_FORMAT", config.hourFormat)
-    emit_typed(header_lines, "DATE_FORMAT", config.dateFormat)
-    emit_typed(header_lines, "REFRESH_TIME_FORMAT", config.refreshTimeFormat)
+    emit_typed(header_lines, "TIMEZONE", config.location.timezone)
+    emit_typed(header_lines, "TIME_FORMAT", rendering.timeFormat)
+    emit_typed(header_lines, "HOUR_FORMAT", rendering.hourFormat)
+    emit_typed(header_lines, "DATE_FORMAT", rendering.dateFormat)
+    emit_typed(header_lines, "REFRESH_TIME_FORMAT", rendering.refreshTimeFormat)
 
     # sleep configuration
     header_lines.append("// sleep configuration")
-    emit_typed(header_lines, "SLEEP_DURATION", config.sleepDuration)
-    emit_typed(header_lines, "BED_TIME", config.bedTime)
-    emit_typed(header_lines, "WAKE_TIME", config.wakeTime)
-    emit_typed(header_lines, "HOURLY_GRAPH_MAX", config.hourlyGraphMax)
+    emit_typed(header_lines, "SLEEP_DURATION", config.schedule.refreshMinutes)
+    emit_typed(header_lines, "BED_TIME", config.schedule.bedTime)
+    emit_typed(header_lines, "WAKE_TIME", config.schedule.wakeTime)
+    emit_typed(header_lines, "HOURLY_GRAPH_MAX", rendering.hourlyGraphMax)
 
     # homeAssistantMqtt configuration
     header_lines.append("// homeAssistantMqtt configuration")
@@ -481,17 +493,17 @@ def generate(config_path, header_path, write_header=True):
 
     # leftPanelLayout configuration
     header_lines.append("// leftPanelLayout configuration")
-    for name, idx in config.leftPanelLayout.items():
+    for idx, name in enumerate(rendering.leftPanelLayout):
         emit_define(header_lines, f"POS_{name.upper()}", idx)
 
     # moon phase configuration
     header_lines.append("// moon phase configuration")
-    emit_define(header_lines, f"MOON_PHASE_STYLE_{config.moonPhaseStyle.name}")
+    emit_define(header_lines, f"MOON_PHASE_STYLE_{rendering.moonPhaseStyle.name}")
 
     # colors configuration
     header_lines.append("// colors configuration")
-    for key in config.colors.model_fields:
-        value = getattr(config.colors, key)
+    for key in Colors.model_fields:
+        value = getattr(rendering.colors, key)
         name = f"COLORS_{upper_snake(key)}"
         if isinstance(value, Color):
             emit_define(header_lines, name, value.to_define_value())

@@ -181,7 +181,7 @@ one fetch operation when a service uses separate endpoints internally.
 
 Each capability can have at most one owner. The current, hourly, and daily
 forecast capabilities are required. Air quality is required when `AIR_QUALITY`
-is present in `leftPanelLayout`. Alerts and local sensor capabilities are
+is present in `rendering.leftPanelLayout`. Alerts and local sensor capabilities are
 optional. The configuration validator rejects unknown providers, duplicate
 capability ownership, missing required capabilities, and unsupported
 precipitation settings.
@@ -201,9 +201,10 @@ providers:
   - provider: meteoalarm_alert           # alerts
     country: netherlands
   - provider: bme280                     # indoor temperature/humidity/pressure
-    pinPwr: 27
-    pinSDA: 21
-    pinSCL: 22
+    pins:
+      power: 27
+      sda: 21
+      scl: 22
     address: 0x76
 ```
 
@@ -236,19 +237,22 @@ The main configuration groups are:
 
 | Group | Purpose |
 |---|---|
-| `epdPanel`, `epdDriver`, `pin` | Select and connect the display hardware |
+| `display` | E-paper panel, driver board, and display pins |
 | `providers` | Select forecast, air-quality, alert, and local sensor sources |
 | `wifi` | WiFi credentials and optional network settings |
-| `latitude`, `longitude`, `city`, `timezone` | Location and time settings |
+| `location` | Coordinates, city, and timezone |
 | `ntp` | NTP servers, synchronization interval, and timeout |
-| `units*` | Temperature, speed, pressure, distance, and precipitation units |
-| `leftPanelLayout` | Selects which left-panel items are rendered and their order |
-| `sleepDuration`, `bedTime`, `wakeTime` | Refresh and sleep behavior |
+| `rendering.units` | Temperature, speed, pressure, distance, and precipitation units |
+| `rendering` | Fonts, formatting, layout, status-bar options, and colors |
+| `battery` | Battery monitoring and ADC pin |
+| `schedule` | Refresh and sleep behavior |
 | `homeAssistantMqtt` | Optional Home Assistant MQTT integration |
-| `colors` | Display colors and threshold colors |
+| `logLevel` | Serial logging verbosity |
 
 The complete list of valid values and validation rules is defined in
-[`scripts/schema.py`](scripts/schema.py).
+[`scripts/schema.py`](scripts/schema.py). The grouped configuration format is
+required; existing flat configuration files must be updated to match the
+examples.
 
 ## Multiple devices
 

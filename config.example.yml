@@ -1,130 +1,141 @@
 # Example configuration for the ESP32 weather e-paper display.
 #
 # Copy this file to config.yml and adjust the values to your setup.
-# The weather/air-quality providers (Open-Meteo) work without any API keys;
-# NOAA/NWS is also keyless but primarily covers the United States. The
-# MeteoAlarm alerts provider only needs the country slug below.
-#
-# NOTE: the Open-Meteo unit suite links MeteoAlarmAlertProvider::FeedParser;
-# the pinned test configuration includes the MeteoAlarm provider.
-epdPanel: GENERIC_BW_V2
-epdDriver: Good Display DESPI-C02
-locale: en_GB
+# The weather/air-quality providers (Open-Meteo) work without API keys;
+# NOAA/NWS is also keyless but primarily covers the United States.
 
+# E-paper hardware and driver board.
+display:
+  panel: GENERIC_BW_V2
+  driverBoard: Good Display DESPI-C02
+  pins:
+    busy: 14
+    chipSelect: 13
+    reset: 21
+    dataCommand: 22
+    power: 26
+    clock: 18
+    miso: 19
+    mosi: 23
+
+# Providers are combined by capability. Keep only one forecast provider.
 providers:
   - provider: open_meteo_forecast
     transport: HTTPS_VERIFY
-  # NOAA/NWS is an alternative forecast owner; do not enable it together
-  # with Open-Meteo or OpenWeatherMap forecast providers.
   # - provider: noaa_forecast
-  # OpenWeatherMap One Call 4.0 uses separate current/hourly/daily timeline
-  # requests. Set alerts to true to use the IDs from the current response and
-  # fetch alert details from the separate per-ID endpoint. At most two IDs are
-  # fetched by design; omit alerts or set it to false to make no detail
-  # requests. v4 alerts own the alerts capability, so do not enable another
-  # alert provider at the same time.
+  # OpenWeatherMap alternatives require an apiKey on the provider entry.
   # - provider: openweathermap_onecall_v4
   #   transport: HTTPS_VERIFY
   #   apiKey: your-owm-api-key
   #   alerts: true
-  # MeteoSwiss uses a six-digit local forecast point_id and an explicit
-  # SwissMetNet station for measured current conditions. It is an alternative
-  # forecast owner; do not enable it with another forecast provider.
-  # - provider: meteoswiss_forecast
-  #   forecastPointId: "800100"
-  #   stationId: KLO
   - provider: open_meteo_air_quality
     transport: HTTPS_VERIFY
   - provider: meteoalarm_alert
     country: netherlands
-  # Add this entry to enable a local BME280 sensor. Omit it to disable it.
+  # Add this entry to enable a local BME280 sensor; omit it to disable it.
   # - provider: bme280
-  #   pinPwr: 27
-  #   pinSDA: 21
-  #   pinSCL: 22
+  #   pins:
+  #     power: 27
+  #     sda: 21
+  #     scl: 22
   #   address: 0x76
 
-ntp:
-  server_1: pool.ntp.org
-  server_2: time.nist.gov
-  syncIntervalWakeups: 6
-  timeout: 20000
-
-pin:
-  batAdc: 35
-  epdBusy: 14
-  epdCS: 13
-  epdRst: 21
-  epdDC: 22
-  epdSCK: 18
-  epdMISO: 19
-  epdMOSI: 23
-  epdPwr: 26
-
-useImperialUnitsAsDefault: false
-unitsTemp: Celsius
-unitsSpeed: km/h
-unitsPres: hPa
-unitsDistance: km
-unitsHourlyPrecip: probability of precipitation
-unitsDailyPrecip: mm
-windDirectionIndicator: arrow
-windArrowPrecision: secondary intercardinal
-font: FreeSans
-displayDailyPrecip: smart
-displayHourlyIcons: true
-batteryMonitoring: true
-statusBarExtrasBatVoltage: false
-statusBarExtrasWifiRSSI: false
-logLevel: debug
-
+# WiFi network settings.
 wifi:
   ssid: your-wifi-ssid
   password: your-wifi-password
-  timeout: 10000
+  timeoutMs: 10000
   scan: false
+  # Optional access-point lock and static IP settings:
+  # bssid: 4A:8F:5A:21:EB:72
+  # staticIp:
+  #   ip: 192.168.1.50
+  #   gateway: 192.168.1.1
+  #   subnet: 255.255.255.0
+  #   dns1: 8.8.8.8
+  #   dns2: 8.8.4.4
 
-latitude: "51.5072"
-longitude: "-0.1276"
-city: London
-timezone: Europe/London
-timeFormat: "%H:%M"
-hourFormat: "%H"
-dateFormat: "%x"
-refreshTimeFormat: "%x %H:%M"
-sleepDuration: 30
-bedTime: 0
-wakeTime: 6
-hourlyGraphMax: 24
-moonPhaseStyle: primary
+# Time synchronization. The first server is primary; the second is fallback.
+ntp:
+  servers:
+    - pool.ntp.org
+    - time.nist.gov
+  syncIntervalWakeups: 6
+  timeoutMs: 20000
+  rtcCorrection: true
 
-leftPanelLayout:
-  SUNRISE: 0
-  SUNSET: 1
-  MOONRISE: 2
-  MOONSET: 3
-  MOONPHASE: 4
-  HUMIDITY: 5
-  WIND: 6
-  PRESSURE: 7
-  AIR_QUALITY: 8
-  VISIBILITY: 9
+# Installation location and timezone.
+location:
+  latitude: 51.5072
+  longitude: -0.1276
+  city: London
+  timezone: Europe/London
 
+# How weather data is formatted and rendered.
+rendering:
+  locale: en_GB
+  font: FreeSans
+  units:
+    temperature: Celsius
+    speed: km/h
+    pressure: hPa
+    distance: km
+    hourlyPrecipitation: probability of precipitation
+    dailyPrecipitation: mm
+  windDirectionIndicator: arrow
+  windArrowPrecision: secondary intercardinal
+  displayDailyPrecip: smart
+  displayHourlyIcons: true
+  moonPhaseStyle: primary
+  hourlyGraphMax: 24
+  timeFormat: "%H:%M"
+  hourFormat: "%H"
+  dateFormat: "%x"
+  refreshTimeFormat: "%x %H:%M"
+  statusBar:
+    showBatteryVoltage: false
+    showWifiRssi: false
+  # List entries in the order in which they should appear.
+  leftPanelLayout:
+    - SUNRISE
+    - SUNSET
+    - MOONRISE
+    - MOONSET
+    - MOONPHASE
+    - HUMIDITY
+    - WIND
+    - PRESSURE
+    - AIR_QUALITY
+    - VISIBILITY
+  colors:
+    outlookLowThresholdTemperature: 0
+    outlookHighThresholdTemperature: 35
+    outlookTemperatureLowColor: black
+    outlookTemperatureNormalColor: black
+    outlookTemperatureHighColor: black
+    outlookConditionsIconAccent: black
+    city: black
+    date: black
+    alert: black
+    errorIcon: black
+    statusBarBatteryWarning: black
+    statusBarWeakWifi: black
+    statusBarMessage: black
+    forecastPrecipitation: black
+
+# Battery measurement and monitoring.
+battery:
+  monitoring: true
+  adcPin: 35
+
+# Refresh and sleep schedule.
+schedule:
+  refreshMinutes: 30
+  bedTime: 0
+  wakeTime: 6
+
+# Optional Home Assistant MQTT integration.
 homeAssistantMqtt:
   enabled: false
 
-colors:
-  outlookLowThresholdTemperature: 0
-  outlookHighThresholdTemperature: 35
-  outlookTemperatureLowColor: black
-  outlookTemperatureNormalColor: black
-  outlookTemperatureHighColor: black
-  outlookConditionsIconAccent: black
-  city: black
-  date: black
-  alert: black
-  errorIcon: black
-  statusBarBatteryWarning: black
-  statusBarWeakWifi: black
-  statusBarMessage: black
-  forecastPrecipitation: black
+logLevel: debug
