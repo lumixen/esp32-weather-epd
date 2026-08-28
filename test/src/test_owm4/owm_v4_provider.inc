@@ -1,6 +1,8 @@
 /* Offline streaming tests for the OpenWeatherMap One Call v4 provider.
  * The Stockholm payloads are deliberately small synthetic captures: they
- * preserve the v4 response shape while containing no credentials.
+ * preserve the v4 response shape while containing no credentials. The alert
+ * identifiers use real OWM4 values captured from Turin and are treated as
+ * opaque strings.
  *
  * Copyright (C) 2026  Max Bodaniuk
  *
@@ -32,10 +34,10 @@ static String currentJson(bool includeAlerts = true) {
       "weather":[{"id":501,"icon":"10n"}])json";
   if (includeAlerts) {
     json += R"json(,"alerts":[
-      "grenoble:wind:2026-08-01T12:00:00Z:long-opaque-alert-id-001",
-      "grenoble:wind:2026-08-01T12:00:00Z:long-opaque-alert-id-001",
-      "grenoble:rain:2026-08-01T12:00:00Z:long-opaque-alert-id-002",
-      "grenoble:thunderstorm:2026-08-01T12:00:00Z:long-opaque-alert-id-003"]}]})json";
+      "2.49.0.0.380.3.IT.260827120544.062:IT005:88f99b9b936a94a3470a448fc0ce8d24",
+      "2.49.0.0.380.3.IT.260827120544.062:IT005:88f99b9b936a94a3470a448fc0ce8d24",
+      "2.49.0.0.380.3.IT.260828112917.081:IT005:88f99b9b936a94a3470a448fc0ce8d24",
+      "2.49.0.0.380.3.IT.260828112917.080:IT005:88f99b9b936a94a3470a448fc0ce8d24"]}]})json";
   } else {
     json += "}]}";
   }
@@ -102,8 +104,10 @@ static void test_current_alert_ids_are_deduplicated_and_capped(void) {
 
   TEST_ASSERT_TRUE(result.isOk());
   TEST_ASSERT_EQUAL_UINT(2, alertIds.size());
-  TEST_ASSERT_EQUAL_STRING("grenoble:wind:2026-08-01T12:00:00Z:long-opaque-alert-id-001", alertIds[0].c_str());
-  TEST_ASSERT_EQUAL_STRING("grenoble:rain:2026-08-01T12:00:00Z:long-opaque-alert-id-002", alertIds[1].c_str());
+  TEST_ASSERT_EQUAL_STRING("2.49.0.0.380.3.IT.260827120544.062:IT005:88f99b9b936a94a3470a448fc0ce8d24",
+                           alertIds[0].c_str());
+  TEST_ASSERT_EQUAL_STRING("2.49.0.0.380.3.IT.260828112917.081:IT005:88f99b9b936a94a3470a448fc0ce8d24",
+                           alertIds[1].c_str());
 }
 
 static void test_current_missing_and_empty_alert_arrays_are_successful(void) {
