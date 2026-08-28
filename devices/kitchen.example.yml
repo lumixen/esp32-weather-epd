@@ -39,8 +39,11 @@ providers:
 #   - provider: openweathermap_onecall_v4
 #     transport: HTTPS_VERIFY
 #     apiKey: your-owm-api-key
-# v4 supplies current/hourly/daily timelines; configure a separate alert
-# provider when alerts are required.
+#     alerts: true
+# v4 alert details are optional. The current response supplies alert IDs and
+# at most two IDs are fetched from the separate per-ID endpoint. Omit alerts
+# or set it to false to make no detail requests. Do not configure another
+# alert provider when v4 alerts are enabled.
 
 ntp:
   server_1: 192.168.41.1

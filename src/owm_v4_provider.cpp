@@ -22,6 +22,7 @@
 
 #include <Arduino.h>
 #include <ArduinoStreamParser.h>
+#include <cctype>
 #include <cstdint>
 #include <cstring>
 #include <functional>
@@ -76,11 +77,13 @@ static void resetDaily(forecast_t &forecast) {
 
 /* The handler consumes all JSON, but only retains fields which belong to the
  * selected response. This is important for timeline responses: pagination
- * metadata and alert ids can be ignored without allocating a DOM. */
+ * metadata and (when requested) alert IDs are handled without allocating a
+ * DOM. */
 class OneCallV4Handler : public JsonHandler {
  public:
-  OneCallV4Handler(forecast_t &forecast, ResponseKind kind, size_t destinationOffset = 0)
-      : forecast_(forecast), kind_(kind), destinationOffset_(destinationOffset) {}
+  OneCallV4Handler(forecast_t &forecast, ResponseKind kind, size_t destinationOffset = 0,
+                   std::vector<String> *alertIds = nullptr)
+      : forecast_(forecast), kind_(kind), destinationOffset_(destinationOffset), alertIds_(alertIds) {}
 
   void startDocument() override { sawStart_ = true; }
   void endDocument() override { documentDone_ = true; }
@@ -111,9 +114,10 @@ class OneCallV4Handler : public JsonHandler {
     }
 
     if (kind_ == ResponseKind::CURRENT) {
-      if (index == 0) {
+      if (alertIds_ != nullptr)
+        storeAlertId(path, value);
+      if (index == 0)
         storeCurrent(path, value);
-      }
       return;
     }
 
@@ -150,6 +154,21 @@ class OneCallV4Handler : public JsonHandler {
     } else if (value.isString() && keyIs(field, "timezone")) {
       forecast_.timezone = value.getString();
     }
+  }
+
+  void storeAlertId(ElementPath path, ElementValue value) {
+    if (alertIds_ == nullptr || path.getCount() != 4 || !keyIs(path.get(2), "alerts") || path.get(3) == nullptr ||
+        path.get(3)->isObject() || !value.isString()) {
+      return;
+    }
+    const String id = value.getString();
+    if (id.length() == 0 || alertIds_->size() >= 2)
+      return;
+    for (const String &existing : *alertIds_) {
+      if (existing == id)
+        return;
+    }
+    alertIds_->push_back(id);
   }
 
   void storeCurrent(ElementPath path, ElementValue value) {
@@ -337,9 +356,154 @@ class OneCallV4Handler : public JsonHandler {
   size_t recordCount_ = 0;
   size_t timestampCount_ = 0;
   int64_t lastTimestamp_ = 0;
+  std::vector<String> *alertIds_ = nullptr;
 };
 
-static ProviderResult consumeJson(Stream &json, OneCallV4Handler &handler) {
+class OneCallV4AlertHandler : public JsonHandler {
+ public:
+  explicit OneCallV4AlertHandler(weather_alert_t &alert) : alert_(alert) {}
+
+  void startDocument() override { sawStart_ = true; }
+  void endDocument() override { documentDone_ = true; }
+  void startObject(ElementPath path) override {
+    if (path.getCount() == 0)
+      rootObjectSeen_ = true;
+  }
+  void endObject(ElementPath) override {}
+  void startArray(ElementPath) override {}
+  void endArray(ElementPath) override {}
+  void whitespace(char) override {}
+
+  void value(ElementPath path, ElementValue value) override {
+    if (path.getCount() == 1) {
+      const char *field = path.getCurrent() != nullptr ? path.getCurrent()->getKey() : nullptr;
+      if (keyIs(field, "sender_name") && value.isString()) {
+        alert_.sender_name = value.getString();
+        sawField_ = true;
+      } else if (keyIs(field, "event") && value.isString()) {
+        alert_.event = value.getString();
+        sawField_ = true;
+      } else if (keyIs(field, "start") && numeric(value)) {
+        alert_.start = static_cast<int64_t>(value.getDouble());
+        sawStartTimestamp_ = true;
+        sawField_ = true;
+      } else if (keyIs(field, "end") && numeric(value)) {
+        alert_.end = static_cast<int64_t>(value.getDouble());
+        sawEndTimestamp_ = true;
+        sawField_ = true;
+      } else if (keyIs(field, "description") && value.isString()) {
+        stringDescription_ = value.getString();
+        sawField_ = true;
+      }
+      return;
+    }
+
+    if (path.getCount() == 2 && keyIs(path.get(0), "tags") && path.get(1) != nullptr && !path.get(1)->isObject() &&
+        value.isString()) {
+      if (path.get(1)->getIndex() == 0)
+        alert_.tags = value.getString();
+      if (fallbackTag_.length() == 0 && value.getString() != nullptr && value.getString()[0] != '\0')
+        fallbackTag_ = value.getString();
+      sawField_ = true;
+      return;
+    }
+
+    if (path.getCount() == 3 && keyIs(path.get(0), "description") && path.get(1) != nullptr &&
+        !path.get(1)->isObject() && path.get(2) != nullptr && path.get(2)->isObject() && value.isString()) {
+      const int index = path.get(1)->getIndex();
+      if (index < 0)
+        return;
+      if (localized_.size() <= static_cast<size_t>(index))
+        localized_.resize(static_cast<size_t>(index) + 1);
+      if (keyIs(path.get(2), "language"))
+        localized_[index].language = value.getString();
+      else if (keyIs(path.get(2), "description"))
+        localized_[index].description = value.getString();
+      sawField_ = true;
+    }
+  }
+
+  bool sawStart() const { return sawStart_; }
+  bool finishedDocument() const { return documentDone_; }
+  bool rootObjectSeen() const { return rootObjectSeen_; }
+  bool sawField() const { return sawField_; }
+  bool sawStartTimestamp() const { return sawStartTimestamp_; }
+  bool sawEndTimestamp() const { return sawEndTimestamp_; }
+  const String &fallbackTag() const { return fallbackTag_; }
+
+  void selectDescription() {
+    for (const LocalizedDescription &entry : localized_) {
+      if (nonEmpty(entry.description) && languageMatches(entry.language, OWM_LANG, true)) {
+        alert_.description = entry.description;
+        return;
+      }
+    }
+    for (const LocalizedDescription &entry : localized_) {
+      if (nonEmpty(entry.description) && languageMatches(entry.language, OWM_LANG, false)) {
+        alert_.description = entry.description;
+        return;
+      }
+    }
+    for (const LocalizedDescription &entry : localized_) {
+      if (nonEmpty(entry.description) && languageMatches(entry.language, "en", false)) {
+        alert_.description = entry.description;
+        return;
+      }
+    }
+    for (const LocalizedDescription &entry : localized_) {
+      if (nonEmpty(entry.description)) {
+        alert_.description = entry.description;
+        return;
+      }
+    }
+    alert_.description = stringDescription_;
+  }
+
+ private:
+  struct LocalizedDescription {
+    String language;
+    String description;
+  };
+
+  static bool numeric(ElementValue value) { return value.isInt() || value.isFloat(); }
+  static bool nonEmpty(const String &value) { return value.length() != 0; }
+
+  static bool languageMatches(const String &language, const String &target, bool exactOnly) {
+    if (language.length() == 0 || target.length() == 0)
+      return false;
+    if (language.length() == target.length()) {
+      for (size_t i = 0; i < target.length(); ++i) {
+        const char languageChar = language[i] == '_' ? '-' : language[i];
+        const char targetChar = target[i] == '_' ? '-' : target[i];
+        if (static_cast<char>(tolower(static_cast<unsigned char>(languageChar))) !=
+            static_cast<char>(tolower(static_cast<unsigned char>(targetChar))))
+          return false;
+      }
+      return true;
+    }
+    if (exactOnly || language.length() < target.length())
+      return false;
+    for (size_t i = 0; i < target.length(); ++i) {
+      if (static_cast<char>(tolower(static_cast<unsigned char>(language[i]))) !=
+          static_cast<char>(tolower(static_cast<unsigned char>(target[i]))))
+        return false;
+    }
+    return language[target.length()] == '-' || language[target.length()] == '_';
+  }
+
+  weather_alert_t &alert_;
+  String stringDescription_;
+  String fallbackTag_;
+  std::vector<LocalizedDescription> localized_;
+  bool sawStart_ = false;
+  bool documentDone_ = false;
+  bool rootObjectSeen_ = false;
+  bool sawField_ = false;
+  bool sawStartTimestamp_ = false;
+  bool sawEndTimestamp_ = false;
+};
+
+template<typename Handler> static ProviderResult consumeJson(Stream &json, Handler &handler) {
   ArduinoStreamParser parser;
   parser.setHandler(&handler);
   uint8_t buffer[256];
@@ -369,9 +533,11 @@ static ProviderResult consumeJson(Stream &json, OneCallV4Handler &handler) {
   return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT);
 }
 
-static ProviderResult parseCurrent(Stream &json, forecast_t &forecast) {
+static ProviderResult parseCurrent(Stream &json, forecast_t &forecast, std::vector<String> *alertIds) {
   resetCurrent(forecast);
-  OneCallV4Handler handler(forecast, ResponseKind::CURRENT);
+  if (alertIds != nullptr)
+    alertIds->clear();
+  OneCallV4Handler handler(forecast, ResponseKind::CURRENT, 0, alertIds);
   ProviderResult result = consumeJson(json, handler);
   if (!result.isOk() || handler.recordCount() == 0 || handler.timestampCount() == 0) {
     resetCurrent(forecast);
@@ -379,6 +545,23 @@ static ProviderResult parseCurrent(Stream &json, forecast_t &forecast) {
       return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT);
   }
   return result;
+}
+
+static ProviderResult parseAlert(Stream &json, weather_alert_t &alert) {
+  alert = {};
+  OneCallV4AlertHandler handler(alert);
+  ProviderResult result = consumeJson(json, handler);
+  if (!result.isOk() || !handler.rootObjectSeen() || !handler.sawField() || !handler.sawStartTimestamp() ||
+      !handler.sawEndTimestamp()) {
+    alert = {};
+    if (result.isOk())
+      return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT);
+    return result;
+  }
+  handler.selectDescription();
+  if (alert.event.length() == 0 && handler.fallbackTag().length() != 0)
+    alert.event = handler.fallbackTag();
+  return ProviderResult::ok();
 }
 
 static ProviderResult parseHourly(Stream &json, forecast_t &forecast, size_t destinationOffset, size_t &records,
@@ -419,14 +602,36 @@ static ProviderResult parseDaily(Stream &json, forecast_t &forecast) {
   return result;
 }
 
-static String endpointUri(const char *path, const String &query, bool sanitized) {
+static String endpointUri(const String &path, const String &query, bool sanitized) {
 #if defined(OPENWEATHERMAP_ONECALL_V4_TRANSPORT_HTTP)
   const char *scheme = "http://";
 #else
   const char *scheme = "https://";
 #endif
-  return String(scheme) + OWM_ENDPOINT + path + "?" + query +
-         "&appid=" + (sanitized ? String("{API key}") : OPENWEATHERMAP_ONECALL_V4_API_KEY);
+  String uri = String(scheme) + OWM_ENDPOINT + path;
+  uri += "?";
+  uri += query;
+  uri += query.length() != 0 ? "&appid=" : "appid=";
+  uri += sanitized ? String("{API key}") : OPENWEATHERMAP_ONECALL_V4_API_KEY;
+  return uri;
+}
+
+static String urlEncodePathSegment(const String &value) {
+  static const char hex[] = "0123456789ABCDEF";
+  String encoded;
+  encoded.reserve(value.length());
+  for (size_t i = 0; i < value.length(); ++i) {
+    const uint8_t c = static_cast<uint8_t>(value[i]);
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_' ||
+        c == '.' || c == '~') {
+      encoded += static_cast<char>(c);
+    } else {
+      encoded += '%';
+      encoded += hex[c >> 4];
+      encoded += hex[c & 0x0f];
+    }
+  }
+  return encoded;
 }
 
 static ProviderResult requestV4(const String &url, const String &sanitizedUrl,
@@ -453,12 +658,28 @@ std::vector<std::unique_ptr<FetchOperation>> OpenWeatherMapOneCallV4Provider::cr
     weather_report_t &out) {
   out.resetForecast();
   std::vector<std::unique_ptr<FetchOperation>> operations;
-  operations.push_back(std::make_unique<CallbackFetchOperation>(getApiName(), true, [this, &out]() {
+#if defined(OPENWEATHERMAP_ONECALL_V4_ALERTS_ENABLED) && OPENWEATHERMAP_ONECALL_V4_ALERTS_ENABLED
+  out.resetAlerts();
+  auto alertIds = std::make_shared<std::vector<String>>();
+  auto current = std::make_unique<CallbackFetchOperation>(getApiName(), true, [this, &out, alertIds]() {
+    ProviderResult result = fetchCurrent(out.forecast, alertIds.get());
+    if (!result.isOk()) {
+      resetCurrent(out.forecast);
+      out.resetAlerts();
+    }
+    return result;
+  });
+#else
+  auto current = std::make_unique<CallbackFetchOperation>(getApiName(), true, [this, &out]() {
     ProviderResult result = fetchCurrent(out.forecast);
     if (!result.isOk())
       resetCurrent(out.forecast);
     return result;
-  }));
+  });
+#endif
+  FetchOperation *currentOperation = current.get();
+  operations.push_back(std::move(current));
+
   operations.push_back(std::make_unique<CallbackFetchOperation>(getApiName(), true, [this, &out]() {
     ProviderResult result = fetchHourly(out.forecast);
     if (!result.isOk())
@@ -471,14 +692,41 @@ std::vector<std::unique_ptr<FetchOperation>> OpenWeatherMapOneCallV4Provider::cr
       resetDaily(out.forecast);
     return result;
   }));
+#if defined(OPENWEATHERMAP_ONECALL_V4_ALERTS_ENABLED) && OPENWEATHERMAP_ONECALL_V4_ALERTS_ENABLED
+  auto alertOperation = std::make_unique<CallbackFetchOperation>(getApiName(), false, [this, &out, alertIds]() {
+    std::vector<weather_alert_t> parsedAlerts;
+    parsedAlerts.reserve(alertIds->size());
+    for (const String &alertId : *alertIds) {
+      weather_alert_t alert = {};
+      ProviderResult result = fetchAlert(alertId, alert);
+      if (!result.isOk()) {
+        out.resetAlerts();
+        return result;
+      }
+      parsedAlerts.push_back(std::move(alert));
+    }
+    out.engageAlerts() = std::move(parsedAlerts);
+    return ProviderResult::ok();
+  });
+  alertOperation->dependsOn(*currentOperation);
+  operations.push_back(std::move(alertOperation));
+#endif
   return operations;
 }
 
-ProviderResult OpenWeatherMapOneCallV4Provider::fetchCurrent(forecast_t &forecast) {
+ProviderResult OpenWeatherMapOneCallV4Provider::fetchCurrent(forecast_t &forecast, std::vector<String> *alertIds) {
   const String query = "lat=" + LAT + "&lon=" + LON + "&lang=" + OWM_LANG + "&units=metric";
   const String uri = endpointUri("/data/4.0/onecall/current", query, false);
   const String sanitizedUri = endpointUri("/data/4.0/onecall/current", query, true);
-  return requestV4(uri, sanitizedUri, [&forecast](Stream &json) { return deserializeCurrent(json, forecast); });
+  return requestV4(uri, sanitizedUri,
+                   [&forecast, alertIds](Stream &json) { return deserializeCurrent(json, forecast, alertIds); });
+}
+
+ProviderResult OpenWeatherMapOneCallV4Provider::fetchAlert(const String &alertId, weather_alert_t &alert) {
+  const String path = String("/data/4.0/onecall/alert/") + urlEncodePathSegment(alertId);
+  const String uri = endpointUri(path, String(), false);
+  const String sanitizedUri = endpointUri(path, String(), true);
+  return requestV4(uri, sanitizedUri, [&alert](Stream &json) { return deserializeAlert(json, alert); });
 }
 
 ProviderResult OpenWeatherMapOneCallV4Provider::fetchHourly(forecast_t &forecast) {
@@ -647,8 +895,13 @@ weather_condition OpenWeatherMapOneCallV4Provider::mapWeatherCode(int id) {
   }
 }
 
-ProviderResult OpenWeatherMapOneCallV4Provider::deserializeCurrent(Stream &json, forecast_t &forecast) {
-  return parseCurrent(json, forecast);
+ProviderResult OpenWeatherMapOneCallV4Provider::deserializeCurrent(Stream &json, forecast_t &forecast,
+                                                                   std::vector<String> *alertIds) {
+  return parseCurrent(json, forecast, alertIds);
+}
+
+ProviderResult OpenWeatherMapOneCallV4Provider::deserializeAlert(Stream &json, weather_alert_t &alert) {
+  return parseAlert(json, alert);
 }
 
 ProviderResult OpenWeatherMapOneCallV4Provider::deserializeHourly(Stream &json, forecast_t &forecast,

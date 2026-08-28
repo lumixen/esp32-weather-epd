@@ -154,6 +154,7 @@ TYPED_TYPES = {
     "WIFI_STATIC_IP_DNS2": STRING,
     # provider-local credentials
     "OPENWEATHERMAP_ONECALL_V3_API_KEY": "String",
+    "OPENWEATHERMAP_ONECALL_V4_API_KEY": "String",
     "OPENWEATHERMAP_AIR_QUALITY_API_KEY": "String",
     "METEOSWISS_FORECAST_POINT_ID": STRING,
     "METEOSWISS_STATION_ID": STRING,
@@ -342,6 +343,8 @@ def generate(config_path, header_path, write_header=True):
                 "openweathermap_air_quality": "OPENWEATHERMAP_AIR_QUALITY",
             }[provider_id]
             emit_define(header_lines, transport_prefix + "_TRANSPORT_" + provider.transport.name)
+        if provider_id == "openweathermap_onecall_v4":
+            emit_define(header_lines, "OPENWEATHERMAP_ONECALL_V4_ALERTS_ENABLED", 1 if provider.alerts else 0)
         if hasattr(provider, "apiKey"):
             constant = {
                 "openweathermap_onecall_v3": "OPENWEATHERMAP_ONECALL_V3_API_KEY",

@@ -18,11 +18,15 @@ providers:
   # with Open-Meteo or OpenWeatherMap forecast providers.
   # - provider: noaa_forecast
   # OpenWeatherMap One Call 4.0 uses separate current/hourly/daily timeline
-  # requests. It does not provide embedded alert details; add an alert
-  # provider separately if needed.
+  # requests. Set alerts to true to use the IDs from the current response and
+  # fetch alert details from the separate per-ID endpoint. At most two IDs are
+  # fetched by design; omit alerts or set it to false to make no detail
+  # requests. v4 alerts own the alerts capability, so do not enable another
+  # alert provider at the same time.
   # - provider: openweathermap_onecall_v4
   #   transport: HTTPS_VERIFY
   #   apiKey: your-owm-api-key
+  #   alerts: true
   # MeteoSwiss uses a six-digit local forecast point_id and an explicit
   # SwissMetNet station for measured current conditions. It is an alternative
   # forecast owner; do not enable it with another forecast provider.

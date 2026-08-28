@@ -2,17 +2,18 @@
 # weather provider (the test runner sets ESP32_EPD_CONFIG to this file).
 #
 # Uses the OpenWeatherMap One Call v4 provider for current/hourly/daily forecast,
-# plus the standalone OpenWeatherMap air-quality provider. Alerts are not
-# owned by v4. Committed on purpose: test builds must never depend on the
-# untracked local config.yml. Credentials are placeholders; the tests
-# never go on the network.
+# plus the standalone OpenWeatherMap air-quality provider. v4 alerts are
+# enabled to compile and exercise the optional alert operation. Committed on
+# purpose: test builds must never depend on the untracked local config.yml.
+# Credentials are placeholders; the tests never go on the network.
 epdPanel: DKE_3C_86BF
 epdDriver: Waveshare
-locale: en_US
+locale: fr_FR
 providers:
   - provider: openweathermap_onecall_v4
     transport: HTTP
     apiKey: test
+    alerts: true
   - provider: openweathermap_air_quality
     transport: HTTP
     apiKey: test

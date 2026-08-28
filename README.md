@@ -175,8 +175,9 @@ providers, such as `bme280`, use the same model even though they read a sensor
 instead of making an HTTP request. The renderer consumes the normalized report
 and does not need to know which API or sensor produced the data.
 
-A provider may own multiple capabilities. For example, OpenWeatherMap One
-Call provides forecast data and alerts. Providers may also create more than
+A provider may own multiple capabilities. OpenWeatherMap One Call 3.0 always
+provides forecast data and embedded alerts; One Call 4.0 provides alerts only
+when its `alerts: true` option is enabled. Providers may also create more than
 one fetch operation when a service uses separate endpoints internally.
 
 Each capability can have at most one owner. The current, hourly, and daily
@@ -187,7 +188,7 @@ capability ownership, missing required capabilities, and unsupported
 precipitation settings.
 
 Provider-specific settings stay on the provider entry. Depending on the
-provider, these can include `transport`, `apiKey`, `country`,
+provider, these can include `transport`, `apiKey`, `alerts`, `country`,
 `forecastPointId`, `stationId`, and BME280 pin and address settings.
 
 For example, these entries combine into one report:
@@ -220,10 +221,18 @@ are in [`scripts/provider_capabilities.py`](scripts/provider_capabilities.py).
 | [NOAA/NWS](https://www.weather.gov/documentation/services-web-api)<br>`noaa_forecast` | `current_forecast`, `hourly_forecast`, `daily_forecast` |
 | [MeteoSwiss](https://www.meteoswiss.admin.ch/)<br>`meteoswiss_forecast` | `current_forecast`, `hourly_forecast`, `daily_forecast` |
 | [OpenWeatherMap One Call 3.0](https://openweathermap.org/api/one-call-3)<br>`openweathermap_onecall_v3` | `current_forecast`, `hourly_forecast`, `daily_forecast`, `alerts` (embedded alerts) |
-| [OpenWeatherMap One Call 4.0](https://openweathermap.org/api/one-call-4)<br>`openweathermap_onecall_v4` | `current_forecast`, `hourly_forecast`, `daily_forecast` (current, hourly, and daily timelines) |
+| [OpenWeatherMap One Call 4.0](https://openweathermap.org/api/one-call-4)<br>`openweathermap_onecall_v4` | `current_forecast`, `hourly_forecast`, `daily_forecast` (current, hourly, and daily timelines); optional `alerts` with `alerts: true` |
 | [OpenWeatherMap Air Pollution](https://openweathermap.org/api/air-pollution)<br>`openweathermap_air_quality` | `air_quality` |
 | [MeteoAlarm](https://www.meteoalarm.org/)<br>`meteoalarm_alert` | `alerts` |
 | [BME280](https://www.bosch-sensortec.com/products/environmental-sensors/humidity-sensors-bme280/)<br>`bme280` | `in_temperature`, `in_humidity`, `in_pressure` |
+
+For One Call 4.0, `alerts` defaults to false. With `alerts: true`, the existing
+current request supplies opaque alert IDs and the provider fetches details from
+the separate per-ID endpoint. Only the first two unique IDs in OWM response
+order are fetched, matching the display limit. This is an intentional
+cost/latency optimization and can omit later alerts; it is not a severity
+selection. One Call 4.0 alerts own the `alerts` capability and conflict with
+another configured alert provider such as `meteoalarm_alert`.
 
 ## Configuration
 
