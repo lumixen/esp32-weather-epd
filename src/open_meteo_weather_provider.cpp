@@ -308,6 +308,10 @@ ProviderResult OpenMeteoForecastProvider::fetch(forecast_t &forecast) {
 
   esp_http_client_config_t config = {};
   config.timeout_ms = HTTP_CLIENT_TCP_TIMEOUT;
+  // The forecast query exceeds ESP-IDF's default 512-byte transmit buffer.
+  // Increase only the TX buffer; the response remains streamed through the
+  // default receive buffer.
+  config.buffer_size_tx = 1024;
 #if defined(OPEN_METEO_FORECAST_TRANSPORT_HTTPS_VERIFY)
   config.cert_pem = cert_ISRG_Root_X1;
 #endif
