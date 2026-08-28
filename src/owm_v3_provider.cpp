@@ -11,14 +11,14 @@
 #include "logger.h"
 
 #include <Arduino.h>
-#include <ArduinoStreamParser.h>
 #include <cstdint>
 #include <cstring>
 #include "cert.h"
 #include "_locale.h"
 #include "esp_http_client_stream.h"
 #include "esp_http_client_utils.h"
-#include "owm_provider.h"
+#include "json_stream_utils.h"
+#include "owm_v3_provider.h"
 #include "provider_fetch_operations.h"
 
 #define OWM_NUM_ALERTS 8
@@ -469,31 +469,6 @@ class OneCallV3Handler : public JsonHandler {
   bool documentDone_ = false;
 };
 
-static ProviderResult consumeOneCallJson(Stream &json, OneCallV3Handler &handler) {
-  ArduinoStreamParser parser;
-  parser.setHandler(&handler);
-  uint8_t buffer[256];
-  while (!parser.hasParseError() && !handler.finishedDocument()) {
-    const size_t count = json.readBytes(buffer, sizeof(buffer));
-    if (count == 0)
-      break;
-    for (size_t i = 0; i < count && !parser.hasParseError() && !handler.finishedDocument(); ++i) {
-      if (!handler.sawStart() && (buffer[i] == ' ' || buffer[i] == '\t' || buffer[i] == '\n' || buffer[i] == '\r'))
-        continue;
-      parser.write(buffer + i, 1);
-    }
-  }
-  if (parser.hasParseError()) {
-    LOG_WARNING("OpenWeatherMap One Call v3 JSON parse error: %s", parser.getErrorMessage());
-    return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT);
-  }
-  if (handler.finishedDocument())
-    return ProviderResult::ok();
-  if (!handler.sawStart())
-    return ProviderResult::error(TXT_DESERIALIZATION_ERROR_EMPTY_INPUT);
-  return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT);
-}
-
 }  // namespace
 
 ProviderResult OpenWeatherMapOneCallV3Provider::deserializeOneCall(Stream &json, weather_report_t &report) {
@@ -501,7 +476,9 @@ ProviderResult OpenWeatherMapOneCallV3Provider::deserializeOneCall(Stream &json,
   report.resetAlerts();
   std::vector<weather_alert_t> &alerts = report.engageAlerts();
   OneCallV3Handler handler(report, alerts);
-  ProviderResult result = consumeOneCallJson(json, handler);
+  ProviderResult result = consumeJsonStream(
+      json, handler, [&handler]() { return handler.finishedDocument(); }, [&handler]() { return handler.sawStart(); },
+      "OpenWeatherMap One Call v3", true);
   if (!result.isOk()) {
     report.resetForecast();
     report.resetAlerts();

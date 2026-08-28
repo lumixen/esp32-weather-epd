@@ -23,7 +23,7 @@
 #include "open_meteo_air_quality_provider.h"
 #endif
 #if defined(REMOTE_PROVIDER_OPENWEATHERMAP_ONECALL_V3)
-#include "owm_provider.h"
+#include "owm_v3_provider.h"
 #endif
 #if defined(REMOTE_PROVIDER_OPENWEATHERMAP_ONECALL_V4)
 #include "owm_v4_provider.h"

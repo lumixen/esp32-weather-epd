@@ -13,8 +13,8 @@
 #include <unity.h>
 
 #include "data_models.h"
-#include "owm_provider.h"
-#include "owm_provider_real.inc"
+#include "owm_v3_provider.h"
+#include "owm_v3_provider_real.inc"
 #include "../string_stream.h"
 #include "../test_harness.h"
 #include "_locale.h"

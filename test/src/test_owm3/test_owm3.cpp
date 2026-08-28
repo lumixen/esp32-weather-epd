@@ -8,8 +8,8 @@
 #include <unity.h>
 
 #include "../test_harness.h"
-#include "owm_provider.inc"
-#include "owm_weather_provider.inc"
+#include "owm_v3_provider.inc"
+#include "owm_v3_weather_provider.inc"
 #include "owm_air_quality_provider.inc"
 #include "fetch_executor.inc"
 
