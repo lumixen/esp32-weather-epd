@@ -303,8 +303,8 @@ ProviderResult OpenMeteoForecastProvider::fetch(forecast_t &forecast) {
   const String url = "https://" + OM_ENDPOINT + uri;
 #endif
 
-  // This string is printed to terminal to help with debugging.
-  const String sanitizedUri = OM_ENDPOINT + uri;
+  // This URL is printed to the terminal to help with debugging.
+  const String sanitizedUrl = url;
 
   esp_http_client_config_t config = {};
   config.timeout_ms = HTTP_CLIENT_TCP_TIMEOUT;
@@ -316,7 +316,7 @@ ProviderResult OpenMeteoForecastProvider::fetch(forecast_t &forecast) {
   config.cert_pem = cert_ISRG_Root_X1;
 #endif
 
-  return espHttpGetWithRetry(url, sanitizedUri, config, [&forecast](esp_http_client_handle_t client) {
+  return espHttpGetWithRetry(url, sanitizedUrl, config, [&forecast](esp_http_client_handle_t client) {
     EspHttpClientStream stream(client);
     ProviderResult result = OpenMeteoForecastProvider::deserializeCall(stream, forecast);
     if (stream.hadReadError())
