@@ -12,12 +12,10 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
-#include <HTTPClient.h>
-#include <WiFiClient.h>
-#include <WiFiClientSecure.h>
 #include "cert.h"
 #include "_locale.h"
-#include "client_utils.h"
+#include "esp_http_client_stream.h"
+#include "esp_http_client_utils.h"
 #include "owm_provider.h"
 #include "provider_fetch_operations.h"
 #include "provider_result_utils.h"
@@ -46,22 +44,30 @@ std::vector<std::unique_ptr<FetchOperation>> OpenWeatherMapOneCallV3Provider::cr
 
 ProviderResult OpenWeatherMapOneCallV3Provider::fetch(weather_report_t &report) {
 #if defined(OPENWEATHERMAP_ONECALL_V3_TRANSPORT_HTTP)
-  WiFiClient client;
-  const uint16_t port = 80;
+  const char *scheme = "http://";
 #elif defined(OPENWEATHERMAP_ONECALL_V3_TRANSPORT_HTTPS_NO_VERIFY)
-  WiFiClientSecure client;
-  client.setInsecure();
-  const uint16_t port = 443;
+  const char *scheme = "https://";
 #else
-  WiFiClientSecure client;
-  client.setCACert(cert_USERTrust_RSA_Certification_Authority);
-  const uint16_t port = 443;
+  const char *scheme = "https://";
 #endif
   String uri = "/data/3.0/onecall?lat=" + LAT + "&lon=" + LON + "&lang=" + OWM_LANG + "&units=metric&exclude=minutely";
-  String sanitizedUri = OWM_ENDPOINT + uri + "&appid={API key}";
+  String sanitizedUrl = String(scheme) + OWM_ENDPOINT + uri + "&appid={API key}";
   uri += "&appid=" + OPENWEATHERMAP_ONECALL_V3_API_KEY;
-  return httpGetWithRetry(client, OWM_ENDPOINT, port, uri, sanitizedUri, false, HTTP_CLIENT_TCP_TIMEOUT,
-                          [&report](Stream &json, size_t) { return deserializeOneCall(json, report); });
+  String url = String(scheme) + OWM_ENDPOINT + uri;
+
+  esp_http_client_config_t config = {};
+  config.timeout_ms = HTTP_CLIENT_TCP_TIMEOUT;
+#if defined(OPENWEATHERMAP_ONECALL_V3_TRANSPORT_HTTPS_VERIFY)
+  config.cert_pem = cert_USERTrust_RSA_Certification_Authority;
+#endif
+
+  return espHttpGetWithRetry(url, sanitizedUrl, config, [&report](esp_http_client_handle_t client) {
+    EspHttpClientStream stream(client);
+    ProviderResult result = deserializeOneCall(stream, report);
+    if (stream.hadReadError())
+      return espHttpErrorResult(stream.readError());
+    return result;
+  });
 }
 
 weather_condition OpenWeatherMapOneCallV3Provider::mapWeatherCode(int id) {
