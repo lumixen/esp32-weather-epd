@@ -345,8 +345,7 @@ providers or local sensor. The default state-topic prefix is
 
 The unit tests run inside Docker using an ESP32 QEMU emulator and do not
 require physical hardware. Test configurations are committed and pinned under
-[`test/configs/`](test/configs/); they do not use the untracked local
-`config.yml`.
+[`test/configs/`](test/configs/).
 
 List available configurations:
 
