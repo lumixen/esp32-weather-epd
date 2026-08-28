@@ -18,7 +18,7 @@
  * at a time. The bounded read avoids one transport read per JSON byte, while
  * the byte-wise feed lets callers stop cleanly at endDocument() when a read
  * also contains bytes after the root value. */
-template <typename Complete, typename Started>
+template<typename Complete, typename Started>
 static ProviderResult consumeJsonStream(Stream &json, JsonHandler &handler, Complete complete, Started started,
                                         const char *label, bool skipLeadingWhitespace = false) {
   ArduinoStreamParser parser;

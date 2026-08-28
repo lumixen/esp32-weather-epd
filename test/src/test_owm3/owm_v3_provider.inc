@@ -19,7 +19,7 @@
 #include "../test_harness.h"
 #include "_locale.h"
 
-namespace owm_provider_tests {
+namespace owm_v3_provider_tests {
 
 void setUp(void) {}
 void tearDown(void) {}
@@ -322,18 +322,18 @@ static void test_invalid_empty_and_truncated_alert_json(void) {
 
 void registerTests() {
   test_harness::selectCallbacks(setUp, tearDown);
-  RUN_TEST(owm_provider_tests::test_get_api_name);
-  RUN_TEST(owm_provider_tests::test_zaragoza_forecast_fixture);
-  RUN_TEST(owm_provider_tests::test_report_parser_engages_embedded_alerts);
-  RUN_TEST(owm_provider_tests::test_zaragoza_alert_fixture);
-  RUN_TEST(owm_provider_tests::test_zaragoza_embedded_alerts);
-  RUN_TEST(owm_provider_tests::test_forecast_arrays_are_capped);
-  RUN_TEST(owm_provider_tests::test_missing_optional_forecast_fields_default_safely);
-  RUN_TEST(owm_provider_tests::test_alerts_are_capped_at_provider_limit);
-  RUN_TEST(owm_provider_tests::test_empty_alerts_are_successful);
-  RUN_TEST(owm_provider_tests::test_alerts_without_tags_are_safe);
-  RUN_TEST(owm_provider_tests::test_invalid_empty_and_truncated_forecast_json);
-  RUN_TEST(owm_provider_tests::test_invalid_empty_and_truncated_alert_json);
+  RUN_TEST(owm_v3_provider_tests::test_get_api_name);
+  RUN_TEST(owm_v3_provider_tests::test_zaragoza_forecast_fixture);
+  RUN_TEST(owm_v3_provider_tests::test_report_parser_engages_embedded_alerts);
+  RUN_TEST(owm_v3_provider_tests::test_zaragoza_alert_fixture);
+  RUN_TEST(owm_v3_provider_tests::test_zaragoza_embedded_alerts);
+  RUN_TEST(owm_v3_provider_tests::test_forecast_arrays_are_capped);
+  RUN_TEST(owm_v3_provider_tests::test_missing_optional_forecast_fields_default_safely);
+  RUN_TEST(owm_v3_provider_tests::test_alerts_are_capped_at_provider_limit);
+  RUN_TEST(owm_v3_provider_tests::test_empty_alerts_are_successful);
+  RUN_TEST(owm_v3_provider_tests::test_alerts_without_tags_are_safe);
+  RUN_TEST(owm_v3_provider_tests::test_invalid_empty_and_truncated_forecast_json);
+  RUN_TEST(owm_v3_provider_tests::test_invalid_empty_and_truncated_alert_json);
 }
 
-}  // namespace owm_provider_tests
+}  // namespace owm_v3_provider_tests
