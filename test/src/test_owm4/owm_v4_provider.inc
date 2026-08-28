@@ -126,7 +126,7 @@ static void test_current_missing_and_empty_alert_arrays_are_successful(void) {
 static void test_alert_detail_mapping_and_description_selection(void) {
   const String localized = R"json({
     "sender_name":"Météo-France","event":"","start":1785585600,"end":1785672000,
-    "description":[{"language":"en-GB","description":"Strong wind"},
+    "description":[{"language":"pt-BR-x-owm","description":"Vento forte"},
                     {"language":"fr-FR","description":"Vent violent"}],
     "tags":["","Wind","Gale"]})json";
   weather_alert_t alert = {};
@@ -138,7 +138,7 @@ static void test_alert_detail_mapping_and_description_selection(void) {
   TEST_ASSERT_EQUAL_STRING("Wind", alert.event.c_str());
   TEST_ASSERT_EQUAL_INT64(1785585600, alert.start);
   TEST_ASSERT_EQUAL_INT64(1785672000, alert.end);
-  TEST_ASSERT_EQUAL_STRING("Vent violent", alert.description.c_str());
+  TEST_ASSERT_EQUAL_STRING("Vento forte", alert.description.c_str());
   TEST_ASSERT_EQUAL_STRING("", alert.tags.c_str());
 
   const String stringDescription = R"json({

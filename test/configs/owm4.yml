@@ -8,7 +8,7 @@
 # Credentials are placeholders; the tests never go on the network.
 epdPanel: DKE_3C_86BF
 epdDriver: Waveshare
-locale: fr_FR
+locale: pt_BR
 providers:
   - provider: openweathermap_onecall_v4
     transport: HTTP

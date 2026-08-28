@@ -484,8 +484,10 @@ class OneCallV4AlertHandler : public JsonHandler {
     if (exactOnly || language.length() < target.length())
       return false;
     for (size_t i = 0; i < target.length(); ++i) {
-      if (static_cast<char>(tolower(static_cast<unsigned char>(language[i]))) !=
-          static_cast<char>(tolower(static_cast<unsigned char>(target[i]))))
+      const char languageChar = language[i] == '_' ? '-' : language[i];
+      const char targetChar = target[i] == '_' ? '-' : target[i];
+      if (static_cast<char>(tolower(static_cast<unsigned char>(languageChar))) !=
+          static_cast<char>(tolower(static_cast<unsigned char>(targetChar))))
         return false;
     }
     return language[target.length()] == '-' || language[target.length()] == '_';
