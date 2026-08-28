@@ -221,14 +221,6 @@ are in [`scripts/provider_capabilities.py`](scripts/provider_capabilities.py).
 | [MeteoAlarm](https://www.meteoalarm.org/)<br>`meteoalarm_alert` | `alerts` |
 | [BME280](https://www.bosch-sensortec.com/products/environmental-sensors/humidity-sensors-bme280/)<br>`bme280` | `in_temperature`, `in_humidity`, `in_pressure` |
 
-For One Call 4.0, `alerts` defaults to false. With `alerts: true`, the existing
-current request supplies opaque alert IDs and the provider fetches details from
-the separate per-ID endpoint. Only the first two unique IDs in OWM response
-order are fetched, matching the display limit. This is an intentional
-cost/latency optimization and can omit later alerts; it is not a severity
-selection. One Call 4.0 alerts own the `alerts` capability and conflict with
-another configured alert provider such as `meteoalarm_alert`.
-
 ## Configuration
 
 [`config.example.yml`](config.example.yml) is the canonical full configuration
