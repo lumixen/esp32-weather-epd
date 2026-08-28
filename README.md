@@ -187,7 +187,7 @@ capability ownership, missing required capabilities, and unsupported
 precipitation settings.
 
 Provider-specific settings stay on the provider entry. Depending on the
-provider, these can include `transport`, `apiKey`, `country`,
+provider, these can include `transport`, `apiKey`, `alerts`, `country`,
 `forecastPointId`, `stationId`, and BME280 pin and address settings.
 
 For example, these entries combine into one report:
@@ -220,7 +220,7 @@ are in [`scripts/provider_capabilities.py`](scripts/provider_capabilities.py).
 | [NOAA/NWS](https://www.weather.gov/documentation/services-web-api)<br>`noaa_forecast` | `current_forecast`, `hourly_forecast`, `daily_forecast` |
 | [MeteoSwiss](https://www.meteoswiss.admin.ch/)<br>`meteoswiss_forecast` | `current_forecast`, `hourly_forecast`, `daily_forecast` |
 | [OpenWeatherMap One Call 3.0](https://openweathermap.org/api/one-call-3)<br>`openweathermap_onecall_v3` | `current_forecast`, `hourly_forecast`, `daily_forecast`, `alerts` (embedded alerts) |
-| [OpenWeatherMap One Call 4.0](https://openweathermap.org/api/one-call-4)<br>`openweathermap_onecall_v4` | `current_forecast`, `hourly_forecast`, `daily_forecast` (current, hourly, and daily timelines) |
+| [OpenWeatherMap One Call 4.0](https://openweathermap.org/api/one-call-4)<br>`openweathermap_onecall_v4` | `current_forecast`, `hourly_forecast`, `daily_forecast` (current, hourly, and daily timelines); optional `alerts` with `alerts: true` |
 | [OpenWeatherMap Air Pollution](https://openweathermap.org/api/air-pollution)<br>`openweathermap_air_quality` | `air_quality` |
 | [MeteoAlarm](https://www.meteoalarm.org/)<br>`meteoalarm_alert` | `alerts` |
 | [BME280](https://www.bosch-sensortec.com/products/environmental-sensors/humidity-sensors-bme280/)<br>`bme280` | `in_temperature`, `in_humidity`, `in_pressure` |

@@ -284,6 +284,7 @@ class OpenWeatherMapOneCallV4Config(BaseModel):
     provider: Literal["openweathermap_onecall_v4"] = "openweathermap_onecall_v4"
     transport: Transport = Transport.HTTPS_VERIFY
     apiKey: str
+    alerts: bool = False
 
 
 class OpenWeatherMapAirQualityConfig(BaseModel):

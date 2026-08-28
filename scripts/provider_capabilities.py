@@ -6,19 +6,66 @@
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 
-CAPABILITIES = {
-    "open_meteo_forecast": {"current_forecast", "hourly_forecast", "daily_forecast"},
-    "noaa_forecast": {"current_forecast", "hourly_forecast", "daily_forecast"},
-    "meteoswiss_forecast": {"current_forecast", "hourly_forecast", "daily_forecast"},
-    "open_meteo_air_quality": {"air_quality"},
-    "openweathermap_onecall_v3": {"current_forecast", "hourly_forecast", "daily_forecast", "alerts"},
-    "openweathermap_onecall_v4": {"current_forecast", "hourly_forecast", "daily_forecast"},
-    "openweathermap_air_quality": {"air_quality"},
-    "meteoalarm_alert": {"alerts"},
-    "bme280": {"in_temperature", "in_humidity", "in_pressure"},
+from dataclasses import dataclass, field
+from typing import Any, Callable, Mapping
+
+
+@dataclass(frozen=True)
+class CapabilitySpec:
+    """Static and configuration-dependent capabilities for one provider."""
+
+    always: frozenset[str]
+    enabled_by: Mapping[str, str] = field(default_factory=dict)
+    resolver: Callable[[Any], set[str]] | None = None
+
+    def resolve(self, provider: Any) -> set[str]:
+        capabilities = set(self.always)
+        for capability, config_field in self.enabled_by.items():
+            if getattr(provider, config_field, False):
+                capabilities.add(capability)
+        if self.resolver is not None:
+            capabilities.update(self.resolver(provider))
+        return capabilities
+
+
+CAPABILITIES: dict[str, CapabilitySpec] = {
+    "open_meteo_forecast": CapabilitySpec(
+        always=frozenset({"current_forecast", "hourly_forecast", "daily_forecast"}),
+    ),
+    "noaa_forecast": CapabilitySpec(
+        always=frozenset({"current_forecast", "hourly_forecast", "daily_forecast"}),
+    ),
+    "meteoswiss_forecast": CapabilitySpec(
+        always=frozenset({"current_forecast", "hourly_forecast", "daily_forecast"}),
+    ),
+    "open_meteo_air_quality": CapabilitySpec(
+        always=frozenset({"air_quality"}),
+    ),
+    "openweathermap_onecall_v3": CapabilitySpec(
+        always=frozenset({"current_forecast", "hourly_forecast", "daily_forecast", "alerts"}),
+    ),
+    "openweathermap_onecall_v4": CapabilitySpec(
+        always=frozenset({"current_forecast", "hourly_forecast", "daily_forecast"}),
+        enabled_by={"alerts": "alerts"},
+    ),
+    "openweathermap_air_quality": CapabilitySpec(
+        always=frozenset({"air_quality"}),
+    ),
+    "meteoalarm_alert": CapabilitySpec(
+        always=frozenset({"alerts"}),
+    ),
+    "bme280": CapabilitySpec(
+        always=frozenset({"in_temperature", "in_humidity", "in_pressure"}),
+    ),
 }
 
 REQUIRED_FORECAST = {"current_forecast", "hourly_forecast", "daily_forecast"}
+
+
+def effective_capabilities(provider: Any) -> set[str]:
+    spec = CAPABILITIES.get(provider.provider)
+    return spec.resolve(provider) if spec is not None else set()
+
 
 # Precipitation display settings require a corresponding value in the
 # forecast response. Probability is represented by the provider-independent
@@ -55,7 +102,7 @@ def validate_precipitation_support(config, errors):
     forecast_providers = [
         provider.provider
         for provider in config.providers
-        if "current_forecast" in CAPABILITIES.get(provider.provider, set())
+        if "current_forecast" in effective_capabilities(provider)
     ]
     if len(forecast_providers) != 1:
         return
@@ -80,10 +127,10 @@ def validate_capabilities(config):
     errors = []
     for index, provider in enumerate(config.providers):
         provider_id = provider.provider
-        tags = CAPABILITIES.get(provider_id)
-        if tags is None:
+        if provider_id not in CAPABILITIES:
             errors.append(f"unknown provider '{provider_id}'")
             continue
+        tags = effective_capabilities(provider)
         owner = f"{provider_id} (providers[{index}])"
         for tag in tags:
             previous = owners.get(tag)
