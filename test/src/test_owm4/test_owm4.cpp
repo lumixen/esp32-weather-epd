@@ -14,6 +14,9 @@ void setup() {
   UNITY_BEGIN();
   owm_v4_tests::registerTests();
   UNITY_END();
+  for (;;) {
+    delay(1000);
+  }
 }
 
 void loop() {}
