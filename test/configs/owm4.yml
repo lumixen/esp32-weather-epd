@@ -69,16 +69,16 @@ rendering:
     showBatteryVoltage: true
     showWifiRssi: false
   leftPanelLayout:
-    - SUNRISE
-    - SUNSET
-    - MOONRISE
-    - MOONSET
-    - MOONPHASE
-    - HUMIDITY
-    - WIND
-    - INPRESSURE
-    - AIR_QUALITY
-    - VISIBILITY
+    1: SUNRISE
+    2: SUNSET
+    3: MOONRISE
+    4: MOONSET
+    5: MOONPHASE
+    6: HUMIDITY
+    7: WIND
+    8: INPRESSURE
+    9: AIR_QUALITY
+    10: VISIBILITY
   colors:
     outlookLowThresholdTemperature: 0
     outlookHighThresholdTemperature: 30

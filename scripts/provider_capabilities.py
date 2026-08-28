@@ -140,7 +140,7 @@ def validate_capabilities(config):
                 owners[tag] = owner
 
     required = set(REQUIRED_FORECAST)
-    if "AIR_QUALITY" in config.rendering.leftPanelLayout:
+    if "AIR_QUALITY" in config.rendering.leftPanelLayout.values():
         required.add("air_quality")
     missing = sorted(required - owners.keys())
     if missing:

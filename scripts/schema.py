@@ -553,19 +553,19 @@ class RenderingConfig(BaseModel):
     dateFormat: str
     refreshTimeFormat: str = "%x %H:%M"
     statusBar: StatusBarConfig = Field(default_factory=StatusBarConfig)
-    leftPanelLayout: list[str] = Field(
-        default_factory=lambda: [
-            "SUNRISE",
-            "SUNSET",
-            "MOONRISE",
-            "MOONSET",
-            "MOONPHASE",
-            "HUMIDITY",
-            "WIND",
-            "PRESSURE",
-            "AIR_QUALITY",
-            "VISIBILITY",
-        ]
+    leftPanelLayout: dict[int, str] = Field(
+        default_factory=lambda: {
+            1: "SUNRISE",
+            2: "SUNSET",
+            3: "MOONRISE",
+            4: "MOONSET",
+            5: "MOONPHASE",
+            6: "HUMIDITY",
+            7: "WIND",
+            8: "PRESSURE",
+            9: "AIR_QUALITY",
+            10: "VISIBILITY",
+        }
     )
     colors: Colors = Field(default_factory=Colors)
 
@@ -640,21 +640,25 @@ class ConfigSchema(BaseModel):
             "DEWPOINT",
         }
         invalid_keys = [
-            k for k in self.rendering.leftPanelLayout if k not in allowed_left_panel_keys
+            (slot, item)
+            for slot, item in self.rendering.leftPanelLayout.items()
+            if item not in allowed_left_panel_keys
         ]
         if invalid_keys:
             raise ValueError(
-                f"Invalid keys in rendering.leftPanelLayout: {invalid_keys}. "
-                f"Allowed keys are: {sorted(allowed_left_panel_keys)}"
+                f"Invalid entries in rendering.leftPanelLayout: {invalid_keys}. "
+                f"Allowed items are: {sorted(allowed_left_panel_keys)}"
             )
-        duplicate_keys = [
-            key for key in set(self.rendering.leftPanelLayout)
-            if self.rendering.leftPanelLayout.count(key) > 1
+        invalid_slots = [
+            slot
+            for slot in self.rendering.leftPanelLayout
+            if not isinstance(slot, int) or slot < 1 or slot > 10
         ]
-        if duplicate_keys:
+        if invalid_slots:
             raise ValueError(
-                f"Duplicate entries in rendering.leftPanelLayout: {sorted(duplicate_keys)}"
+                f"Invalid slots in rendering.leftPanelLayout (must be integer between 1 and 10): {invalid_slots}"
             )
-        if len(self.rendering.leftPanelLayout) > 10:
-            raise ValueError("rendering.leftPanelLayout cannot contain more than 10 entries")
+        items = list(self.rendering.leftPanelLayout.values())
+        if len(items) != len(set(items)):
+            raise ValueError("Duplicate items in rendering.leftPanelLayout are not allowed")
         return self

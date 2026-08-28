@@ -249,6 +249,18 @@ The main configuration groups are:
 | `homeAssistantMqtt` | Optional Home Assistant MQTT integration |
 | `logLevel` | Serial logging verbosity |
 
+`rendering.leftPanelLayout` maps one-based display slots to items. Missing
+slots are left empty, so sparse layouts are supported:
+
+```yaml
+rendering:
+  leftPanelLayout:
+    1: SUNRISE
+    2: SUNSET
+    5: HUMIDITY
+    6: WIND
+```
+
 The complete list of valid values and validation rules is defined in
 [`scripts/schema.py`](scripts/schema.py). The grouped configuration format is
 required; existing flat configuration files must be updated to match the

@@ -493,8 +493,8 @@ def generate(config_path, header_path, write_header=True):
 
     # leftPanelLayout configuration
     header_lines.append("// leftPanelLayout configuration")
-    for idx, name in enumerate(rendering.leftPanelLayout):
-        emit_define(header_lines, f"POS_{name.upper()}", idx)
+    for slot, name in sorted(rendering.leftPanelLayout.items()):
+        emit_define(header_lines, f"POS_{name.upper()}", slot - 1)
 
     # moon phase configuration
     header_lines.append("// moon phase configuration")
