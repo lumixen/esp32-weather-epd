@@ -86,7 +86,7 @@ rendering:
     outlookConditionsIconAccent: red
     city: black
     date: red
-    alert: red
+    alertIcon: red
     errorIcon: red
     statusBarBatteryWarning: red
     statusBarWeakWifi: red

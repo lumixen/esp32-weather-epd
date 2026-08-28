@@ -116,7 +116,7 @@ rendering:
     outlookConditionsIconAccent: black
     city: black
     date: black
-    alert: black
+    alertIcon: black
     errorIcon: black
     statusBarBatteryWarning: black
     statusBarWeakWifi: black

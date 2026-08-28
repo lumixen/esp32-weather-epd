@@ -510,7 +510,7 @@ class Colors(BaseModel):
     outlookConditionsIconAccent: Color = Color.BLACK
     city: Color = Color.BLACK
     date: Color = Color.BLACK
-    alert: Color = Color.BLACK
+    alertIcon: Color = Color.BLACK
     errorIcon: Color = Color.BLACK
     statusBarBatteryWarning: Color = Color.BLACK
     statusBarWeakWifi: Color = Color.BLACK

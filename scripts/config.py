@@ -206,6 +206,10 @@ INTERNAL_CONSTANTS = [
 ]
 
 # Font name to header mappings
+COLOR_NAME_OVERRIDES = {
+    "alertIcon": "ALERT",
+}
+
 FONT_FILES = {
     "FreeMono": "fonts/FreeMono.h",
     "FreeSans": "fonts/FreeSans.h",
@@ -504,7 +508,8 @@ def generate(config_path, header_path, write_header=True):
     header_lines.append("// colors configuration")
     for key in Colors.model_fields:
         value = getattr(rendering.colors, key)
-        name = f"COLORS_{upper_snake(key)}"
+        color_name = COLOR_NAME_OVERRIDES.get(key, upper_snake(key))
+        name = f"COLORS_{color_name}"
         if isinstance(value, Color):
             emit_define(header_lines, name, value.to_define_value())
         else:
