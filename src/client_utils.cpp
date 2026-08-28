@@ -18,12 +18,9 @@
 
 // built-in C++ libraries
 #include <cstring>
-#include <vector>
 
 // arduino/esp32 libraries
 #include <Arduino.h>
-#include <HTTPClient.h>
-#include <SPI.h>
 #include <time.h>
 #include <WiFi.h>
 
@@ -143,72 +140,6 @@ void killWiFi() {
   WiFi.disconnect();
   WiFi.mode(WIFI_OFF);
 }  // killWiFi
-
-/* Perform an HTTP GET request with retry.
- * The `parse` callback is invoked with the response stream to deserialize
- * and map the provider response into the output model.
- *
- * Returns ProviderResult::ok() once the response was received and parsed
- * successfully. Failure detail is already localized: HTTP and WiFi errors
- * are phrased from the numeric status by this function, parse errors carry
- * the message the `parse` callback returned. The numeric status stays
- * private to this function (it is only used for logging), so no magic
- * codes reach the caller.
- */
-ProviderResult httpGetWithRetry(WiFiClient &client, const String &host, uint16_t port, const String &uri,
-                                const String &sanitizedUri, bool useHttp10, uint32_t timeoutMs,
-                                std::function<ProviderResult(Stream &, size_t)> parse) {
-  int attempts = 0;
-  ProviderResult result;
-
-  LOG_INFO("%s: %s", TXT_ATTEMPTING_HTTP_REQ, sanitizedUri.c_str());
-  int httpResponse = 0;
-  while (!result.isOk() && attempts < 3) {
-    wl_status_t connection_status = WiFi.status();
-    if (connection_status != WL_CONNECTED) {
-      // The -512 offset stays private here: it only feeds the phrase lookup.
-      return ProviderResult::error(getHttpResponsePhrase(-512 - static_cast<int>(connection_status)));
-    }
-
-    HTTPClient http;
-    http.setConnectTimeout(timeoutMs);
-    http.setTimeout(timeoutMs);
-    if (useHttp10) {
-      http.useHTTP10(true);
-    }
-    http.begin(client, host, port, uri);
-    httpResponse = http.GET();
-    if (httpResponse == HTTP_CODE_OK) {
-      // Pass the response content length so parsers can stop reading exactly
-      // at the end of the body instead of reading past it into the (already
-      // closed) connection.
-      const int size = http.getSize();
-      const size_t expectedLen = size > 0 ? static_cast<size_t>(size) : 0;
-      // Make the parser's per-byte read window match the configured timeout:
-      // HTTPClient::setTimeout only forwards to the client while connected,
-      // so the Stream the parser reads from would otherwise keep its default
-      // 1 s window (too short for large, intermittently delivered bodies).
-      http.getStream().setTimeout(timeoutMs);
-      result = parse(http.getStream(), expectedLen);
-      if (!result.isOk()) {
-        LOG_WARNING("stream: read timeout %u ms, advertised size %d B, http.connected()=%u, live stream ptr=%u",
-                    http.getStream().getTimeout(), size, http.connected(), http.getStreamPtr() != nullptr);
-      }
-    } else {
-      result = ProviderResult::error(getHttpResponsePhrase(httpResponse));
-    }
-    client.stop();
-    http.end();
-    LOG_INFO("%d %s %s", httpResponse, result.isOk() ? getHttpResponsePhrase(httpResponse) : result.detail().c_str(),
-             host.c_str());
-    ++attempts;
-    if (!result.isOk()) {
-      delay(100);
-    }
-  }
-
-  return result;
-}  // httpGetWithRetry
 
 /* Prints debug information about heap usage.
  */

@@ -21,17 +21,14 @@
 #if defined(REMOTE_PROVIDER_OPEN_METEO_FORECAST)
 
 #include <Arduino.h>
-#include <WiFiClient.h>
-#if !defined(OPEN_METEO_FORECAST_TRANSPORT_HTTP)
-#include <WiFiClientSecure.h>
-#endif
 #if defined(OPEN_METEO_FORECAST_TRANSPORT_HTTPS_VERIFY)
 #include "cert.h"
 #endif
 #include <cstdint>
 #include <cstring>
 #include "_locale.h"
-#include "client_utils.h"
+#include "esp_http_client_stream.h"
+#include "esp_http_client_utils.h"
 #include "json_stream_utils.h"
 #include "open_meteo_weather_provider.h"
 #include "provider_fetch_operations.h"
@@ -291,19 +288,7 @@ weather_condition OpenMeteoForecastProvider::mapWeatherCode(int id) {
  * response into the generic forecast model.
  */
 ProviderResult OpenMeteoForecastProvider::fetch(forecast_t &forecast) {
-#if defined(OPEN_METEO_FORECAST_TRANSPORT_HTTP)
-  WiFiClient client;
-  const uint16_t port = 80;
-#elif defined(OPEN_METEO_FORECAST_TRANSPORT_HTTPS_NO_VERIFY)
-  WiFiClientSecure client;
-  client.setInsecure();
-  const uint16_t port = 443;
-#else  // OPEN_METEO_FORECAST_TRANSPORT_HTTPS_VERIFY
-  WiFiClientSecure client;
-  client.setCACert(cert_ISRG_Root_X1);
-  const uint16_t port = 443;
-#endif
-  String uri =
+  const String uri =
       "/v1/forecast?latitude=" + LAT + "&longitude=" + LON + "&" +
       "current=temperature_2m,relative_humidity_2m,dew_point_2m,apparent_temperature,weather_code,cloud_cover,"
       "visibility,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day&" +
@@ -312,12 +297,28 @@ ProviderResult OpenMeteoForecastProvider::fetch(forecast_t &forecast) {
       "daily=weather_code,temperature_2m_max,temperature_2m_min,uv_index_max,rain_sum,snowfall_sum,"
       "precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max&" +
       "wind_speed_unit=ms&timezone=auto&timeformat=unixtime&forecast_days=5&forecast_hours=" + HOURLY_GRAPH_MAX;
+#if defined(OPEN_METEO_FORECAST_TRANSPORT_HTTP)
+  const String url = "http://" + OM_ENDPOINT + uri;
+#else  // OPEN_METEO_FORECAST_TRANSPORT_HTTPS_*
+  const String url = "https://" + OM_ENDPOINT + uri;
+#endif
 
   // This string is printed to terminal to help with debugging.
-  String sanitizedUri = OM_ENDPOINT + uri;
+  const String sanitizedUri = OM_ENDPOINT + uri;
 
-  return httpGetWithRetry(client, OM_ENDPOINT, port, uri, sanitizedUri, true, HTTP_CLIENT_TCP_TIMEOUT,
-                          [&forecast](Stream &json, size_t) { return deserializeCall(json, forecast); });
+  esp_http_client_config_t config = {};
+  config.timeout_ms = HTTP_CLIENT_TCP_TIMEOUT;
+#if defined(OPEN_METEO_FORECAST_TRANSPORT_HTTPS_VERIFY)
+  config.cert_pem = cert_ISRG_Root_X1;
+#endif
+
+  return espHttpGetWithRetry(url, sanitizedUri, config, [&forecast](esp_http_client_handle_t client) {
+    EspHttpClientStream stream(client);
+    ProviderResult result = OpenMeteoForecastProvider::deserializeCall(stream, forecast);
+    if (stream.hadReadError())
+      return espHttpErrorResult(stream.readError());
+    return result;
+  });
 }  // OpenMeteoForecastProvider::fetch
 
 /* Map a streamed response of the Open-Meteo forecast API into the generic

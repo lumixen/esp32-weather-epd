@@ -19,7 +19,7 @@
 class ProviderResult {
  public:
   // Default is a non-ok "no result yet" state, so a default-initialized
-  // value (e.g. the retry-loop accumulator in httpGetWithRetry or the
+  // value (e.g. the retry-loop accumulator in espHttpGetWithRetry or the
   // status cached by a provider) is never mistaken for success.
   ProviderResult() : ok_(false), detail_("") {}
   static ProviderResult ok() { return ProviderResult(true, ""); }
