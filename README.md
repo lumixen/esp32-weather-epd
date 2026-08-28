@@ -175,6 +175,10 @@ providers, such as `bme280`, use the same model even though they read a sensor
 instead of making an HTTP request. The renderer consumes the normalized report
 and does not need to know which API or sensor produced the data.
 
+A provider may own multiple capabilities. For example, OpenWeatherMap One
+Call provides forecast data and alerts. Providers may also create more than
+one fetch operation when a service uses separate endpoints internally.
+
 Each capability can have at most one owner. The current, hourly, and daily
 forecast capabilities are required. Air quality is required when `AIR_QUALITY`
 is present in `leftPanelLayout`. Alerts and local sensor capabilities are
