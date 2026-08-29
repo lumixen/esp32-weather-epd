@@ -1,24 +1,31 @@
 # Per-device configuration template.
 #
 # Copy this file to devices/<name>.yml and edit it to match your device.
-# Each device file is a fully independent config: display panel, pinout,
-# WiFi credentials, location, MQTT and layout are all per device.
+# Each device file is independent: display hardware, WiFi, location,
+# providers, MQTT, and rendering settings can all vary per device.
 #
 #   cp devices/kitchen.example.yml devices/kitchen.yml
 #   ./scripts/devices.sh flash kitchen
 #
-# devices/<name>.yml files are gitignored (they contain credentials);
+# devices/<name>.yml files are gitignored because they contain credentials;
 # only this *.example.yml template is tracked.
-#
-# All values below are valid schema defaults; replace them as needed.
 
-# E-paper display panel and driver (hardware-specific).
-epdPanel: DKE_3C_86BF
-epdDriver: Waveshare
-# Locale for date/time and labels (see schema.py Locale enum).
-locale: en_US
+# E-paper hardware and driver board.
+display:
+  panel: DKE_3C_86BF
+  driverBoard: Waveshare
+  pins:
+    busy: 4
+    chipSelect: 5
+    reset: 16
+    dataCommand: 17
+    power: 2
+    # Optional SPI pins use board defaults when omitted.
+    # clock: 18
+    # miso: 19
+    # mosi: 23
 
-# Weather data providers and transports.
+# Weather, air-quality, alert, and local sensor providers.
 providers:
   - provider: open_meteo_forecast
     transport: HTTP
@@ -27,70 +34,34 @@ providers:
   - provider: meteoalarm_alert
     country: ukraine
   - provider: bme280
-    pinPwr: 27
-    pinSDA: 21
-    pinSCL: 22
+    pins:
+      power: 27
+      sda: 21
+      scl: 22
     address: 0x76
 
-# For OpenWeatherMap, put apiKey inside each OWM providers entry:
-#   - provider: openweathermap_onecall_v3
-#     transport: HTTPS_VERIFY
-#     apiKey: your-owm-api-key
-#   - provider: openweathermap_onecall_v4
-#     transport: HTTPS_VERIFY
-#     apiKey: your-owm-api-key
-#     alerts: true
-# v4 alert details are optional. The current response supplies alert IDs and
-# at most two IDs are fetched from the separate per-ID endpoint. Omit alerts
-# or set it to false to make no detail requests. Do not configure another
-# alert provider when v4 alerts are enabled.
+# OpenWeatherMap credentials belong on the provider entry:
+# - provider: openweathermap_onecall_v4
+#   transport: HTTPS_VERIFY
+#   apiKey: your-owm-api-key
+#   alerts: true
 
+# Time synchronization.
 ntp:
-  server_1: 192.168.41.1
-  server_2: pool.ntp.org
+  servers:
+    - 192.168.41.1
+    - pool.ntp.org
   syncIntervalWakeups: 6
-  # Correct the RTC slow-clock drift (learned between NTP synchronizations).
+  timeoutMs: 20000
   rtcCorrection: true
 
-# Wiring: GPIO pins for the e-paper display and battery ADC.
-pin:
-  epdBusy: 4
-  epdCS: 5
-  epdRst: 16
-  epdDC: 17
-  epdPwr: 2
-
-# Units (defaults to metric unless useImperialUnitsAsDefault is true).
-useImperialUnitsAsDefault: false
-unitsTemp: Celsius
-unitsSpeed: km/h
-unitsPres: mbar
-unitsDistance: km
-unitsHourlyPrecip: probability of precipitation
-unitsDailyPrecip: mm
-windDirectionIndicator: arrow
-windArrowPrecision: secondary intercardinal
-
-# Typography and display options.
-font: FreeSans
-displayDailyPrecip: smart
-displayHourlyIcons: true
-
-# Battery / status bar.
-batteryMonitoring: true
-statusBarExtrasBatVoltage: true
-statusBarExtrasWifiRSSI: false
-
-# Logging: trace, debug, info, warning, error or critical.
-logLevel: debug
-
-# WiFi network (per device).
+# WiFi network.
 wifi:
   ssid: your-ssid
   password: your-password
   # Optional: lock to a specific access point.
-  bssid: 4A:8F:5A:21:EB:72
-  # Optional static IP (omit for DHCP).
+  # bssid: 4A:8F:5A:21:EB:72
+  # Optional static IP; omit for DHCP.
   # staticIp:
   #   ip: 192.168.1.50
   #   gateway: 192.168.1.1
@@ -98,43 +69,76 @@ wifi:
   #   dns1: 8.8.8.8
   #   dns2: 8.8.4.4
 
-# Location (per device).
-latitude: '50.498878'
-longitude: '30.497396'
-city: Kyiv
+# Installation location and timezone.
+location:
+  latitude: 50.498878
+  longitude: 30.497396
+  city: Kyiv
+  timezone: EET-2EEST,M3.5.0/3,M10.5.0/4
 
-# Timezone (POSIX TZ string) and display formats.
-timezone: EET-2EEST,M3.5.0/3,M10.5.0/4
-timeFormat: '%H:%M'
-hourFormat: '%H'
-dateFormat: '%d/%m/%Y'
-refreshTimeFormat: '%x %H:%M'
+# User-facing formatting and rendering.
+rendering:
+  locale: en_US
+  font: FreeSans
+  units:
+    temperature: Celsius
+    speed: km/h
+    pressure: mbar
+    distance: km
+    hourlyPrecipitation: probability of precipitation
+    dailyPrecipitation: mm
+  windDirectionIndicator: arrow
+  windArrowPrecision: secondary intercardinal
+  displayDailyPrecip: smart
+  displayHourlyIcons: true
+  moonPhaseStyle: alternative
+  hourlyGraphMax: 24
+  timeFormat: "%H:%M"
+  hourFormat: "%H"
+  dateFormat: "%d/%m/%Y"
+  refreshTimeFormat: "%x %H:%M"
+  statusBar:
+    showBatteryVoltage: true
+    showWifiRssi: false
+  leftPanelLayout:
+    1: SUNRISE
+    2: SUNSET
+    3: MOONRISE
+    4: MOONSET
+    5: MOONPHASE
+    6: HUMIDITY
+    7: WIND
+    8: INPRESSURE
+    9: AIR_QUALITY
+    10: VISIBILITY
+  colors:
+    outlookLowThresholdTemperature: 0
+    outlookHighThresholdTemperature: 30
+    outlookTemperatureLowColor: red
+    outlookTemperatureNormalColor: black
+    outlookTemperatureHighColor: red
+    outlookConditionsIconAccent: red
+    city: black
+    date: red
+    alertIcon: red
+    errorIcon: red
+    statusBarBatteryWarning: red
+    statusBarWeakWifi: red
+    statusBarMessage: red
+    forecastPrecipitation: red
 
-# Sleep: refresh interval in minutes, bed/wake hours (0 = disabled).
-sleepDuration: 30
-bedTime: 0
-wakeTime: 0
-hourlyGraphMax: 24
+# Battery measurement and monitoring.
+battery:
+  monitoring: true
+  adcPin: 35
 
-# Moon phase icon style: alternative or default.
-moonPhaseStyle: alternative
+# Refresh and sleep schedule.
+schedule:
+  refreshMinutes: 30
+  bedTime: 0
+  wakeTime: 0
 
-# Omit the bme280 provider entry above to disable the local sensor.
-
-# Left panel row order (POS_* layout macros).
-leftPanelLayout:
-  SUNRISE: 0
-  SUNSET: 1
-  MOONRISE: 2
-  MOONSET: 3
-  MOONPHASE: 4
-  HUMIDITY: 5
-  WIND: 6
-  INPRESSURE: 7
-  AIR_QUALITY: 8
-  VISIBILITY: 9
-
-# Optional Home Assistant MQTT integration (per device).
+# Optional Home Assistant MQTT integration.
 homeAssistantMqtt:
   enabled: true
   server: 192.168.41.2
@@ -143,19 +147,4 @@ homeAssistantMqtt:
   password: your-mqtt-password
   discoveryPrefix: homeassistant
 
-# Color palette (COLORS_* macros).
-colors:
-  outlookLowThresholdTemperature: 0
-  outlookHighThresholdTemperature: 30
-  outlookTemperatureLowColor: red
-  outlookTemperatureNormalColor: black
-  outlookTemperatureHighColor: red
-  outlookConditionsIconAccent: red
-  city: black
-  date: red
-  alert: red
-  errorIcon: red
-  statusBarBatteryWarning: red
-  statusBarWeakWifi: red
-  statusBarMessage: red
-  forecastPrecipitation: red
+logLevel: debug

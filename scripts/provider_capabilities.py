@@ -109,8 +109,8 @@ def validate_precipitation_support(config, errors):
 
     support = PRECIPITATION_SUPPORT.get(forecast_providers[0], {})
     requested = {
-        "hourly": precipitation_kind(config.unitsHourlyPrecip),
-        "daily": precipitation_kind(config.unitsDailyPrecip),
+        "hourly": precipitation_kind(config.rendering.units.hourlyPrecipitation),
+        "daily": precipitation_kind(config.rendering.units.dailyPrecipitation),
     }
     for period, kind in requested.items():
         if kind not in support.get(period, set()):
@@ -140,7 +140,7 @@ def validate_capabilities(config):
                 owners[tag] = owner
 
     required = set(REQUIRED_FORECAST)
-    if "AIR_QUALITY" in config.leftPanelLayout:
+    if "AIR_QUALITY" in config.rendering.leftPanelLayout.values():
         required.add("air_quality")
     missing = sorted(required - owners.keys())
     if missing:

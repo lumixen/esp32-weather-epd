@@ -17,7 +17,7 @@
 
 from enum import Enum
 import re
-from typing import Dict, Optional
+from typing import Optional
 from typing import Annotated
 from typing import Union, Literal
 from pydantic import BaseModel, ConfigDict, Field, WithJsonSchema, model_validator
@@ -300,12 +300,18 @@ class MeteoAlarmAlertConfig(BaseModel):
     country: MeteoAlarmCountry
 
 
+class BME280PinsConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    power: int = 27
+    sda: int = 21
+    scl: int = 22
+
+
 class BME280ProviderConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     provider: Literal["bme280"] = "bme280"
-    pinPwr: int = 27
-    pinSDA: int = 21
-    pinSCL: int = 22
+    pins: BME280PinsConfig = Field(default_factory=BME280PinsConfig)
     address: int = 0x76
 
 
@@ -352,6 +358,8 @@ def enum_schema(enum: Enum):
 
 
 class StaticIpConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     ip: str
     gateway: str
     subnet: str
@@ -388,9 +396,11 @@ class StaticIpConfig(BaseModel):
 
 
 class Wifi(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     ssid: str
     password: str
-    timeout: int = 10000
+    timeoutMs: int = 10000
     scan: bool = False
     bssid: Optional[str] = None
     staticIp: Optional[StaticIpConfig] = None
@@ -425,19 +435,30 @@ class Wifi(BaseModel):
         return f"{{{formatted}}}"
 
 
-class PinsConfig(BaseModel):
-    batAdc: int = 35
-    epdBusy: int = 14
-    epdCS: int = 13
-    epdRst: int = 21
-    epdDC: int = 22
-    epdSCK: int = 18
-    epdMISO: int = 19
-    epdMOSI: int = 23
-    epdPwr: int = 26
+class DisplayPinsConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    busy: int = 14
+    chipSelect: int = 13
+    reset: int = 21
+    dataCommand: int = 22
+    clock: int = 18
+    miso: int = 19
+    mosi: int = 23
+    power: int = 26
+
+
+class DisplayHardwareConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    panel: Annotated[EpdPanel, enum_schema(EpdPanel)] = EpdPanel.GENERIC_BW_V2
+    driverBoard: EpdDriver = EpdDriver.DESPI_C02
+    pins: DisplayPinsConfig = Field(default_factory=DisplayPinsConfig)
 
 
 class HomeAssistantMqttConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     enabled: bool = False
     server: str = ""
     port: int = 1883
@@ -458,10 +479,15 @@ class Color(str, Enum):
 
 
 class NTPConfig(BaseModel):
-    # NTP_SERVER_1 is the primary time server, while NTP_SERVER_2 is a fallback.
-    # pool.ntp.org will find the closest available NTP server to you.
-    server_1: str = "pool.ntp.org"
-    server_2: str = "time.nist.gov"
+    model_config = ConfigDict(extra="forbid")
+
+    # The first server is primary; the second is the fallback used by the
+    # generated configuration interface.
+    servers: list[str] = Field(
+        default_factory=lambda: ["pool.ntp.org", "time.nist.gov"],
+        min_length=1,
+        max_length=2,
+    )
     syncIntervalWakeups: int = 6
     # Auto-correct the RTC slow-clock drift: the correction factor is learned
     # from the deviation measured between consecutive NTP synchronizations and
@@ -470,10 +496,12 @@ class NTPConfig(BaseModel):
     rtcCorrection: bool = True
     # If you encounter the 'Failed To Fetch The Time' error, try increasing
     # NTP_TIMEOUT or select closer/lower latency time servers.
-    timeout: int = 20000  # ms
+    timeoutMs: int = 20000
 
 
 class Colors(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     outlookLowThresholdTemperature: int = 0
     outlookHighThresholdTemperature: int = 35
     outlookTemperatureLowColor: Color = Color.BLACK
@@ -482,7 +510,7 @@ class Colors(BaseModel):
     outlookConditionsIconAccent: Color = Color.BLACK
     city: Color = Color.BLACK
     date: Color = Color.BLACK
-    alert: Color = Color.BLACK
+    alertIcon: Color = Color.BLACK
     errorIcon: Color = Color.BLACK
     statusBarBatteryWarning: Color = Color.BLACK
     statusBarWeakWifi: Color = Color.BLACK
@@ -490,93 +518,95 @@ class Colors(BaseModel):
     forecastPrecipitation: Color = Color.BLACK
 
 
-class ConfigSchema(BaseModel):
+class UnitsConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    epdPanel: Annotated[EpdPanel, enum_schema(EpdPanel)] = EpdPanel.GENERIC_BW_V2
-    epdDriver: EpdDriver = EpdDriver.DESPI_C02
-    locale: Locale
-    providers: list[ProviderConfig]
-    ntp: NTPConfig = Field(default_factory=NTPConfig)
+    temperature: UnitsTemp = UnitsTemp.CELSIUS
+    speed: UnitsSpeed = UnitsSpeed.KILOMETERSPERHOUR
+    pressure: UnitsPres = UnitsPres.MILLIBARS
+    distance: UnitsDistance = UnitsDistance.KILOMETERS
+    hourlyPrecipitation: UnitsPrecip = UnitsPrecip.POP
+    dailyPrecipitation: UnitsPrecip = UnitsPrecip.MILLIMETERS
 
-    # ntpSyncIntervalHours: int = 6
-    useImperialUnitsAsDefault: bool = False
-    unitsTemp: UnitsTemp = Field(
-        default_factory=lambda data: (
-            UnitsTemp.FAHRENHEIT
-            if data["useImperialUnitsAsDefault"]
-            else UnitsTemp.CELSIUS
-        )
-    )
-    unitsSpeed: UnitsSpeed = Field(
-        default_factory=lambda data: (
-            UnitsSpeed.MILESPERHOUR
-            if data["useImperialUnitsAsDefault"]
-            else UnitsSpeed.KILOMETERSPERHOUR
-        )
-    )
-    unitsPres: UnitsPres = Field(
-        default_factory=lambda data: (
-            UnitsPres.INCHESOFMERCURY
-            if data["useImperialUnitsAsDefault"]
-            else UnitsPres.MILLIBARS
-        )
-    )
-    unitsDistance: UnitsDistance = Field(
-        default_factory=lambda data: (
-            UnitsDistance.MILES
-            if data["useImperialUnitsAsDefault"]
-            else UnitsDistance.KILOMETERS
-        )
-    )
-    unitsHourlyPrecip: UnitsPrecip = UnitsPrecip.POP
-    unitsDailyPrecip: UnitsPrecip = Field(
-        default_factory=lambda data: (
-            UnitsPrecip.INCHES
-            if data["useImperialUnitsAsDefault"]
-            else UnitsPrecip.MILLIMETERS
-        )
-    )
+
+class StatusBarConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    showBatteryVoltage: bool = False
+    showWifiRssi: bool = False
+
+
+class RenderingConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    locale: Locale
+    font: Font = Font.FREESANS
+    units: UnitsConfig = Field(default_factory=UnitsConfig)
     windDirectionIndicator: WindDirectionIndicator = WindDirectionIndicator.ARROW
     windArrowPrecision: WindArrowPrecision = WindArrowPrecision.SECONDARY_INTERCARDINAL
-    font: Font = Font.FREESANS
     displayDailyPrecip: DisplayDailyPrecip = DisplayDailyPrecip.SMART
     displayHourlyIcons: bool = True
-    statusBarExtrasBatVoltage: bool = False
-    statusBarExtrasWifiRSSI: bool = False
-    batteryMonitoring: bool = True
-    logLevel: LogLevel = LogLevel.INFO
-    pin: PinsConfig = Field(default_factory=PinsConfig)
-    wifi: Wifi = Field(default_factory=Wifi)
-    latitude: str
-    longitude: str
-    city: str
-    timezone: str
+    moonPhaseStyle: MoonPhaseStyle = MoonPhaseStyle.PRIMARY
+    hourlyGraphMax: int = 24
     timeFormat: str = "%H:%M"
     hourFormat: str = "%H"
     dateFormat: str
     refreshTimeFormat: str = "%x %H:%M"
-    sleepDuration: int = 30
-    bedTime: int = 0
-    wakeTime: int = 6
-    hourlyGraphMax: int = 24
-    homeAssistantMqtt: HomeAssistantMqttConfig | None = None
-    leftPanelLayout: Dict[str, int] = Field(
+    statusBar: StatusBarConfig = Field(default_factory=StatusBarConfig)
+    leftPanelLayout: dict[int, str] = Field(
         default_factory=lambda: {
-            "SUNRISE": 0,
-            "SUNSET": 1,
-            "MOONRISE": 2,
-            "MOONSET": 3,
-            "MOONPHASE": 4,
-            "HUMIDITY": 5,
-            "WIND": 6,
-            "PRESSURE": 7,
-            "AIR_QUALITY": 8,
-            "VISIBILITY": 9,
+            1: "SUNRISE",
+            2: "SUNSET",
+            3: "MOONRISE",
+            4: "MOONSET",
+            5: "MOONPHASE",
+            6: "HUMIDITY",
+            7: "WIND",
+            8: "PRESSURE",
+            9: "AIR_QUALITY",
+            10: "VISIBILITY",
         }
     )
-    moonPhaseStyle: MoonPhaseStyle = MoonPhaseStyle.PRIMARY
     colors: Colors = Field(default_factory=Colors)
+
+
+class LocationConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+    city: str
+    timezone: str
+
+
+class BatteryConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    monitoring: bool = True
+    adcPin: int = 35
+
+
+class ScheduleConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    refreshMinutes: int = Field(default=30, ge=1)
+    bedTime: int = Field(default=0, ge=0, le=23)
+    wakeTime: int = Field(default=6, ge=0, le=23)
+
+
+class ConfigSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    display: DisplayHardwareConfig = Field(default_factory=DisplayHardwareConfig)
+    providers: list[ProviderConfig]
+    wifi: Wifi = Field(default_factory=Wifi)
+    ntp: NTPConfig = Field(default_factory=NTPConfig)
+    location: LocationConfig
+    rendering: RenderingConfig
+    battery: BatteryConfig = Field(default_factory=BatteryConfig)
+    schedule: ScheduleConfig = Field(default_factory=ScheduleConfig)
+    homeAssistantMqtt: HomeAssistantMqttConfig | None = None
+    logLevel: LogLevel = LogLevel.INFO
 
     @model_validator(mode="before")
     @classmethod
@@ -610,20 +640,25 @@ class ConfigSchema(BaseModel):
             "DEWPOINT",
         }
         invalid_keys = [
-            k for k in self.leftPanelLayout.keys() if k not in allowed_left_panel_keys
+            (slot, item)
+            for slot, item in self.rendering.leftPanelLayout.items()
+            if item not in allowed_left_panel_keys
         ]
         if invalid_keys:
             raise ValueError(
-                f"Invalid keys in leftPanelLayout: {invalid_keys}. "
-                f"Allowed keys are: {sorted(allowed_left_panel_keys)}"
+                f"Invalid entries in rendering.leftPanelLayout: {invalid_keys}. "
+                f"Allowed items are: {sorted(allowed_left_panel_keys)}"
             )
-        invalid_indices = [
-            (k, v)
-            for k, v in self.leftPanelLayout.items()
-            if not isinstance(v, int) or v < 0 or v > 9
+        invalid_slots = [
+            slot
+            for slot in self.rendering.leftPanelLayout
+            if not isinstance(slot, int) or slot < 1 or slot > 10
         ]
-        if invalid_indices:
+        if invalid_slots:
             raise ValueError(
-                f"Invalid indices in leftPanelLayout (must be integer between 0 and 9): {invalid_indices}"
+                f"Invalid slots in rendering.leftPanelLayout (must be integer between 1 and 10): {invalid_slots}"
             )
+        items = list(self.rendering.leftPanelLayout.values())
+        if len(items) != len(set(items)):
+            raise ValueError("Duplicate items in rendering.leftPanelLayout are not allowed")
         return self

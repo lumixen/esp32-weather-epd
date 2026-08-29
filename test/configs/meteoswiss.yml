@@ -1,94 +1,94 @@
 # Pinned configuration for the MeteoSwiss forecast-provider tests.
 # The network is never used by the fixture tests.
-epdPanel: GENERIC_BW_V2
-epdDriver: Good Display DESPI-C02
-locale: en_GB
 
+display:
+  panel: GENERIC_BW_V2
+  driverBoard: Good Display DESPI-C02
+  pins:
+    busy: 14
+    chipSelect: 13
+    reset: 21
+    dataCommand: 22
+    power: 26
+    clock: 18
+    miso: 19
+    mosi: 23
 providers:
   - provider: meteoswiss_forecast
-    forecastPointId: "800100"
+    forecastPointId: '800100'
     stationId: KLO
-
-ntp:
-  server_1: pool.ntp.org
-  server_2: time.nist.gov
-  syncIntervalWakeups: 6
-  timeout: 20000
-
-pin:
-  batAdc: 35
-  epdBusy: 14
-  epdCS: 13
-  epdRst: 21
-  epdDC: 22
-  epdSCK: 18
-  epdMISO: 19
-  epdMOSI: 23
-  epdPwr: 26
-
-useImperialUnitsAsDefault: false
-unitsTemp: Celsius
-unitsSpeed: km/h
-unitsPres: hPa
-unitsDistance: km
-unitsHourlyPrecip: probability of precipitation
-unitsDailyPrecip: mm
-windDirectionIndicator: arrow
-windArrowPrecision: secondary intercardinal
-font: FreeSans
-displayDailyPrecip: smart
-displayHourlyIcons: true
-batteryMonitoring: true
-statusBarExtrasBatVoltage: false
-statusBarExtrasWifiRSSI: false
-logLevel: debug
-
 wifi:
   ssid: your-wifi-ssid
   password: your-wifi-password
-  timeout: 10000
   scan: false
-
-latitude: "47.3769"
-longitude: "8.5417"
-city: Zurich
-timezone: Europe/Zurich
-timeFormat: "%H:%M"
-hourFormat: "%H"
-dateFormat: "%x"
-refreshTimeFormat: "%x %H:%M"
-sleepDuration: 30
-bedTime: 0
-wakeTime: 6
-hourlyGraphMax: 24
-moonPhaseStyle: primary
-
-leftPanelLayout:
-  SUNRISE: 0
-  SUNSET: 1
-  MOONRISE: 2
-  MOONSET: 3
-  MOONPHASE: 4
-  HUMIDITY: 5
-  WIND: 6
-  PRESSURE: 7
-  VISIBILITY: 8
-
+  timeoutMs: 10000
+ntp:
+  servers:
+    - pool.ntp.org
+    - time.nist.gov
+  syncIntervalWakeups: 6
+  timeoutMs: 20000
+  rtcCorrection: true
+location:
+  latitude: 47.3769
+  longitude: 8.5417
+  city: Zurich
+  timezone: Europe/Zurich
+rendering:
+  locale: en_GB
+  font: FreeSans
+  units:
+    temperature: Celsius
+    speed: km/h
+    pressure: hPa
+    distance: km
+    hourlyPrecipitation: probability of precipitation
+    dailyPrecipitation: mm
+  windDirectionIndicator: arrow
+  windArrowPrecision: secondary intercardinal
+  displayDailyPrecip: smart
+  displayHourlyIcons: true
+  moonPhaseStyle: primary
+  hourlyGraphMax: 24
+  timeFormat: '%H:%M'
+  hourFormat: '%H'
+  dateFormat: '%x'
+  refreshTimeFormat: '%x %H:%M'
+  statusBar:
+    showBatteryVoltage: false
+    showWifiRssi: false
+  leftPanelLayout:
+    1: SUNRISE
+    2: SUNSET
+    3: MOONRISE
+    4: MOONSET
+    5: MOONPHASE
+    6: HUMIDITY
+    7: WIND
+    8: PRESSURE
+    9: VISIBILITY
+  colors:
+    outlookLowThresholdTemperature: 0
+    outlookHighThresholdTemperature: 35
+    outlookTemperatureLowColor: black
+    outlookTemperatureNormalColor: black
+    outlookTemperatureHighColor: black
+    outlookConditionsIconAccent: black
+    city: black
+    date: black
+    alertIcon: black
+    errorIcon: black
+    statusBarBatteryWarning: black
+    statusBarWeakWifi: black
+    statusBarMessage: black
+    forecastPrecipitation: black
+battery:
+  monitoring: true
+  adcPin: 35
+schedule:
+  refreshMinutes: 30
+  bedTime: 0
+  wakeTime: 6
+logLevel: debug
 homeAssistantMqtt:
   enabled: false
-
-colors:
-  outlookLowThresholdTemperature: 0
-  outlookHighThresholdTemperature: 35
-  outlookTemperatureLowColor: black
-  outlookTemperatureNormalColor: black
-  outlookTemperatureHighColor: black
-  outlookConditionsIconAccent: black
-  city: black
-  date: black
-  alert: black
-  errorIcon: black
-  statusBarBatteryWarning: black
-  statusBarWeakWifi: black
-  statusBarMessage: black
-  forecastPrecipitation: black
