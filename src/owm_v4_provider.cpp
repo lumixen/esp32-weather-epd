@@ -21,7 +21,6 @@
 #if defined(REMOTE_PROVIDER_OPENWEATHERMAP_ONECALL_V4)
 
 #include <Arduino.h>
-#include <ArduinoStreamParser.h>
 #include <cctype>
 #include <cstdint>
 #include <cstring>
@@ -31,6 +30,7 @@
 #include "_locale.h"
 #include "esp_http_client_stream.h"
 #include "esp_http_client_utils.h"
+#include "json_stream_utils.h"
 #include "owm_v4_provider.h"
 #include "provider_fetch_operations.h"
 
@@ -506,33 +506,9 @@ class OneCallV4AlertHandler : public JsonHandler {
 };
 
 template<typename Handler> static ProviderResult consumeJson(Stream &json, Handler &handler) {
-  ArduinoStreamParser parser;
-  parser.setHandler(&handler);
-  uint8_t buffer[256];
-  while (!parser.hasParseError() && !handler.finishedDocument()) {
-    const size_t count = json.readBytes(buffer, sizeof(buffer));
-    if (count == 0)
-      break;
-    // A bounded read may include bytes after the root document. Feed bytes
-    // individually so the parser stops cleanly at endDocument() and trailing
-    // data cannot become a second JSON document.
-    for (size_t i = 0; i < count && !parser.hasParseError() && !handler.finishedDocument(); ++i) {
-      if (!handler.sawStart() && (buffer[i] == ' ' || buffer[i] == '\t' || buffer[i] == '\n' || buffer[i] == '\r'))
-        continue;
-      parser.write(buffer + i, 1);
-    }
-  }
-  if (parser.hasParseError()) {
-    LOG_WARNING("OpenWeatherMap One Call v4 JSON parse error: %s", parser.getErrorMessage());
-    return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT);
-  }
-  if (handler.finishedDocument()) {
-    return ProviderResult::ok();
-  }
-  if (!handler.sawStart()) {
-    return ProviderResult::error(TXT_DESERIALIZATION_ERROR_EMPTY_INPUT);
-  }
-  return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT);
+  return consumeJsonStream(
+      json, handler, [&handler]() { return handler.finishedDocument(); }, [&handler]() { return handler.sawStart(); },
+      "OpenWeatherMap One Call v4", true);
 }
 
 static ProviderResult parseCurrent(Stream &json, forecast_t &forecast, std::vector<String> *alertIds) {

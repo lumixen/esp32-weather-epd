@@ -13,7 +13,7 @@
 #include "data_models.h"
 #include "fetch_executor.h"
 #include "fetch_operation.h"
-#include "owm_provider.h"
+#include "owm_v3_provider.h"
 #include "provider_fetch_operations.h"
 #include "provider_factory.h"
 #include "../test_harness.h"

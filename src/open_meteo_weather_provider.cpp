@@ -30,9 +30,9 @@
 #endif
 #include <cstdint>
 #include <cstring>
-#include <ArduinoStreamParser.h>
 #include "_locale.h"
 #include "client_utils.h"
+#include "json_stream_utils.h"
 #include "open_meteo_weather_provider.h"
 #include "provider_fetch_operations.h"
 
@@ -328,46 +328,19 @@ ProviderResult OpenMeteoForecastProvider::deserializeCall(Stream &json, forecast
   // Rejections reset it again, leaving the model clean after any non-Ok.
   forecast.reset();
   WeatherHandler handler(forecast);
-  ArduinoStreamParser parser;
-  parser.setHandler(&handler);
-  // Feed the parser byte by byte until the root document closes or an error
-  // is flagged. The Open-Meteo API never sends a Content-Length (HTTP/1.0
-  // responses are close-delimited), so there is no declared size to read up
-  // to. Reading one byte at a time never blocks waiting for a full buffer:
-  // readBytes() only waits for the next byte (or the socket timeout), and the
-  // loop exits the moment the document is complete, so there is no trailing
-  // read to stall on either.
-  uint8_t b;
-  while (!parser.hasParseError() && !handler.finishedDocument() && json.readBytes(&b, 1) > 0) {
-    parser.write(&b, 1);
-  }
-  if (parser.hasParseError()) {
-    // Genuinely malformed JSON flagged by the parser. Trailing bytes after a
-    // completed document never reach this branch: the read loop above exits as
-    // soon as endDocument() fires, so anything following the JSON is simply not
-    // fed to the parser.
-    LOG_WARNING("Open-Meteo JSON parse error: %s", parser.getErrorMessage());
+  ProviderResult result = consumeJsonStream(
+      json, handler, [&handler]() { return handler.finishedDocument(); }, [&handler]() { return handler.sawStart(); },
+      "Open-Meteo", true);
+  if (result.isOk() && !handler.isComplete()) {
+    LOG_WARNING(
+        "Open-Meteo response is no forecast: required time keys (current.time, hourly.time, daily.time) missing");
     forecast.reset();
-    return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT);
+    return ProviderResult::error(String(TXT_DESERIALIZATION_ERROR_INVALID_INPUT) +
+                                 " (missing current/hourly/daily time)");
   }
-  if (handler.finishedDocument()) {
-    if (!handler.isComplete()) {
-      LOG_WARNING(
-          "Open-Meteo response is no forecast: required time keys (current.time, hourly.time, daily.time) missing");
-      forecast.reset();
-      return ProviderResult::error(String(TXT_DESERIALIZATION_ERROR_INVALID_INPUT) +
-                                   " (missing current/hourly/daily time)");
-    }
-    return ProviderResult::ok();
-  }
-  forecast.reset();
-  // The body never closed the root document: empty responses and truncated
-  // bodies are both silent for this parser, so distinguish them by whether
-  // any parse event happened at all.
-  if (!handler.sawStart()) {
-    return ProviderResult::error(TXT_DESERIALIZATION_ERROR_EMPTY_INPUT);
-  }
-  return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT);
+  if (!result.isOk())
+    forecast.reset();
+  return result;
 }  // OpenMeteoForecastProvider::deserializeCall
 
 #endif  // REMOTE_PROVIDER_OPEN_METEO_FORECAST

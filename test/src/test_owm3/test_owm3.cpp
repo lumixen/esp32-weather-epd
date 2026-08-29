@@ -8,8 +8,8 @@
 #include <unity.h>
 
 #include "../test_harness.h"
-#include "owm_provider.inc"
-#include "owm_weather_provider.inc"
+#include "owm_v3_provider.inc"
+#include "owm_v3_weather_provider.inc"
 #include "owm_air_quality_provider.inc"
 #include "fetch_executor.inc"
 
@@ -23,7 +23,7 @@ void setup() {
   // Run executor tests before the large parser fixtures so their FreeRTOS
   // worker tasks are fully reclaimed before the parser-heavy cases.
   fetch_executor_tests::registerTests();
-  owm_provider_tests::registerTests();
+  owm_v3_provider_tests::registerTests();
   owm_weather_tests::registerTests();
   owm_air_quality_tests::registerTests();
   UNITY_END();

@@ -13,7 +13,6 @@
 #if defined(REMOTE_PROVIDER_NOAA_FORECAST)
 
 #include <Arduino.h>
-#include <ArduinoStreamParser.h>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -25,6 +24,7 @@
 #include "display_utils.h"
 #include "esp_http_client_utils.h"
 #include "esp_http_client_stream.h"
+#include "json_stream_utils.h"
 #include "iso8601.h"
 #include "noaa_forecast_provider.h"
 #include "provider_fetch_operations.h"
@@ -97,23 +97,8 @@ int compassDegrees(const String &direction) {
 template<typename Complete, typename Started>
 ProviderResult parseStreamingJson(Stream &json, JsonHandler &handler, Complete complete, Started started,
                                   const char *label) {
-  ArduinoStreamParser parser;
-  parser.setHandler(&handler);
-  uint8_t buffer[256];
-  while (!parser.hasParseError() && !complete()) {
-    const size_t count = json.readBytes(buffer, sizeof(buffer));
-    if (count == 0)
-      break;
-    parser.write(buffer, count);
-  }
-  if (parser.hasParseError()) {
-    LOG_WARNING("NOAA %s JSON parse error: %s", label, parser.getErrorMessage());
-    return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT);
-  }
-  if (!complete())
-    return ProviderResult::error(started() ? TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT
-                                           : TXT_DESERIALIZATION_ERROR_EMPTY_INPUT);
-  return ProviderResult::ok();
+  String fullLabel = String("NOAA ") + label;
+  return consumeJsonStream(json, handler, complete, started, fullLabel.c_str());
 }
 
 ProviderResult requestNoaa(const String &url, std::function<ProviderResult(Stream &)> consume) {

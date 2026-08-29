@@ -21,7 +21,6 @@
 #if defined(REMOTE_PROVIDER_OPENWEATHERMAP_AIR_QUALITY)
 
 #include <Arduino.h>
-#include <ArduinoStreamParser.h>
 #include <WiFiClient.h>
 #if !defined(OPENWEATHERMAP_AIR_QUALITY_TRANSPORT_HTTP)
 #include <WiFiClientSecure.h>
@@ -34,6 +33,7 @@
 #include <time.h>
 #include "_locale.h"
 #include "client_utils.h"
+#include "json_stream_utils.h"
 #include "owm_air_quality_provider.h"
 #include "provider_fetch_operations.h"
 
@@ -225,39 +225,12 @@ ProviderResult OpenWeatherMapAirQualityProvider::deserializeAirQuality(Stream &j
   memset(&airQuality, 0, sizeof(air_quality_t));
 
   OWMAirQualityHandler handler(airQuality);
-  ArduinoStreamParser parser;
-  parser.setHandler(&handler);
-
-  // Read one byte at a time and stop as soon as the root document closes.
-  // This avoids waiting for a trailing read after a close-delimited HTTP/1.0
-  // response and keeps the response out of a temporary DOM allocation.
-  uint8_t b;
-  while (!parser.hasParseError() && !handler.finishedDocument() && json.readBytes(&b, 1) > 0) {
-    // json-streaming-parser2 treats whitespace before the root value as an
-    // error, while ArduinoJson accepts it. Skip it before starting the SAX
-    // parser to preserve the old deserializer's input behavior.
-    if (!handler.sawStart() && (b == ' ' || b == '\t' || b == '\n' || b == '\r')) {
-      continue;
-    }
-    parser.write(&b, 1);
-  }
-
-  if (parser.hasParseError()) {
-    LOG_WARNING("OpenWeatherMap air quality JSON parse error: %s", parser.getErrorMessage());
+  ProviderResult result = consumeJsonStream(
+      json, handler, [&handler]() { return handler.finishedDocument(); }, [&handler]() { return handler.sawStart(); },
+      "OpenWeatherMap air quality", true);
+  if (!result.isOk())
     memset(&airQuality, 0, sizeof(air_quality_t));
-    return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT);
-  }
-  if (handler.finishedDocument()) {
-    // A syntactically valid response without a list is still accepted,
-    // matching the old DOM parser's behavior for {} and API error payloads.
-    return ProviderResult::ok();
-  }
-
-  memset(&airQuality, 0, sizeof(air_quality_t));
-  if (!handler.sawStart()) {
-    return ProviderResult::error(TXT_DESERIALIZATION_ERROR_EMPTY_INPUT);
-  }
-  return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INCOMPLETE_INPUT);
+  return result;
 }  // OpenWeatherMapAirQualityProvider::deserializeAirQuality
 
 #endif  // REMOTE_PROVIDER_OPENWEATHERMAP_AIR_QUALITY

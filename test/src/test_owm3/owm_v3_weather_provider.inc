@@ -16,7 +16,7 @@
 #include <unity.h>
 
 #include "data_models.h"
-#include "owm_provider.h"
+#include "owm_v3_provider.h"
 #include "../test_harness.h"
 
 namespace owm_weather_tests {
