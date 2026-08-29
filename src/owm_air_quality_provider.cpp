@@ -21,10 +21,6 @@
 #if defined(REMOTE_PROVIDER_OPENWEATHERMAP_AIR_QUALITY)
 
 #include <Arduino.h>
-#include <WiFiClient.h>
-#if !defined(OPENWEATHERMAP_AIR_QUALITY_TRANSPORT_HTTP)
-#include <WiFiClientSecure.h>
-#endif
 #if defined(OPENWEATHERMAP_AIR_QUALITY_TRANSPORT_HTTPS_VERIFY)
 #include "cert.h"
 #endif
@@ -32,7 +28,8 @@
 #include <cstring>
 #include <time.h>
 #include "_locale.h"
-#include "client_utils.h"
+#include "esp_http_client_stream.h"
+#include "esp_http_client_utils.h"
 #include "json_stream_utils.h"
 #include "owm_air_quality_provider.h"
 #include "provider_fetch_operations.h"
@@ -42,16 +39,9 @@
  */
 ProviderResult OpenWeatherMapAirQualityProvider::fetch(air_quality_t &airQuality) {
 #if defined(OPENWEATHERMAP_AIR_QUALITY_TRANSPORT_HTTP)
-  WiFiClient client;
-  const uint16_t port = 80;
-#elif defined(OPENWEATHERMAP_AIR_QUALITY_TRANSPORT_HTTPS_NO_VERIFY)
-  WiFiClientSecure client;
-  client.setInsecure();
-  const uint16_t port = 443;
-#else  // OPENWEATHERMAP_AIR_QUALITY_TRANSPORT_HTTPS_VERIFY
-  WiFiClientSecure client;
-  client.setCACert(cert_USERTrust_RSA_Certification_Authority);
-  const uint16_t port = 443;
+  const char *scheme = "http://";
+#else  // OPENWEATHERMAP_AIR_QUALITY_TRANSPORT_HTTPS_*
+  const char *scheme = "https://";
 #endif
   int64_t end = time(nullptr);
   // minus 1 is important here, otherwise we could get an extra hour of history
@@ -62,11 +52,23 @@ ProviderResult OpenWeatherMapAirQualityProvider::fetch(air_quality_t &airQuality
   sprintf(startStr, "%lld", start);
   String uri = "/data/2.5/air_pollution/history?lat=" + LAT + "&lon=" + LON + "&start=" + startStr + "&end=" + endStr +
                "&appid=" + OPENWEATHERMAP_AIR_QUALITY_API_KEY;
-  String sanitizedUri = OWM_ENDPOINT + "/data/2.5/air_pollution/history?lat=" + LAT + "&lon=" + LON +
+  String sanitizedUrl = String(scheme) + OWM_ENDPOINT + "/data/2.5/air_pollution/history?lat=" + LAT + "&lon=" + LON +
                         "&start=" + startStr + "&end=" + endStr + "&appid={API key}";
+  String url = String(scheme) + OWM_ENDPOINT + uri;
 
-  return httpGetWithRetry(client, OWM_ENDPOINT, port, uri, sanitizedUri, false, HTTP_CLIENT_TCP_TIMEOUT,
-                          [&airQuality](Stream &json, size_t) { return deserializeAirQuality(json, airQuality); });
+  esp_http_client_config_t config = {};
+  config.timeout_ms = HTTP_CLIENT_TCP_TIMEOUT;
+#if defined(OPENWEATHERMAP_AIR_QUALITY_TRANSPORT_HTTPS_VERIFY)
+  config.cert_pem = cert_USERTrust_RSA_Certification_Authority;
+#endif
+
+  return espHttpGetWithRetry(url, sanitizedUrl, config, [&airQuality](esp_http_client_handle_t client) {
+    EspHttpClientStream stream(client);
+    ProviderResult result = deserializeAirQuality(stream, airQuality);
+    if (stream.hadReadError())
+      return espHttpErrorResult(stream.readError());
+    return result;
+  });
 }  // OpenWeatherMapAirQualityProvider::fetch
 
 std::vector<std::unique_ptr<FetchOperation>> OpenWeatherMapAirQualityProvider::createFetchOperations(
