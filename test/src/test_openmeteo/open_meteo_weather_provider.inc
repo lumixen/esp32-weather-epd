@@ -14,7 +14,6 @@
 
 #include "../string_stream.h"
 #include "_locale.h"
-#include "client_utils.h"
 #include "data_models.h"
 #include "open_meteo_weather_provider.h"
 #include "open_meteo_lima_real.inc"

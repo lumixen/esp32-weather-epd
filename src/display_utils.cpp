@@ -19,7 +19,6 @@
 #include <cmath>
 #include <vector>
 #include <Arduino.h>
-#include <HTTPClient.h>
 #include <WiFi.h>
 #include <esp_adc/adc_cali.h>
 #include <esp_adc/adc_cali_scheme.h>
@@ -1185,9 +1184,6 @@ const char *getCompassPointNotation(int windDeg) {
  * HTTP response status codes [100, 599]
  * https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
  *
- * HTTP client errors [0, -255]
- * https://github.com/espressif/arduino-esp32/blob/master/libraries/HTTPClient/src/HTTPClient.h
- *
  * WiFi Status codes [-512, -767]
  * https://github.com/espressif/arduino-esp32/blob/master/libraries/WiFi/src/WiFiType.h
  */
@@ -1326,30 +1322,6 @@ const char *getHttpResponsePhrase(int code) {
       return TXT_HTTP_RESPONSE_510;
     case 511:
       return TXT_HTTP_RESPONSE_511;
-
-    // HTTP client errors [0, -255]
-    case HTTPC_ERROR_CONNECTION_REFUSED:
-      return TXT_HTTPC_ERROR_CONNECTION_REFUSED;
-    case HTTPC_ERROR_SEND_HEADER_FAILED:
-      return TXT_HTTPC_ERROR_SEND_HEADER_FAILED;
-    case HTTPC_ERROR_SEND_PAYLOAD_FAILED:
-      return TXT_HTTPC_ERROR_SEND_PAYLOAD_FAILED;
-    case HTTPC_ERROR_NOT_CONNECTED:
-      return TXT_HTTPC_ERROR_NOT_CONNECTED;
-    case HTTPC_ERROR_CONNECTION_LOST:
-      return TXT_HTTPC_ERROR_CONNECTION_LOST;
-    case HTTPC_ERROR_NO_STREAM:
-      return TXT_HTTPC_ERROR_NO_STREAM;
-    case HTTPC_ERROR_NO_HTTP_SERVER:
-      return TXT_HTTPC_ERROR_NO_HTTP_SERVER;
-    case HTTPC_ERROR_TOO_LESS_RAM:
-      return TXT_HTTPC_ERROR_TOO_LESS_RAM;
-    case HTTPC_ERROR_ENCODING:
-      return TXT_HTTPC_ERROR_ENCODING;
-    case HTTPC_ERROR_STREAM_WRITE:
-      return TXT_HTTPC_ERROR_STREAM_WRITE;
-    case HTTPC_ERROR_READ_TIMEOUT:
-      return TXT_HTTPC_ERROR_READ_TIMEOUT;
 
     // WiFi Status codes [-512, -767]
     case -512 - WL_NO_SHIELD:

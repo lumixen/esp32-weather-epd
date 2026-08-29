@@ -49,7 +49,7 @@ ProviderResult OpenMeteoAirQualityProvider::fetch(air_quality_t &airQuality) {
 #else  // OPEN_METEO_AIR_QUALITY_TRANSPORT_HTTPS_*
   const String url = "https://" + OM_AIR_QUALITY_ENDPOINT + uri;
 #endif
-  const String sanitizedUri = OM_AIR_QUALITY_ENDPOINT + uri;
+  const String sanitizedUrl = url;
 
   esp_http_client_config_t config = {};
   config.timeout_ms = HTTP_CLIENT_TCP_TIMEOUT;
@@ -57,7 +57,7 @@ ProviderResult OpenMeteoAirQualityProvider::fetch(air_quality_t &airQuality) {
   config.cert_pem = cert_ISRG_Root_X1;
 #endif
 
-  return espHttpGetWithRetry(url, sanitizedUri, config, [&airQuality](esp_http_client_handle_t client) {
+  return espHttpGetWithRetry(url, sanitizedUrl, config, [&airQuality](esp_http_client_handle_t client) {
     return parseAirQualityResponse(client, airQuality);
   });
 }  // OpenMeteoAirQualityProvider::fetch
