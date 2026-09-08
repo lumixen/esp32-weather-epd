@@ -3,10 +3,10 @@
 # generated sdkconfig.<env> (a build artifact, gitignored). Adjust options
 # here, or interactively with `pio run -t menuconfig`.
 #
-# Arduino as ESP-IDF component: autostart setup()/loop() and use the lolin_d32
-# variant (defines LED_BUILTIN etc.).
+# Arduino as ESP-IDF component: autostart setup()/loop(). The Arduino variant
+# is selected per PlatformIO environment because supported boards provide
+# different board pin definitions.
 CONFIG_AUTOSTART_ARDUINO=y
-CONFIG_ARDUINO_VARIANT="d32"
 
 # The Arduino component requires a 1000 Hz FreeRTOS tick.
 CONFIG_FREERTOS_HZ=1000
@@ -15,7 +15,7 @@ CONFIG_ESP_TASK_WDT_TIMEOUT_S=60
 # MCU frequency 240MHz -> 80MHz (better power efficiency).
 CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_80=y
 
-# 4MB flash, matching the lolin_d32 module.
+# Both supported ESP32 boards use 4MB flash.
 CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
 CONFIG_ESPTOOLPY_HEADER_FLASHSIZE_UPDATE=y
 
