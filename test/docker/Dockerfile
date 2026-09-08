@@ -6,7 +6,9 @@ RUN apt-get update \
         libsdl2-2.0-0 libepoxy0 libgl1 libx11-6 libslirp0 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir platformio pyyaml pydantic
+# PlatformIO 6.2 pulls SCons 4.11, which is incompatible with the
+# pioarduino platform used by this project.
+RUN pip install --no-cache-dir platformio==6.1.19 pyyaml pydantic
 
 COPY install_qemu.sh /opt/install_qemu.sh
 RUN DEST=/opt/qemu /opt/install_qemu.sh

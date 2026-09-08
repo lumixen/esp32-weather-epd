@@ -8,18 +8,23 @@ PlatformIO is NOT on `PATH`; use the project virtualenv binary:
 
 ```sh
 ~/.platformio/penv/bin/pio run -e lolin_d32
+~/.platformio/penv/bin/pio run -e dfrobot_firebeetle2_esp32e
 ```
 
-- Single environment: `lolin_d32` (board `lolin_d32`, framework `arduino, espidf`, ESP32 @ 80 MHz).
-- Verify: build must end with `[SUCCESS]`. Typical footprint: RAM ~33% (106 KB / 320 KB), Flash ~47% (1.5 MB / 3 MB).
-- Upload to device: `~/.platformio/penv/bin/pio run -e lolin_d32 -t upload`; serial monitor: `-t monitor` (115200 baud).
+- Supported hardware environments: `lolin_d32` (board `lolin_d32`) and
+  `dfrobot_firebeetle2_esp32e` (board `dfrobot_firebeetle2_esp32e`); both use
+  the `arduino, espidf` framework and run the ESP32 at 80 MHz.
+- `lolin_d32` remains the default environment. FireBeetle uses the original
+  project's pinout through `devices/firebeetle2.example.yml`.
+- Verify: builds must end with `[SUCCESS]`. Typical footprint: RAM ~33% (106 KB / 320 KB), Flash ~47% (1.5 MB / 3 MB).
+- Upload to device: `~/.platformio/penv/bin/pio run -e <environment> -t upload`; serial monitor: `-t monitor` (115200 baud).
 
 ## ESP-IDF configuration
 
 - The platform (`framework = arduino, espidf`) builds Arduino as an ESP-IDF component, so ESP-IDF options are configurable.
 - `sdkconfig.defaults` is the source of truth for the ESP-IDF side (CPU frequency, flash size, partition table, mbedTLS options, Arduino autostart/variant); the full expanded config lands in the generated `sdkconfig.<env>` (build artifact).
 - Change options in `sdkconfig.defaults`, or interactively with `~/.platformio/penv/bin/pio run -e lolin_d32 -t menuconfig`.
-- Gotchas: `CONFIG_MBEDTLS_PSK_MODES=y` + `CONFIG_MBEDTLS_KEY_EXCHANGE_PSK=y` are required by Arduino 3.x `NetworkClientSecure` (its `ssl_client.cpp` compiles out otherwise → undefined references at link). `CONFIG_ARDUINO_VARIANT="d32"` supplies board-specific defines (`LED_BUILTIN` etc.).
+- Gotchas: `CONFIG_MBEDTLS_PSK_MODES=y` + `CONFIG_MBEDTLS_KEY_EXCHANGE_PSK=y` are required by Arduino 3.x `NetworkClientSecure` (its `ssl_client.cpp` compiles out otherwise → undefined references at link). `CONFIG_ARDUINO_VARIANT` is selected per environment (`"d32"` for Lolin and `"dfrobot_firebeetle2_esp32e"` for FireBeetle) to supply board-specific defines such as `LED_BUILTIN`.
 
 ## Testing
 

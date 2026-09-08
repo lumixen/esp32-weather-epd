@@ -3,10 +3,11 @@
 [![Build](https://github.com/lumixen/esp32-weather-epd/actions/workflows/build.yaml/badge.svg)](https://github.com/lumixen/esp32-weather-epd/actions/workflows/build.yaml)
 [![Tests](https://github.com/lumixen/esp32-weather-epd/actions/workflows/test.yaml/badge.svg)](https://github.com/lumixen/esp32-weather-epd/actions/workflows/test.yaml)
 
-Weather display firmware for the Lolin D32 and supported 7-inch e-paper
-panels. It combines weather forecasts, air quality, alerts, optional local
-sensor measurements, and Home Assistant MQTT discovery in a low-power display
-that periodically wakes, refreshes, and sleeps.
+Weather display firmware for the Lolin D32, DFRobot FireBeetle 2 ESP32-E,
+and supported 7-inch e-paper panels. It combines weather forecasts, air
+quality, alerts, optional local sensor measurements, and Home Assistant MQTT
+discovery in a low-power display that periodically wakes, refreshes, and
+sleeps.
 
 ## Contents
 
@@ -40,8 +41,10 @@ Enclosure files and assembly instructions are available on
 
 ## Supported panels
 
-The firmware is set up for a Lolin D32 connected to an e-paper driver board.
-Select the panel and driver that match your hardware in the configuration.
+The default configuration is set up for a Lolin D32 connected to an e-paper
+driver board. The firmware also supports the original FireBeetle 2 ESP32-E
+wiring through its dedicated device template. Select the panel and driver that
+match your hardware in the selected configuration.
 
 | Panel | Resolution | Colors | Status |
 |---|---:|---|---|
@@ -59,7 +62,7 @@ Select the panel and driver that match your hardware in the configuration.
 
 ### Prerequisites
 
-- A Lolin D32 ESP32 board.
+- A supported ESP32 board: Lolin D32 or DFRobot FireBeetle 2 ESP32-E.
 - A supported e-paper panel and compatible driver board.
 - A USB cable suitable for programming the board.
 - [PlatformIO](https://platformio.org/), either through the PlatformIO IDE
@@ -110,9 +113,20 @@ Docker is additionally required only for the QEMU unit tests.
    ~/.platformio/penv/bin/pio device monitor -b 115200
    ```
 
-The default environment is `lolin_d32`. The generated
-`include/config.h` is a build artifact; do not edit it manually. Change
-`config.yml` and build again instead.
+The default environment is `lolin_d32`. For the original FireBeetle 2
+ESP32-E wiring, use the `dfrobot_firebeetle2_esp32e` environment and the
+separate [`devices/firebeetle2.example.yml`](devices/firebeetle2.example.yml)
+template:
+
+```sh
+cp devices/firebeetle2.example.yml devices/firebeetle2.yml
+./scripts/devices.sh validate firebeetle2
+./scripts/devices.sh build firebeetle2 --env dfrobot_firebeetle2_esp32e
+./scripts/devices.sh flash firebeetle2 --env dfrobot_firebeetle2_esp32e
+```
+
+The generated `include/config.h` is a build artifact; do not edit it manually.
+Change the selected YAML configuration and build again instead.
 
 ## Hardware and wiring
 
@@ -128,19 +142,20 @@ voltage requirements of the selected driver board before connecting it.
       <table>
         <thead>
           <tr>
-            <th>E-paper pin</th>
+            <th>Connection</th>
             <th>Lolin D32 pin</th>
           </tr>
         </thead>
         <tbody>
-          <tr><td>PWR</td><td>GPIO2</td></tr>
-          <tr><td>BUSY</td><td>GPIO4</td></tr>
-          <tr><td>RST</td><td>GPIO16</td></tr>
-          <tr><td>DC</td><td>GPIO17</td></tr>
-          <tr><td>CS</td><td>GPIO5</td></tr>
-          <tr><td>CLK</td><td>GPIO18</td></tr>
-          <tr><td>DIN</td><td>GPIO23</td></tr>
-          <tr><td>VCC</td><td>3V3</td></tr>
+          <tr><td>E-paper PWR</td><td>GPIO2</td></tr>
+          <tr><td>E-paper BUSY</td><td>GPIO4</td></tr>
+          <tr><td>E-paper RST</td><td>GPIO16</td></tr>
+          <tr><td>E-paper DC</td><td>GPIO17</td></tr>
+          <tr><td>E-paper CS</td><td>GPIO5</td></tr>
+          <tr><td>E-paper CLK/SCK</td><td>GPIO18</td></tr>
+          <tr><td>E-paper DIN/MOSI</td><td>GPIO23</td></tr>
+          <tr><td>E-paper MISO</td><td>GPIO19</td></tr>
+          <tr><td>E-paper VCC</td><td>3V3</td></tr>
         </tbody>
       </table>
     </td>
@@ -148,8 +163,51 @@ voltage requirements of the selected driver board before connecting it.
 </table>
 
 The pin assignments are configurable where supported by the hardware. The
-full example includes the `pin` section and is the reference for optional
-pins such as the battery ADC and BME280 connections.
+full Lolin example includes the pin section and remains the reference for
+Lolin D32 installations. FireBeetle users should use the dedicated device
+template rather than changing `config.example.yml`.
+
+### FireBeetle 2 ESP32-E wiring
+
+The following mapping is identical to the original
+[`lmarzen/esp32-weather-epd`](https://github.com/lmarzen/esp32-weather-epd)
+wiring, so existing FireBeetle installations do not need to be rewired.
+<table>
+  <tr>
+    <td valign="middle">
+      <img width="459" alt="FireBeetle 2 ESP32-E wiring schematic" src="https://github.com/user-attachments/assets/e4a8ee10-e90a-4d26-b30c-4723a2201905" />
+    </td>
+    <td valign="top">
+      <table>
+        <thead>
+          <tr>
+            <th>Connection</th>
+            <th>FireBeetle 2 ESP32-E pin</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Battery ADC (<code>A2</code>)</td><td>GPIO34</td></tr>
+          <tr><td>E-paper PWR</td><td>GPIO26</td></tr>
+          <tr><td>E-paper BUSY</td><td>GPIO14</td></tr>
+          <tr><td>E-paper RST</td><td>GPIO21</td></tr>
+          <tr><td>E-paper DC</td><td>GPIO22</td></tr>
+          <tr><td>E-paper CS</td><td>GPIO13</td></tr>
+          <tr><td>E-paper CLK/SCK</td><td>GPIO18</td></tr>
+          <tr><td>E-paper DIN/MOSI</td><td>GPIO23</td></tr>
+          <tr><td>E-paper MISO</td><td>GPIO19</td></tr>
+          <tr><td>E-paper VCC</td><td>3V3</td></tr>
+          <tr><td>BME280 power</td><td>GPIO4</td></tr>
+          <tr><td>BME280 SDA</td><td>GPIO17</td></tr>
+          <tr><td>BME280 SCL</td><td>GPIO16</td></tr>
+        </tbody>
+      </table>
+    </td>
+  </tr>
+</table>
+
+The FireBeetle battery circuit uses a 1 MΩ + 1 MΩ divider; the firmware
+applies the corresponding 2× correction. The BME280 address in the template is
+`0x76`.
 
 ## Everything is a provider
 
@@ -228,9 +286,12 @@ are in [`scripts/provider_capabilities.py`](scripts/provider_capabilities.py).
 
 ## Configuration
 
-[`config.example.yml`](config.example.yml) is the canonical full configuration
-example. Copy it to `config.yml` and edit it rather than copying a large YAML
-snippet from this README. Per-device installations use the separate
+[`config.example.yml`](config.example.yml) is the canonical full Lolin D32
+configuration example. Copy it to `config.yml` for a Lolin installation and
+edit it rather than copying a large YAML snippet from this README. FireBeetle
+installations use the separate
+[`devices/firebeetle2.example.yml`](devices/firebeetle2.example.yml) template.
+Per-device installations can also use the
 [`devices/kitchen.example.yml`](devices/kitchen.example.yml) template.
 
 The main configuration groups are:
@@ -293,6 +354,7 @@ The wrapper locates PlatformIO through `PIO_BIN`, `PATH`, or
 ./scripts/devices.sh monitor kitchen
 ./scripts/devices.sh flash-monitor kitchen
 ./scripts/devices.sh build kitchen --env lolin_d32_qemu
+./scripts/devices.sh build firebeetle2 --env dfrobot_firebeetle2_esp32e
 ./scripts/devices.sh list-envs
 ```
 
@@ -398,8 +460,13 @@ pass it explicitly:
 
 ```sh
 ~/.platformio/penv/bin/pio run -e lolin_d32 -t upload --upload-port /dev/ttyUSB0
+~/.platformio/penv/bin/pio run -e dfrobot_firebeetle2_esp32e -t upload --upload-port /dev/ttyUSB0
 ./scripts/devices.sh flash kitchen /dev/ttyUSB0
 ```
+
+If a FireBeetle upload reports `Wrong boot mode detected (0x13)!`, unplug
+power, connect GPIO0 (labeled `0/D5`) to GND, power the board back up, and
+retry the upload.
 
 The device wrapper also accepts the corresponding port for `monitor` and
 `flash-monitor`.
