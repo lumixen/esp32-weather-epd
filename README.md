@@ -172,11 +172,10 @@ template rather than changing `config.example.yml`.
 The following mapping is identical to the original
 [`lmarzen/esp32-weather-epd`](https://github.com/lmarzen/esp32-weather-epd)
 wiring, so existing FireBeetle installations do not need to be rewired.
-
 <table>
   <tr>
     <td valign="middle">
-      <img width="459" alt="FireBeetle 2 ESP32-E wiring schematic" src="https://raw.githubusercontent.com/lmarzen/esp32-weather-epd/main/showcase/wiring_diagram_despi-c02.png" />
+      <img width="459" alt="FireBeetle 2 ESP32-E wiring schematic" src="https://github.com/user-attachments/assets/e4a8ee10-e90a-4d26-b30c-4723a2201905" />
     </td>
     <td valign="top">
       <table>
