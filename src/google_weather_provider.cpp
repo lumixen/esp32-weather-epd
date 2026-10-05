@@ -24,7 +24,7 @@
 #include <cstring>
 
 #include "_locale.h"
-#include "esp_crt_bundle.h"
+#include "cert.h"
 #include "esp_http_client_stream.h"
 #include "esp_http_client_utils.h"
 #include "google_weather_provider.h"
@@ -524,7 +524,7 @@ static ProviderResult request(const String &query, const String &sanitizedQuery,
                               std::function<ProviderResult(Stream &)> parse) {
   esp_http_client_config_t config = {};
   config.timeout_ms = HTTP_CLIENT_TCP_TIMEOUT;
-  config.crt_bundle_attach = esp_crt_bundle_attach;
+  config.cert_pem = cert_GTS_Root_R4;
   return espHttpGetWithRetry(
       query, sanitizedQuery, config,
       [parse](esp_http_client_handle_t client) {
