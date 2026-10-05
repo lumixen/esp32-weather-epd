@@ -246,14 +246,21 @@ precipitation settings.
 
 Provider-specific settings stay on the provider entry. Depending on the
 provider, these can include `transport`, `apiKey`, `alerts`, `country`,
-`forecastPointId`, `stationId`, and BME280 pin and address settings.
+`forecastPointId`, `stationId`, and BME280 pin and address settings. Google
+Weather uses HTTPS with certificate-bundle verification and requires a Google
+Maps Platform Weather API key.
 
-For example, these entries combine into one report:
+For example, these entries combine into one report. Replace the Open-Meteo
+forecast entry with `google_weather_forecast` to use Google's API (do not
+configure both forecast providers):
 
 ```yaml
 providers:
   - provider: open_meteo_forecast       # current/hourly/daily forecast
     transport: HTTPS_VERIFY
+  # Google Weather alternative (requires a Weather API key):
+  # - provider: google_weather_forecast
+  #   apiKey: your-google-weather-api-key
   - provider: open_meteo_air_quality    # air quality
     transport: HTTPS_VERIFY
   - provider: meteoalarm_alert           # alerts
@@ -275,6 +282,7 @@ are in [`scripts/provider_capabilities.py`](scripts/provider_capabilities.py).
 | Provider | Data |
 |---|---|
 | [Open-Meteo](https://open-meteo.com/)<br>`open_meteo_forecast` | `current_forecast`, `hourly_forecast`, `daily_forecast` |
+| [Google Weather API](https://developers.google.com/maps/documentation/weather)<br>`google_weather_forecast` | `current_forecast`, `hourly_forecast`, `daily_forecast` |
 | [Open-Meteo Air Quality](https://open-meteo.com/en/docs/air-quality-api)<br>`open_meteo_air_quality` | `air_quality` |
 | [NOAA/NWS](https://www.weather.gov/documentation/services-web-api)<br>`noaa_forecast` | `current_forecast`, `hourly_forecast`, `daily_forecast` |
 | [MeteoSwiss](https://www.meteoswiss.admin.ch/)<br>`meteoswiss_forecast` | `current_forecast`, `hourly_forecast`, `daily_forecast` |

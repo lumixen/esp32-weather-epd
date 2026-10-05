@@ -252,6 +252,12 @@ class OpenMeteoForecastConfig(BaseModel):
     transport: Transport = Transport.HTTPS_VERIFY
 
 
+class GoogleWeatherForecastConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    provider: Literal["google_weather_forecast"] = "google_weather_forecast"
+    apiKey: str
+
+
 class NoaaForecastConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     provider: Literal["noaa_forecast"] = "noaa_forecast"
@@ -318,6 +324,7 @@ class BME280ProviderConfig(BaseModel):
 ProviderConfig = Annotated[
     Union[
         OpenMeteoForecastConfig,
+        GoogleWeatherForecastConfig,
         NoaaForecastConfig,
         MeteoSwissForecastConfig,
         OpenMeteoAirQualityConfig,
