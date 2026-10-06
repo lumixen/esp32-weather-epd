@@ -59,21 +59,6 @@ static float metricWindSpeed(double kilometersPerHour) { return static_cast<floa
 
 static float metricVisibility(double kilometers) { return static_cast<float>(kilometers * 1000.0); }
 
-static bool isSnowPrecipitation(const String &type) {
-  return type.indexOf("SNOW") >= 0 || type.indexOf("SLEET") >= 0 || type.indexOf("ICE") >= 0;
-}
-
-static void applyPrecipitation(const String &type, float amount, float &rain, float &snow) {
-  if (type.indexOf("RAIN_AND_SNOW") >= 0) {
-    rain = amount / 2.0f;
-    snow = amount / 2.0f;
-  } else if (isSnowPrecipitation(type)) {
-    snow = amount;
-  } else {
-    rain = amount;
-  }
-}
-
 static void resetCurrent(forecast_t &forecast) {
   forecast.current = {};
   forecast.timezone = String();
@@ -91,7 +76,9 @@ static void resetDaily(forecast_t &forecast) {
 }
 
 /* The API returns all quantities in nested records. Parse directly from the
- * HTTP stream so hourly and daily payloads do not require large JSON DOMs. */
+ * HTTP stream so hourly and daily payloads do not require large JSON DOMs.
+ * Rainfall (qpf) and snowfall (snowQpf) are reported separately, in liquid-
+ * water-equivalent units. */
 class GoogleWeatherHandler : public JsonHandler {
  public:
   GoogleWeatherHandler(forecast_t &forecast, ResponseKind kind) : forecast_(forecast), kind_(kind) {}
@@ -133,27 +120,12 @@ class GoogleWeatherHandler : public JsonHandler {
   size_t timestampCount() const { return timestampCount_; }
 
   void finish() {
-    if (kind_ == ResponseKind::CURRENT) {
-      applyPrecipitation(currentPrecipitationType_, currentPrecipitationAmount_, forecast_.current.rain_1h,
-                         forecast_.current.snow_1h);
-    } else if (kind_ == ResponseKind::HOURLY) {
-      for (size_t i = 0; i < NUM_HOURLY; ++i) {
-        if (hasHourlyPrecipitation_[i]) {
-          applyPrecipitation(hourlyPrecipitationType_[i], hourlyPrecipitationAmount_[i], forecast_.hourly[i].rain_1h,
-                             forecast_.hourly[i].snow_1h);
-        }
-      }
-    } else {
-      for (size_t i = 0; i < NUM_DAILY; ++i) {
-        for (size_t part = 0; part < 2; ++part) {
-          if (hasDailyPrecipitation_[i][part]) {
-            float rain = 0.0f;
-            float snow = 0.0f;
-            applyPrecipitation(dailyPrecipitationType_[i][part], dailyPrecipitationAmount_[i][part], rain, snow);
-            forecast_.daily[i].rain += rain;
-            forecast_.daily[i].snow += snow;
-          }
-        }
+    if (kind_ != ResponseKind::DAILY)
+      return;
+    for (size_t i = 0; i < NUM_DAILY; ++i) {
+      for (size_t part = 0; part < 2; ++part) {
+        forecast_.daily[i].rain += dailyRainAmount_[i][part];
+        forecast_.daily[i].snow += dailySnowAmount_[i][part];
       }
     }
   }
@@ -225,13 +197,13 @@ class GoogleWeatherHandler : public JsonHandler {
         forecast_.current.wind_gust = metricWindSpeed(number);
       return;
     }
-    if (path.getCount() == 3 && keyIs(path.get(0), "precipitation")) {
-      const char *group = keyAt(path, 1);
-      const char *field = keyAt(path, 2);
-      if (keyIs(group, "probability") && keyIs(field, "type") && value.isString())
-        currentPrecipitationType_ = value.getString();
-      else if (keyIs(group, "qpf") && keyIs(field, "quantity") && numeric(value))
-        currentPrecipitationAmount_ = static_cast<float>(value.getDouble());
+    if (path.getCount() == 3 && keyIs(path.get(0), "precipitation") && keyIs(path.get(2), "quantity") &&
+        numeric(value)) {
+      const float amount = static_cast<float>(value.getDouble());
+      if (keyIs(path.get(1), "qpf"))
+        forecast_.current.rain_1h = amount;
+      else if (keyIs(path.get(1), "snowQpf"))
+        forecast_.current.snow_1h = amount;
     }
   }
 
@@ -300,12 +272,10 @@ class GoogleWeatherHandler : public JsonHandler {
       } else if (keyIs(group, "precipitation")) {
         if (keyIs(subgroup, "probability") && keyIs(field, "percent") && numeric(value))
           hourly.pop = static_cast<int>(value.getDouble());
-        else if (keyIs(subgroup, "probability") && keyIs(field, "type") && value.isString())
-          hourlyPrecipitationType_[index] = value.getString();
-        else if (keyIs(subgroup, "qpf") && keyIs(field, "quantity") && numeric(value)) {
-          hourlyPrecipitationAmount_[index] = static_cast<float>(value.getDouble());
-          hasHourlyPrecipitation_[index] = true;
-        }
+        else if (keyIs(subgroup, "qpf") && keyIs(field, "quantity") && numeric(value))
+          hourly.rain_1h = static_cast<float>(value.getDouble());
+        else if (keyIs(subgroup, "snowQpf") && keyIs(field, "quantity") && numeric(value))
+          hourly.snow_1h = static_cast<float>(value.getDouble());
       }
     }
   }
@@ -373,25 +343,23 @@ class GoogleWeatherHandler : public JsonHandler {
           }
         } else if (keyIs(subgroup, "speed") && keyIs(field, "value")) {
           const float speed = metricWindSpeed(number);
-          if (daytime || !hasDailyWindSpeed_[index] || speed > daily.wind_speed)
+          if (!hasDailyWindSpeed_[index] || speed > daily.wind_speed)
             daily.wind_speed = speed;
           hasDailyWindSpeed_[index] = true;
         } else if (keyIs(subgroup, "gust") && keyIs(field, "value")) {
           const float gust = metricWindSpeed(number);
-          if (daytime || !hasDailyWindGust_[index] || gust > daily.wind_gust)
+          if (!hasDailyWindGust_[index] || gust > daily.wind_gust)
             daily.wind_gust = gust;
           hasDailyWindGust_[index] = true;
         }
       } else if (keyIs(group, "precipitation")) {
+        const size_t partIndex = daytime ? 0 : 1;
         if (keyIs(subgroup, "qpf") && keyIs(field, "quantity") && numeric(value)) {
-          const size_t partIndex = daytime ? 0 : 1;
-          dailyPrecipitationAmount_[index][partIndex] = static_cast<float>(value.getDouble());
-          hasDailyPrecipitation_[index][partIndex] = true;
+          dailyRainAmount_[index][partIndex] = static_cast<float>(value.getDouble());
+        } else if (keyIs(subgroup, "snowQpf") && keyIs(field, "quantity") && numeric(value)) {
+          dailySnowAmount_[index][partIndex] = static_cast<float>(value.getDouble());
         } else if (keyIs(subgroup, "probability") && keyIs(field, "percent") && numeric(value)) {
           daily.pop = max(daily.pop, static_cast<int>(value.getDouble()));
-        } else if (keyIs(subgroup, "probability") && keyIs(field, "type") && value.isString()) {
-          const size_t partIndex = daytime ? 0 : 1;
-          dailyPrecipitationType_[index][partIndex] = value.getString();
         }
       }
     }
@@ -430,14 +398,8 @@ class GoogleWeatherHandler : public JsonHandler {
   bool hasCurrentTime_ = false;
   size_t recordCount_ = 0;
   size_t timestampCount_ = 0;
-  String currentPrecipitationType_;
-  float currentPrecipitationAmount_ = 0.0f;
-  String hourlyPrecipitationType_[NUM_HOURLY];
-  float hourlyPrecipitationAmount_[NUM_HOURLY] = {};
-  bool hasHourlyPrecipitation_[NUM_HOURLY] = {};
-  String dailyPrecipitationType_[NUM_DAILY][2];
-  float dailyPrecipitationAmount_[NUM_DAILY][2] = {};
-  bool hasDailyPrecipitation_[NUM_DAILY][2] = {};
+  float dailyRainAmount_[NUM_DAILY][2] = {};
+  float dailySnowAmount_[NUM_DAILY][2] = {};
   bool hasDailyHumidity_[NUM_DAILY] = {};
   bool hasDailyCloudCover_[NUM_DAILY] = {};
   bool hasDailyCondition_[NUM_DAILY] = {};

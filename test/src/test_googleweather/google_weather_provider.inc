@@ -35,11 +35,34 @@ static String hourlyJson(size_t count) {
     json += R"json("weatherCondition":{"type":"RAIN_SHOWERS"},"temperature":{"degrees":12.5},)json";
     json += R"json("feelsLikeTemperature":{"degrees":10.5},"dewPoint":{"degrees":5.5},)json";
     json += R"json("relativeHumidity":65,"uvIndex":2,"cloudCover":75,"thunderstormProbability":10,)json";
-    json += R"json("precipitation":{"probability":{"percent":40,"type":"RAIN"},)json";
+    json += R"json("precipitation":{"probability":{"percent":40,"type":"RAIN_AND_SNOW"},)json";
+    json += R"json("snowQpf":{"quantity":0.5,"unit":"MILLIMETERS"},)json";
     json += R"json("qpf":{"quantity":1.25,"unit":"MILLIMETERS"}},)json";
     json += R"json("airPressure":{"meanSeaLevelMillibars":1008},)json";
     json += R"json("wind":{"direction":{"degrees":220},"speed":{"value":36},"gust":{"value":54}},)json";
     json += R"json("visibility":{"distance":8,"unit":"KILOMETERS"}})json";
+  }
+  json += "]}";
+  return json;
+}
+
+static String dailyWindPart(const char *part, int speedKph, int gustKph) {
+  return String("\"") + part + "\":{\"wind\":{\"speed\":{\"value\":" + String(speedKph) +
+         "},\"gust\":{\"value\":" + String(gustKph) + "}}}";
+}
+
+static String dailyWindJson(bool nighttimeFirst) {
+  String json = R"json({"forecastDays":[)json";
+  for (size_t i = 0; i < NUM_DAILY; ++i) {
+    if (i != 0)
+      json += ",";
+    char timestamp[32];
+    snprintf(timestamp, sizeof(timestamp), "2026-02-%02uT07:00:00Z", static_cast<unsigned>(10 + i));
+    json += String(R"json({"interval":{"startTime":")json") + timestamp + R"json("},)json";
+    const String daytime = dailyWindPart("daytimeForecast", 18, 36);
+    const String nighttime = dailyWindPart("nighttimeForecast", 72, 90);
+    json += nighttimeFirst ? nighttime + "," + daytime : daytime + "," + nighttime;
+    json += "}";
   }
   json += "]}";
   return json;
@@ -55,13 +78,15 @@ static String dailyJson(size_t count) {
     json += String(R"json({"interval":{"startTime":")json") + timestamp + R"json("},)json";
     json += R"json("daytimeForecast":{"weatherCondition":{"type":"PARTLY_CLOUDY"},)json";
     json += R"json("relativeHumidity":55,"uvIndex":4,"cloudCover":30,)json";
-    json += R"json("precipitation":{"probability":{"percent":25,"type":"RAIN"},)json";
-    json += R"json("qpf":{"quantity":2.5,"unit":"MILLIMETERS"}},)json";
+    json += R"json("precipitation":{"probability":{"percent":25,"type":"RAIN_AND_SNOW"},)json";
+    json += R"json("qpf":{"quantity":2.5,"unit":"MILLIMETERS"},)json";
+    json += R"json("snowQpf":{"quantity":0.75,"unit":"MILLIMETERS"}},)json";
     json += R"json("wind":{"direction":{"degrees":180},"speed":{"value":18},"gust":{"value":36}}},)json";
     json += R"json("nighttimeForecast":{"weatherCondition":{"type":"SNOW_SHOWERS"},)json";
     json += R"json("relativeHumidity":85,"uvIndex":0,"cloudCover":90,)json";
-    json += R"json("precipitation":{"probability":{"percent":60,"type":"SNOW"},)json";
-    json += R"json("qpf":{"quantity":1.5,"unit":"MILLIMETERS"}},)json";
+    json += R"json("precipitation":{"probability":{"percent":60,"type":"RAIN_AND_SNOW"},)json";
+    json += R"json("qpf":{"quantity":0.25,"unit":"MILLIMETERS"},)json";
+    json += R"json("snowQpf":{"quantity":1.5,"unit":"MILLIMETERS"}},)json";
     json += R"json("wind":{"direction":{"degrees":200},"speed":{"value":9},"gust":{"value":27}}},)json";
     json += R"json("maxTemperature":{"degrees":15.5},"minTemperature":{"degrees":4.5}})json";
   }
@@ -113,6 +138,7 @@ static void test_captured_daily_response(void) {
   TEST_ASSERT_EQUAL(weather_condition::OVERCAST, forecast.daily[0].weather.condition);
   TEST_ASSERT_EQUAL_INT(15, forecast.daily[0].pop);
   TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.16f, forecast.daily[0].rain);
+  TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, forecast.daily[0].snow);
   TEST_ASSERT_FLOAT_WITHIN(0.001f, 26.0f / 3.6f, forecast.daily[0].wind_speed);
   TEST_ASSERT_FLOAT_WITHIN(0.001f, 45.0f / 3.6f, forecast.daily[0].wind_gust);
 }
@@ -123,8 +149,9 @@ static void test_current_conditions_mapping(void) {
     "isDaytime":true,"weatherCondition":{"type":"MOSTLY_CLOUDY"},
     "temperature":{"degrees":11.5},"feelsLikeTemperature":{"degrees":9.5},
     "dewPoint":{"degrees":4.5},"relativeHumidity":70,"uvIndex":3,"cloudCover":80,
-    "precipitation":{"probability":{"percent":35,"type":"RAIN"},
-      "qpf":{"quantity":0.75,"unit":"MILLIMETERS"}},
+    "precipitation":{"probability":{"percent":35,"type":"RAIN_AND_SNOW"},
+      "qpf":{"quantity":0.75,"unit":"MILLIMETERS"},
+      "snowQpf":{"quantity":0.25,"unit":"MILLIMETERS"}},
     "airPressure":{"meanSeaLevelMillibars":1012.8},
     "wind":{"direction":{"degrees":245},"speed":{"value":36},"gust":{"value":54}},
     "visibility":{"distance":9,"unit":"KILOMETERS"}
@@ -148,6 +175,7 @@ static void test_current_conditions_mapping(void) {
   TEST_ASSERT_FLOAT_WITHIN(0.001f, 10.0f, forecast.current.wind_speed);
   TEST_ASSERT_FLOAT_WITHIN(0.001f, 15.0f, forecast.current.wind_gust);
   TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.75f, forecast.current.rain_1h);
+  TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.25f, forecast.current.snow_1h);
 }
 
 static void test_hourly_forecast_and_metric_unit_conversion(void) {
@@ -166,6 +194,7 @@ static void test_hourly_forecast_and_metric_unit_conversion(void) {
   TEST_ASSERT_FLOAT_WITHIN(0.001f, 15.0f, forecast.hourly[0].wind_gust);
   TEST_ASSERT_EQUAL_INT(8000, forecast.hourly[0].visibility.value());
   TEST_ASSERT_FLOAT_WITHIN(0.001f, 1.25f, forecast.hourly[0].rain_1h);
+  TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.5f, forecast.hourly[0].snow_1h);
   TEST_ASSERT_EQUAL_INT64(1770332400, forecast.hourly[23].dt);
 }
 
@@ -182,11 +211,26 @@ static void test_daily_forecast_combines_day_and_night_precipitation(void) {
   TEST_ASSERT_EQUAL(weather_condition::PARTLY_CLOUDY, forecast.daily[0].weather.condition);
   TEST_ASSERT_EQUAL_INT(55, forecast.daily[0].humidity);
   TEST_ASSERT_EQUAL_INT(60, forecast.daily[0].pop);
-  TEST_ASSERT_FLOAT_WITHIN(0.001f, 2.5f, forecast.daily[0].rain);
-  TEST_ASSERT_FLOAT_WITHIN(0.001f, 1.5f, forecast.daily[0].snow);
+  TEST_ASSERT_FLOAT_WITHIN(0.001f, 2.75f, forecast.daily[0].rain);
+  TEST_ASSERT_FLOAT_WITHIN(0.001f, 2.25f, forecast.daily[0].snow);
   TEST_ASSERT_EQUAL_INT(180, forecast.daily[0].wind_deg);
   TEST_ASSERT_FLOAT_WITHIN(0.001f, 5.0f, forecast.daily[0].wind_speed);
   TEST_ASSERT_FLOAT_WITHIN(0.001f, 10.0f, forecast.daily[0].wind_gust);
+}
+
+static void test_daily_wind_maxima_ignore_member_order(void) {
+  for (int order = 0; order < 2; ++order) {
+    const String json = dailyWindJson(order == 1);
+    StringStream stream(json);
+    forecast_t forecast;
+    ProviderResult result = GoogleWeatherForecastProvider::deserializeDaily(stream, forecast);
+
+    TEST_ASSERT_TRUE(result.isOk());
+    for (const daily_t &entry : forecast.daily) {
+      TEST_ASSERT_FLOAT_WITHIN(0.001f, 20.0f, entry.wind_speed);
+      TEST_ASSERT_FLOAT_WITHIN(0.001f, 25.0f, entry.wind_gust);
+    }
+  }
 }
 
 static void test_incomplete_payloads_are_rejected_and_reset(void) {
@@ -240,6 +284,7 @@ void registerTests() {
   RUN_TEST(google_weather_tests::test_current_conditions_mapping);
   RUN_TEST(google_weather_tests::test_hourly_forecast_and_metric_unit_conversion);
   RUN_TEST(google_weather_tests::test_daily_forecast_combines_day_and_night_precipitation);
+  RUN_TEST(google_weather_tests::test_daily_wind_maxima_ignore_member_order);
   RUN_TEST(google_weather_tests::test_incomplete_payloads_are_rejected_and_reset);
   RUN_TEST(google_weather_tests::test_condition_mapping);
   RUN_TEST(google_weather_tests::test_factory_operations);
