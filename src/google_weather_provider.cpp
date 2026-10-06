@@ -24,7 +24,7 @@
 #include <cstring>
 
 #include "_locale.h"
-#include "cert.h"
+#include "esp_crt_bundle.h"
 #include "esp_http_client_utils.h"
 #include "google_weather_provider.h"
 #include "iso8601.h"
@@ -654,7 +654,7 @@ ProviderResult GoogleWeatherForecastProvider::deserializeDaily(Stream &json, for
 ProviderResult GoogleWeatherForecastProvider::fetchForecast(forecast_t &forecast) {
   esp_http_client_config_t config = {};
   config.timeout_ms = GOOGLE_WEATHER_HTTP_TIMEOUT_MS;
-  config.cert_pem = cert_GTS_Root_R4;
+  config.crt_bundle_attach = esp_crt_bundle_attach;
   config.disable_auto_redirect = true;
   EspHttpClientSession session(config);
 
