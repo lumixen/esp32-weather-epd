@@ -227,11 +227,9 @@ static void test_factory_operations(void) {
   GoogleWeatherForecastProvider provider;
   std::vector<std::unique_ptr<FetchOperation>> operations = provider.createFetchOperations(report);
 
-  TEST_ASSERT_EQUAL_UINT(3, operations.size());
+  TEST_ASSERT_EQUAL_UINT(1, operations.size());
   TEST_ASSERT_EQUAL_FLOAT(0.0f, report.forecast.current.temp);
   TEST_ASSERT_TRUE(operations[0]->shouldAbortOnFailure());
-  TEST_ASSERT_TRUE(operations[1]->shouldAbortOnFailure());
-  TEST_ASSERT_TRUE(operations[2]->shouldAbortOnFailure());
 }
 
 void registerTests() {

@@ -27,12 +27,11 @@ class GoogleWeatherForecastProvider : public RemoteDataProvider {
   const char *getApiName() const override;
   std::vector<std::unique_ptr<FetchOperation>> createFetchOperations(weather_report_t &out) override;
 
-  ProviderResult fetchCurrent(forecast_t &forecast);
-  ProviderResult fetchHourly(forecast_t &forecast);
-  ProviderResult fetchDaily(forecast_t &forecast);
-
   static weather_condition mapWeatherCondition(const char *type);
   static ProviderResult deserializeCurrent(Stream &json, forecast_t &forecast);
   static ProviderResult deserializeHourly(Stream &json, forecast_t &forecast);
   static ProviderResult deserializeDaily(Stream &json, forecast_t &forecast);
+
+ private:
+  ProviderResult fetchForecast(forecast_t &forecast);
 };

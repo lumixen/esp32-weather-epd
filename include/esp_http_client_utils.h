@@ -44,8 +44,8 @@ ProviderResult espHttpErrorResult(esp_err_t error);
  * and method are replaced with the supplied URL and HTTP_METHOD_GET. The
  * caller may configure TLS, timeout, buffers, redirects, and other
  * esp_http_client options before passing it here. `configureRequest`, when
- * supplied, is called after opening the connection and before request headers
- * are sent, allowing providers to add request headers.
+ * supplied, is called after client initialization but before opening the
+ * connection, allowing providers to add request headers before they are sent.
  *
  * The response handler is called only for HTTP 200 responses. It may read
  * the body with esp_http_client_read(), stop early, or return a parse/read
@@ -53,3 +53,33 @@ ProviderResult espHttpErrorResult(esp_err_t error);
 ProviderResult espHttpGetWithRetry(const String &url, const String &sanitizedUrl, esp_http_client_config_t config,
                                    EspHttpResponseHandler handleResponse,
                                    EspHttpRequestConfigurator configureRequest = nullptr);
+
+using EspHttpResponseResetHandler = std::function<void()>;
+using EspHttpResponseChunkHandler = std::function<void(const uint8_t *, size_t)>;
+using EspHttpResponseFinishHandler = std::function<ProviderResult()>;
+
+/* Owns one ESP-IDF client across sequential GETs. Each request uses
+ * esp_http_client_perform(), whose response-data events are passed to the
+ * chunk handler. The body stays streamed; no whole-response buffer is made.
+ * The client is retained between successful requests and cleaned up when the
+ * session is destroyed. Failed transport attempts are closed before retry. */
+class EspHttpClientSession {
+ public:
+  explicit EspHttpClientSession(esp_http_client_config_t config);
+  ~EspHttpClientSession();
+
+  EspHttpClientSession(const EspHttpClientSession &) = delete;
+  EspHttpClientSession &operator=(const EspHttpClientSession &) = delete;
+
+  ProviderResult getWithRetry(const String &url, const String &sanitizedUrl, EspHttpResponseResetHandler resetResponse,
+                              EspHttpResponseChunkHandler handleChunk, EspHttpResponseFinishHandler finishResponse,
+                              EspHttpRequestConfigurator configureRequest = nullptr);
+
+ private:
+  static esp_err_t handleEvent(esp_http_client_event_t *event);
+  esp_err_t initialize(const String &url);
+
+  esp_http_client_config_t config_;
+  esp_http_client_handle_t client_ = nullptr;
+  EspHttpResponseChunkHandler handleChunk_;
+};

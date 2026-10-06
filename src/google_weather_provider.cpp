@@ -25,7 +25,6 @@
 
 #include "_locale.h"
 #include "cert.h"
-#include "esp_http_client_stream.h"
 #include "esp_http_client_utils.h"
 #include "google_weather_provider.h"
 #include "iso8601.h"
@@ -33,6 +32,8 @@
 #include "provider_fetch_operations.h"
 
 namespace {
+
+constexpr int GOOGLE_WEATHER_HTTP_TIMEOUT_MS = 5000;
 
 enum class ResponseKind { CURRENT, HOURLY, DAILY };
 
@@ -445,64 +446,158 @@ class GoogleWeatherHandler : public JsonHandler {
   bool hasDailyWindGust_[NUM_DAILY] = {};
 };
 
+struct GoogleWeatherDocumentComplete {
+  const GoogleWeatherHandler *handler;
+  bool operator()() const { return handler->finishedDocument(); }
+};
+
+struct GoogleWeatherDocumentStarted {
+  const GoogleWeatherHandler *handler;
+  bool operator()() const { return handler->sawStart(); }
+};
+
+using GoogleWeatherFeeder = JsonStreamFeeder<GoogleWeatherDocumentComplete, GoogleWeatherDocumentStarted>;
+
 template<typename Handler> static ProviderResult consume(Stream &json, Handler &handler, const char *label) {
   return consumeJsonStream(
       json, handler, [&handler]() { return handler.finishedDocument(); }, [&handler]() { return handler.sawStart(); },
       label, true);
 }
 
+static void resetResponse(ResponseKind kind, forecast_t &forecast) {
+  switch (kind) {
+    case ResponseKind::CURRENT:
+      resetCurrent(forecast);
+      break;
+    case ResponseKind::HOURLY:
+      resetHourly(forecast);
+      break;
+    case ResponseKind::DAILY:
+      resetDaily(forecast);
+      break;
+  }
+}
+
+static ProviderResult validateResponse(ResponseKind kind, GoogleWeatherHandler &handler, forecast_t &forecast) {
+  bool valid = false;
+  switch (kind) {
+    case ResponseKind::CURRENT:
+      valid = handler.hasCurrentTime();
+      break;
+    case ResponseKind::HOURLY:
+      valid = handler.recordCount() >= NUM_HOURLY && handler.timestampCount() >= NUM_HOURLY;
+      if (valid) {
+        for (const hourly_t &entry : forecast.hourly) {
+          if (entry.dt == 0) {
+            valid = false;
+            break;
+          }
+        }
+      }
+      break;
+    case ResponseKind::DAILY:
+      valid = handler.recordCount() >= NUM_DAILY && handler.timestampCount() >= NUM_DAILY;
+      if (valid) {
+        for (const daily_t &entry : forecast.daily) {
+          if (entry.dt == 0) {
+            valid = false;
+            break;
+          }
+        }
+      }
+      break;
+  }
+
+  if (!valid) {
+    resetResponse(kind, forecast);
+    return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT);
+  }
+  handler.finish();
+  return ProviderResult::ok();
+}
+
+class GoogleWeatherChunkParser {
+ public:
+  GoogleWeatherChunkParser(forecast_t &forecast, ResponseKind kind) : forecast_(forecast), kind_(kind) {
+    beginAttempt();
+  }
+
+  void beginAttempt() {
+    resetResponse(kind_, forecast_);
+    feeder_.reset();
+    handler_.reset();
+    handler_ = std::make_unique<GoogleWeatherHandler>(forecast_, kind_);
+    feeder_ = std::make_unique<GoogleWeatherFeeder>(*handler_, GoogleWeatherDocumentComplete{handler_.get()},
+                                                    GoogleWeatherDocumentStarted{handler_.get()}, label(), true);
+  }
+
+  void feed(const uint8_t *data, size_t length) {
+    if (feeder_ != nullptr)
+      feeder_->feed(data, length);
+  }
+
+  ProviderResult finish() {
+    if (feeder_ == nullptr || handler_ == nullptr)
+      return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT);
+
+    ProviderResult result = feeder_->finish();
+    if (!result.isOk()) {
+      resetResponse(kind_, forecast_);
+      return result;
+    }
+    return validateResponse(kind_, *handler_, forecast_);
+  }
+
+ private:
+  const char *label() const {
+    switch (kind_) {
+      case ResponseKind::CURRENT:
+        return "Google Weather current conditions";
+      case ResponseKind::HOURLY:
+        return "Google Weather hourly forecast";
+      case ResponseKind::DAILY:
+        return "Google Weather daily forecast";
+    }
+    return "Google Weather response";
+  }
+
+  forecast_t &forecast_;
+  ResponseKind kind_;
+  std::unique_ptr<GoogleWeatherHandler> handler_;
+  std::unique_ptr<GoogleWeatherFeeder> feeder_;
+};
+
 static ProviderResult deserializeCurrent(Stream &json, forecast_t &forecast) {
   resetCurrent(forecast);
   GoogleWeatherHandler handler(forecast, ResponseKind::CURRENT);
   ProviderResult result = consume(json, handler, "Google Weather current conditions");
-  if (!result.isOk() || !handler.hasCurrentTime()) {
+  if (!result.isOk()) {
     resetCurrent(forecast);
-    if (result.isOk())
-      return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT);
     return result;
   }
-  handler.finish();
-  return ProviderResult::ok();
+  return validateResponse(ResponseKind::CURRENT, handler, forecast);
 }
 
 static ProviderResult deserializeHourly(Stream &json, forecast_t &forecast) {
   resetHourly(forecast);
   GoogleWeatherHandler handler(forecast, ResponseKind::HOURLY);
   ProviderResult result = consume(json, handler, "Google Weather hourly forecast");
-  if (!result.isOk() || handler.recordCount() < NUM_HOURLY || handler.timestampCount() < NUM_HOURLY) {
+  if (!result.isOk()) {
     resetHourly(forecast);
-    if (result.isOk())
-      return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT);
     return result;
   }
-  for (const hourly_t &entry : forecast.hourly) {
-    if (entry.dt == 0) {
-      resetHourly(forecast);
-      return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT);
-    }
-  }
-  handler.finish();
-  return ProviderResult::ok();
+  return validateResponse(ResponseKind::HOURLY, handler, forecast);
 }
 
 static ProviderResult deserializeDaily(Stream &json, forecast_t &forecast) {
   resetDaily(forecast);
   GoogleWeatherHandler handler(forecast, ResponseKind::DAILY);
   ProviderResult result = consume(json, handler, "Google Weather daily forecast");
-  if (!result.isOk() || handler.recordCount() < NUM_DAILY || handler.timestampCount() < NUM_DAILY) {
+  if (!result.isOk()) {
     resetDaily(forecast);
-    if (result.isOk())
-      return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT);
     return result;
   }
-  for (const daily_t &entry : forecast.daily) {
-    if (entry.dt == 0) {
-      resetDaily(forecast);
-      return ProviderResult::error(TXT_DESERIALIZATION_ERROR_INVALID_INPUT);
-    }
-  }
-  handler.finish();
-  return ProviderResult::ok();
+  return validateResponse(ResponseKind::DAILY, handler, forecast);
 }
 
 static String requestUrl(const char *path, bool sanitized) {
@@ -520,20 +615,12 @@ static String requestUrl(const char *path, bool sanitized) {
   return url;
 }
 
-static ProviderResult request(const String &query, const String &sanitizedQuery,
-                              std::function<ProviderResult(Stream &)> parse) {
-  esp_http_client_config_t config = {};
-  config.timeout_ms = HTTP_CLIENT_TCP_TIMEOUT;
-  config.cert_pem = cert_GTS_Root_R4;
-  return espHttpGetWithRetry(
-      query, sanitizedQuery, config,
-      [parse](esp_http_client_handle_t client) {
-        EspHttpClientStream stream(client);
-        ProviderResult result = parse(stream);
-        if (stream.hadReadError())
-          return espHttpErrorResult(stream.readError());
-        return result;
-      },
+static ProviderResult request(EspHttpClientSession &session, const String &query, const String &sanitizedQuery,
+                              GoogleWeatherChunkParser &parser) {
+  return session.getWithRetry(
+      query, sanitizedQuery, [&parser]() { parser.beginAttempt(); },
+      [&parser](const uint8_t *data, size_t length) { parser.feed(data, length); },
+      [&parser]() { return parser.finish(); },
       [](esp_http_client_handle_t client) { esp_http_client_set_header(client, "Accept", "application/json"); });
 }
 
@@ -548,12 +635,8 @@ std::vector<std::unique_ptr<FetchOperation>> GoogleWeatherForecastProvider::crea
   out.forecast.lon = strtod(LON.c_str(), nullptr);
 
   std::vector<std::unique_ptr<FetchOperation>> operations;
-  operations.push_back(std::make_unique<CallbackFetchOperation>(getApiName(), true,
-                                                                [this, &out]() { return fetchCurrent(out.forecast); }));
-  operations.push_back(std::make_unique<CallbackFetchOperation>(getApiName(), true,
-                                                                [this, &out]() { return fetchHourly(out.forecast); }));
-  operations.push_back(std::make_unique<CallbackFetchOperation>(getApiName(), true,
-                                                                [this, &out]() { return fetchDaily(out.forecast); }));
+  operations.push_back(std::make_unique<CallbackFetchOperation>(
+      getApiName(), true, [this, &out]() { return fetchForecast(out.forecast); }));
   return operations;
 }
 
@@ -606,29 +689,35 @@ ProviderResult GoogleWeatherForecastProvider::deserializeDaily(Stream &json, for
   return ::deserializeDaily(json, forecast);
 }
 
-ProviderResult GoogleWeatherForecastProvider::fetchCurrent(forecast_t &forecast) {
-  const String url = requestUrl("currentConditions:lookup", false);
-  const String sanitizedUrl = requestUrl("currentConditions:lookup", true);
-  resetCurrent(forecast);
-  return request(url, sanitizedUrl, [&forecast](Stream &json) { return deserializeCurrent(json, forecast); });
-}
+ProviderResult GoogleWeatherForecastProvider::fetchForecast(forecast_t &forecast) {
+  esp_http_client_config_t config = {};
+  config.timeout_ms = GOOGLE_WEATHER_HTTP_TIMEOUT_MS;
+  config.cert_pem = cert_GTS_Root_R4;
+  config.disable_auto_redirect = true;
+  EspHttpClientSession session(config);
 
-ProviderResult GoogleWeatherForecastProvider::fetchHourly(forecast_t &forecast) {
-  const String url =
+  const String currentUrl = requestUrl("currentConditions:lookup", false);
+  const String sanitizedCurrentUrl = requestUrl("currentConditions:lookup", true);
+  GoogleWeatherChunkParser currentParser(forecast, ResponseKind::CURRENT);
+  ProviderResult result = request(session, currentUrl, sanitizedCurrentUrl, currentParser);
+  if (!result.isOk())
+    return result;
+
+  const String hourlyUrl =
       requestUrl("forecast/hours:lookup", false) + "&hours=" + String(NUM_HOURLY) + "&pageSize=" + String(NUM_HOURLY);
-  const String sanitizedUrl =
+  const String sanitizedHourlyUrl =
       requestUrl("forecast/hours:lookup", true) + "&hours=" + String(NUM_HOURLY) + "&pageSize=" + String(NUM_HOURLY);
-  resetHourly(forecast);
-  return request(url, sanitizedUrl, [&forecast](Stream &json) { return deserializeHourly(json, forecast); });
-}
+  GoogleWeatherChunkParser hourlyParser(forecast, ResponseKind::HOURLY);
+  result = request(session, hourlyUrl, sanitizedHourlyUrl, hourlyParser);
+  if (!result.isOk())
+    return result;
 
-ProviderResult GoogleWeatherForecastProvider::fetchDaily(forecast_t &forecast) {
-  const String url =
+  const String dailyUrl =
       requestUrl("forecast/days:lookup", false) + "&days=" + String(NUM_DAILY) + "&pageSize=" + String(NUM_DAILY);
-  const String sanitizedUrl =
+  const String sanitizedDailyUrl =
       requestUrl("forecast/days:lookup", true) + "&days=" + String(NUM_DAILY) + "&pageSize=" + String(NUM_DAILY);
-  resetDaily(forecast);
-  return request(url, sanitizedUrl, [&forecast](Stream &json) { return deserializeDaily(json, forecast); });
+  GoogleWeatherChunkParser dailyParser(forecast, ResponseKind::DAILY);
+  return request(session, dailyUrl, sanitizedDailyUrl, dailyParser);
 }
 
 #endif  // REMOTE_PROVIDER_GOOGLE_WEATHER_FORECAST
