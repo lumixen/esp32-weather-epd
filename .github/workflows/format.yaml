@@ -51,7 +51,7 @@ jobs:
             case "$file" in
               src/*|include/*|test/src/*)
                 case "$file" in
-                  include/cert.h|test/src/*feed*.inc|test/src/*real.inc)
+                  test/src/*feed*.inc|test/src/*real.inc)
                     continue
                     ;;
                   *.c|*.cc|*.cpp|*.cxx|*.h|*.hh|*.hpp|*.hxx|*.inc)

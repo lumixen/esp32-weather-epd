@@ -65,12 +65,9 @@ class EpdDriver(str, Enum):
 #   HTTPS with X.509 certificate verification offers the highest level of
 #   security by providing encryption and verifying the identity of the server.
 #
-#   HTTPS with X.509 certificate verification comes with the draw back that
-#   eventually the certificates on the esp32 will expire, requiring you to
-#   update the certificates in cert.h and reflash this software.
-#   Running cert.py will generate an updated cert.h file.
-#   The current certificate for api.openweathermap.org is valid until
-#   2026-04-10 23:59:59+00:00
+#   HTTPS with X.509 certificate verification uses ESP-IDF's embedded Mozilla
+#   CA bundle. Keep the full bundle enabled in sdkconfig.defaults and update it
+#   with ESP-IDF or a maintained custom bundle as trust anchors change.
 class Transport(str, Enum):
     """Transport protocol for API requests"""
 
@@ -252,6 +249,12 @@ class OpenMeteoForecastConfig(BaseModel):
     transport: Transport = Transport.HTTPS_VERIFY
 
 
+class GoogleWeatherForecastConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    provider: Literal["google_weather_forecast"] = "google_weather_forecast"
+    apiKey: str
+
+
 class NoaaForecastConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     provider: Literal["noaa_forecast"] = "noaa_forecast"
@@ -318,6 +321,7 @@ class BME280ProviderConfig(BaseModel):
 ProviderConfig = Annotated[
     Union[
         OpenMeteoForecastConfig,
+        GoogleWeatherForecastConfig,
         NoaaForecastConfig,
         MeteoSwissForecastConfig,
         OpenMeteoAirQualityConfig,

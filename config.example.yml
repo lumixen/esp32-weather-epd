@@ -23,7 +23,10 @@ providers:
   - provider: open_meteo_forecast
     transport: HTTPS_VERIFY
   # - provider: noaa_forecast
-  # OpenWeatherMap alternatives require an apiKey on the provider entry.
+  # Google Weather API requires an API key and always uses verified HTTPS.
+  # - provider: google_weather_forecast
+  #   apiKey: your-google-weather-api-key
+  # OpenWeatherMap alternatives also require an apiKey on the provider entry.
   # - provider: openweathermap_onecall_v4
   #   transport: HTTPS_VERIFY
   #   apiKey: your-owm-api-key

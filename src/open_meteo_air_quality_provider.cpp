@@ -22,7 +22,7 @@
 
 #include <Arduino.h>
 #if defined(OPEN_METEO_AIR_QUALITY_TRANSPORT_HTTPS_VERIFY)
-#include "cert.h"
+#include "esp_crt_bundle.h"
 #endif
 #include <ArduinoStreamParser.h>
 #include <cstdint>
@@ -54,7 +54,7 @@ ProviderResult OpenMeteoAirQualityProvider::fetch(air_quality_t &airQuality) {
   esp_http_client_config_t config = {};
   config.timeout_ms = HTTP_CLIENT_TCP_TIMEOUT;
 #if defined(OPEN_METEO_AIR_QUALITY_TRANSPORT_HTTPS_VERIFY)
-  config.cert_pem = cert_ISRG_Root_X1;
+  config.crt_bundle_attach = esp_crt_bundle_attach;
 #endif
 
   return espHttpGetWithRetry(url, sanitizedUrl, config, [&airQuality](esp_http_client_handle_t client) {

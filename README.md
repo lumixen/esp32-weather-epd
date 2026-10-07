@@ -275,6 +275,7 @@ are in [`scripts/provider_capabilities.py`](scripts/provider_capabilities.py).
 | Provider | Data |
 |---|---|
 | [Open-Meteo](https://open-meteo.com/)<br>`open_meteo_forecast` | `current_forecast`, `hourly_forecast`, `daily_forecast` |
+| [Google Weather API](https://developers.google.com/maps/documentation/weather)<br>`google_weather_forecast` | `current_forecast`, `hourly_forecast`, `daily_forecast` |
 | [Open-Meteo Air Quality](https://open-meteo.com/en/docs/air-quality-api)<br>`open_meteo_air_quality` | `air_quality` |
 | [NOAA/NWS](https://www.weather.gov/documentation/services-web-api)<br>`noaa_forecast` | `current_forecast`, `hourly_forecast`, `daily_forecast` |
 | [MeteoSwiss](https://www.meteoswiss.admin.ch/)<br>`meteoswiss_forecast` | `current_forecast`, `hourly_forecast`, `daily_forecast` |

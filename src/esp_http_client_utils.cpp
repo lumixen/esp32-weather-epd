@@ -119,14 +119,15 @@ ProviderResult espHttpGetWithRetry(const String &url, const String &sanitizedUrl
       status = 0;
       result = espHttpErrorResult(ESP_FAIL);
     } else {
+      if (configureRequest)
+        configureRequest(client);
+
       const esp_err_t openError = esp_http_client_open(client, 0);
       if (openError != ESP_OK) {
         status = 0;
         result = espHttpErrorResult(openError);
       } else {
         opened = true;
-        if (configureRequest)
-          configureRequest(client);
         const int64_t headerResult = esp_http_client_fetch_headers(client);
         status = esp_http_client_get_status_code(client);
         // Some ESP-IDF versions report -1 for a valid chunked or
@@ -161,3 +162,105 @@ ProviderResult espHttpGetWithRetry(const String &url, const String &sanitizedUrl
 
   return result;
 }  // espHttpGetWithRetry
+
+EspHttpClientSession::EspHttpClientSession(esp_http_client_config_t config) : config_(config) {}
+
+EspHttpClientSession::~EspHttpClientSession() {
+  handleChunk_ = nullptr;
+  if (client_ != nullptr) {
+    esp_http_client_cleanup(client_);
+    client_ = nullptr;
+  }
+}
+
+esp_err_t EspHttpClientSession::initialize(const String &url) {
+  esp_http_client_config_t sessionConfig = config_;
+  sessionConfig.url = url.c_str();
+  sessionConfig.method = HTTP_METHOD_GET;
+  sessionConfig.event_handler = &EspHttpClientSession::handleEvent;
+  sessionConfig.user_data = this;
+  client_ = esp_http_client_init(&sessionConfig);
+  return client_ == nullptr ? ESP_FAIL : ESP_OK;
+}
+
+esp_err_t EspHttpClientSession::handleEvent(esp_http_client_event_t *event) {
+  if (event == nullptr || event->event_id != HTTP_EVENT_ON_DATA || event->data == nullptr || event->data_len <= 0 ||
+      event->client == nullptr || esp_http_client_get_status_code(event->client) != kHttpStatusOk) {
+    return ESP_OK;
+  }
+
+  auto *session = static_cast<EspHttpClientSession *>(event->user_data);
+  if (session != nullptr && session->handleChunk_) {
+    session->handleChunk_(reinterpret_cast<const uint8_t *>(event->data), static_cast<size_t>(event->data_len));
+  }
+  return ESP_OK;
+}
+
+ProviderResult EspHttpClientSession::getWithRetry(const String &url, const String &sanitizedUrl,
+                                                  EspHttpResponseResetHandler resetResponse,
+                                                  EspHttpResponseChunkHandler handleChunk,
+                                                  EspHttpResponseFinishHandler finishResponse,
+                                                  EspHttpRequestConfigurator configureRequest) {
+  LOG_INFO("%s: %s", TXT_ATTEMPTING_HTTP_REQ, sanitizedUrl.c_str());
+
+  ProviderResult result;
+  int status = 0;
+  for (int attempt = 0; !result.isOk() && attempt < kMaxAttempts; ++attempt) {
+    const wl_status_t connectionStatus = WiFi.status();
+    if (connectionStatus != WL_CONNECTED) {
+      handleChunk_ = nullptr;
+      return ProviderResult::error(getHttpResponsePhrase(-512 - static_cast<int>(connectionStatus)));
+    }
+
+    if (resetResponse)
+      resetResponse();
+    handleChunk_ = handleChunk;
+
+    esp_err_t setupError = ESP_OK;
+    if (client_ == nullptr) {
+      setupError = initialize(url);
+    } else {
+      setupError = esp_http_client_set_url(client_, url.c_str());
+      if (setupError == ESP_OK)
+        setupError = esp_http_client_set_method(client_, HTTP_METHOD_GET);
+    }
+
+    if (setupError != ESP_OK) {
+      status = 0;
+      result = espHttpErrorResult(setupError);
+    } else {
+      if (configureRequest)
+        configureRequest(client_);
+
+      const esp_err_t performError = esp_http_client_perform(client_);
+      status = esp_http_client_get_status_code(client_);
+      if (performError != ESP_OK) {
+        result = status > 0 && status != kHttpStatusOk ? ProviderResult::error(getHttpResponsePhrase(status))
+                                                       : espHttpErrorResult(performError);
+        if (resetResponse)
+          resetResponse();
+        // A failed perform may leave unread bytes or the client state machine
+        // mid-response. Drop that socket before retrying; successful requests
+        // keep the connection open for the next URL in this session.
+        esp_http_client_close(client_);
+        esp_http_client_clear_response_buffer(client_);
+      } else if (status != kHttpStatusOk) {
+        result = ProviderResult::error(status > 0 ? getHttpResponsePhrase(status)
+                                                  : localizedEspHttpPhrase(ESP_ERR_HTTP_FETCH_HEADER));
+      } else if (!finishResponse) {
+        if (resetResponse)
+          resetResponse();
+        result = espHttpErrorResult(ESP_ERR_INVALID_ARG);
+      } else {
+        result = finishResponse();
+      }
+    }
+
+    handleChunk_ = nullptr;
+    LOG_INFO("%d %s", status, result.isOk() ? getHttpResponsePhrase(status) : result.detail().c_str());
+    if (!result.isOk() && attempt + 1 < kMaxAttempts)
+      delay(kRetryDelayMs);
+  }
+
+  return result;
+}  // EspHttpClientSession::getWithRetry
