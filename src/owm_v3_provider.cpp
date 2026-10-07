@@ -13,7 +13,7 @@
 #include <Arduino.h>
 #include <cstdint>
 #include <cstring>
-#include "cert.h"
+#include "esp_crt_bundle.h"
 #include "_locale.h"
 #include "esp_http_client_stream.h"
 #include "esp_http_client_utils.h"
@@ -59,7 +59,7 @@ ProviderResult OpenWeatherMapOneCallV3Provider::fetch(weather_report_t &report) 
   esp_http_client_config_t config = {};
   config.timeout_ms = HTTP_CLIENT_TCP_TIMEOUT;
 #if defined(OPENWEATHERMAP_ONECALL_V3_TRANSPORT_HTTPS_VERIFY)
-  config.cert_pem = cert_USERTrust_RSA_Certification_Authority;
+  config.crt_bundle_attach = esp_crt_bundle_attach;
 #endif
 
   return espHttpGetWithRetry(url, sanitizedUrl, config, [&report](esp_http_client_handle_t client) {
