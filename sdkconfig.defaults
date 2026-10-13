@@ -32,9 +32,15 @@ CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP=y
 CONFIG_MBEDTLS_PSK_MODES=y
 CONFIG_MBEDTLS_KEY_EXCHANGE_PSK=y
 
+# Enable ESP-IDF's full Mozilla CA bundle for providers that select
+# esp_crt_bundle_attach. The bundle is embedded in the firmware and should be
+# refreshed with ESP-IDF updates or a maintained custom CA bundle.
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y
+
 # Allow the ESP-IDF HTTP client to provide the HTTPS_NO_VERIFY transport used
 # by provider configurations. Verification remains enabled whenever a CA
-# certificate is supplied through esp_http_client_config_t.cert_pem.
+# certificate or certificate bundle is configured.
 CONFIG_ESP_TLS_INSECURE=y
 CONFIG_ESP_TLS_SKIP_SERVER_CERT_VERIFY=y
 

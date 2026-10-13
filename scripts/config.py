@@ -156,6 +156,7 @@ TYPED_TYPES = {
     "OPENWEATHERMAP_ONECALL_V3_API_KEY": "String",
     "OPENWEATHERMAP_ONECALL_V4_API_KEY": "String",
     "OPENWEATHERMAP_AIR_QUALITY_API_KEY": "String",
+    "GOOGLE_WEATHER_API_KEY": "String",
     "METEOSWISS_FORECAST_POINT_ID": STRING,
     "METEOSWISS_STATION_ID": STRING,
     # alerts
@@ -354,6 +355,7 @@ def generate(config_path, header_path, write_header=True):
                 "openweathermap_onecall_v3": "OPENWEATHERMAP_ONECALL_V3_API_KEY",
                 "openweathermap_onecall_v4": "OPENWEATHERMAP_ONECALL_V4_API_KEY",
                 "openweathermap_air_quality": "OPENWEATHERMAP_AIR_QUALITY_API_KEY",
+                "google_weather_forecast": "GOOGLE_WEATHER_API_KEY",
             }[provider_id]
             emit_typed(header_lines, constant, provider.apiKey)
         if provider_id == "meteoalarm_alert":

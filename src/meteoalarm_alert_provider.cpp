@@ -22,7 +22,7 @@
 
 #include <Arduino.h>
 #include <cmath>
-#include "cert.h"
+#include "esp_crt_bundle.h"
 #include "_locale.h"
 #include "display_utils.h"
 #include "esp_http_client_utils.h"
@@ -235,7 +235,7 @@ ProviderResult MeteoAlarmAlertProvider::fetch(std::vector<weather_alert_t> &aler
 
   const uint32_t t0 = millis();
   esp_http_client_config_t config = {};
-  config.cert_pem = cert_GEANT_TLS_RSA_1;
+  config.crt_bundle_attach = esp_crt_bundle_attach;
   config.timeout_ms = 30000;
 
   ProviderResult result = espHttpGetWithRetry(url, url, config, [&alerts, lat, lon](esp_http_client_handle_t client) {

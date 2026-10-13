@@ -1,0 +1,91 @@
+# Pinned configuration for offline QEMU tests of the Google Weather API
+# provider. The placeholder key is never used because tests feed local streams.
+
+display:
+  panel: DKE_3C_86BF
+  driverBoard: Waveshare
+  pins:
+    busy: 4
+    chipSelect: 5
+    reset: 16
+    dataCommand: 17
+    power: 2
+providers:
+  - provider: google_weather_forecast
+    apiKey: test-placeholder
+  - provider: bme280
+    address: 118
+    pins:
+      power: 27
+      sda: 21
+      scl: 22
+wifi:
+  ssid: your-ssid
+  password: your-password
+ntp:
+  servers:
+    - 192.168.41.1
+    - pool.ntp.org
+  syncIntervalWakeups: 6
+  timeoutMs: 20000
+  rtcCorrection: true
+location:
+  latitude: 59.329323
+  longitude: 18.06858
+  city: Stockholm
+  timezone: CET-1CEST,M3.5.0/2,M10.5.0/3
+rendering:
+  locale: en_US
+  font: FreeSans
+  units:
+    temperature: Celsius
+    speed: km/h
+    pressure: mbar
+    distance: km
+    hourlyPrecipitation: probability of precipitation
+    dailyPrecipitation: mm
+  windDirectionIndicator: arrow
+  windArrowPrecision: secondary intercardinal
+  displayDailyPrecip: smart
+  displayHourlyIcons: true
+  moonPhaseStyle: alternative
+  hourlyGraphMax: 24
+  timeFormat: '%H:%M'
+  hourFormat: '%H'
+  dateFormat: '%d/%m/%Y'
+  refreshTimeFormat: '%x %H:%M'
+  statusBar:
+    showBatteryVoltage: true
+    showWifiRssi: false
+  leftPanelLayout:
+    1: SUNRISE
+    2: SUNSET
+    3: MOONRISE
+    4: MOONSET
+    5: MOONPHASE
+    6: HUMIDITY
+    7: WIND
+    8: INPRESSURE
+  colors:
+    outlookLowThresholdTemperature: 0
+    outlookHighThresholdTemperature: 30
+    outlookTemperatureLowColor: red
+    outlookTemperatureNormalColor: black
+    outlookTemperatureHighColor: red
+    outlookConditionsIconAccent: red
+    city: black
+    date: red
+    alertIcon: red
+    errorIcon: red
+    statusBarBatteryWarning: red
+    statusBarWeakWifi: red
+    statusBarMessage: red
+    forecastPrecipitation: red
+battery:
+  monitoring: true
+  adcPin: 35
+schedule:
+  refreshMinutes: 30
+  bedTime: 0
+  wakeTime: 0
+logLevel: debug

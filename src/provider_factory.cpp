@@ -16,6 +16,9 @@
 #if defined(REMOTE_PROVIDER_NOAA_FORECAST)
 #include "noaa_forecast_provider.h"
 #endif
+#if defined(REMOTE_PROVIDER_GOOGLE_WEATHER_FORECAST)
+#include "google_weather_provider.h"
+#endif
 #if defined(REMOTE_PROVIDER_METEOSWISS_FORECAST)
 #include "meteo_swiss_forecast_provider.h"
 #endif
@@ -45,6 +48,9 @@ ProviderBundle createProviders() {
 #endif
 #if defined(REMOTE_PROVIDER_NOAA_FORECAST)
   bundle.providers.push_back(std::make_shared<NoaaForecastProvider>());
+#endif
+#if defined(REMOTE_PROVIDER_GOOGLE_WEATHER_FORECAST)
+  bundle.providers.push_back(std::make_shared<GoogleWeatherForecastProvider>());
 #endif
 #if defined(REMOTE_PROVIDER_METEOSWISS_FORECAST)
   bundle.providers.push_back(std::make_shared<MeteoSwissForecastProvider>());

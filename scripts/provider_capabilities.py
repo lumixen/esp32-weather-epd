@@ -32,6 +32,9 @@ CAPABILITIES: dict[str, CapabilitySpec] = {
     "open_meteo_forecast": CapabilitySpec(
         always=frozenset({"current_forecast", "hourly_forecast", "daily_forecast"}),
     ),
+    "google_weather_forecast": CapabilitySpec(
+        always=frozenset({"current_forecast", "hourly_forecast", "daily_forecast"}),
+    ),
     "noaa_forecast": CapabilitySpec(
         always=frozenset({"current_forecast", "hourly_forecast", "daily_forecast"}),
     ),
@@ -72,6 +75,10 @@ def effective_capabilities(provider: Any) -> set[str]:
 # `pop` model field; amount is represented by rain/snow model fields.
 PRECIPITATION_SUPPORT = {
     "open_meteo_forecast": {
+        "hourly": {"probability", "amount"},
+        "daily": {"probability", "amount"},
+    },
+    "google_weather_forecast": {
         "hourly": {"probability", "amount"},
         "daily": {"probability", "amount"},
     },

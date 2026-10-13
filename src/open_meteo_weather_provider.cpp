@@ -22,7 +22,7 @@
 
 #include <Arduino.h>
 #if defined(OPEN_METEO_FORECAST_TRANSPORT_HTTPS_VERIFY)
-#include "cert.h"
+#include "esp_crt_bundle.h"
 #endif
 #include <cstdint>
 #include <cstring>
@@ -313,7 +313,7 @@ ProviderResult OpenMeteoForecastProvider::fetch(forecast_t &forecast) {
   // default receive buffer.
   config.buffer_size_tx = 1024;
 #if defined(OPEN_METEO_FORECAST_TRANSPORT_HTTPS_VERIFY)
-  config.cert_pem = cert_ISRG_Root_X1;
+  config.crt_bundle_attach = esp_crt_bundle_attach;
 #endif
 
   return espHttpGetWithRetry(url, sanitizedUrl, config, [&forecast](esp_http_client_handle_t client) {

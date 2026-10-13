@@ -19,7 +19,7 @@
 #include <algorithm>
 #include <vector>
 #include "esp_http_client.h"
-#include "cert.h"
+#include "esp_crt_bundle.h"
 #include "_locale.h"
 #include "display_utils.h"
 #include "esp_http_client_utils.h"
@@ -105,7 +105,7 @@ ProviderResult requestNoaa(const String &url, std::function<ProviderResult(Strea
   esp_http_client_config_t config = {};
   config.timeout_ms = HTTP_CLIENT_TCP_TIMEOUT;
   config.user_agent = kUserAgent;
-  config.cert_pem = cert_NOAA_API_WEATHER_GOV;
+  config.crt_bundle_attach = esp_crt_bundle_attach;
 
   return espHttpGetWithRetry(url, url, config, [consume](esp_http_client_handle_t client) {
     EspHttpClientStream stream(client);

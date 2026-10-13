@@ -14,6 +14,9 @@ configs:
   - id: owm4
     file: owm4.yml
     suite: test_owm4
+  - id: googleweather
+    file: googleweather.yml
+    suite: test_googleweather
   - id: noaa
     file: noaa.yml
     suite: test_noaa
